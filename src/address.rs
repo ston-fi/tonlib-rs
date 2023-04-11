@@ -1,0 +1,399 @@
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
+use std::str::FromStr;
+use std::sync::Arc;
+
+use anyhow::anyhow;
+use crc::Crc;
+use lazy_static::lazy_static;
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use crate::cell::{Cell, CellBuilder};
+
+lazy_static! {
+    pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
+}
+
+#[derive(PartialEq, Eq, Clone, Hash)]
+pub struct TonAddress {
+    pub workchain: i32,
+    pub hash_part: [u8; 32],
+}
+
+impl TonAddress {
+    pub const NULL: TonAddress = TonAddress {
+        workchain: 0,
+        hash_part: [0; 32],
+    };
+
+    pub fn new(workchain: i32, hash_part: &[u8; 32]) -> TonAddress {
+        TonAddress {
+            workchain,
+            hash_part: hash_part.clone(),
+        }
+    }
+
+    pub fn null() -> TonAddress {
+        TonAddress::NULL.clone()
+    }
+
+    pub fn derive(
+        workchain: i32,
+        code: &Arc<Cell>,
+        data: &Arc<Cell>,
+    ) -> anyhow::Result<TonAddress> {
+        let state_init = CellBuilder::new()
+            .store_bit(false)? //Split depth
+            .store_bit(false)? //Ticktock
+            .store_bit(true)? //Code
+            .store_bit(true)? //Data
+            .store_bit(false)? //Library
+            .store_reference(code)?
+            .store_reference(data)?
+            .build()?;
+        let state_init_hash = state_init.cell_hash()?;
+        let hash_part: [u8; 32] = state_init_hash.as_slice().try_into()?;
+        Ok(TonAddress::new(workchain, &hash_part))
+    }
+
+    pub fn from_hex_str(s: &str) -> anyhow::Result<TonAddress> {
+        let parts: Vec<&str> = s.split(":").collect();
+        if parts.len() != 2 {
+            return Err(anyhow!("Not a valid hex address: {}", s));
+        }
+        let wc = i32::from_str_radix(parts[0], 10)?;
+        let hash_part: [u8; 32] = hex::decode(parts[1])?.as_slice().try_into()?;
+        let addr = TonAddress::new(wc, &hash_part);
+        Ok(addr)
+    }
+
+    pub fn from_base64_url(s: &str) -> anyhow::Result<TonAddress> {
+        Ok(Self::from_base64_url_flags(s)?.0)
+    }
+
+    /// Parses url-safe base64 representation of an address
+    ///
+    /// # Returns
+    /// the address, non-bounceable flag, non-production flag.
+    pub fn from_base64_url_flags(s: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+        if s.len() != 48 {
+            return Err(anyhow!("Not a valid base64 address: {}", s));
+        }
+        let bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD)?;
+        Self::from_base64_src(bytes.as_slice().try_into()?, s)
+    }
+
+    pub fn from_base64_std(s: &str) -> anyhow::Result<TonAddress> {
+        Ok(Self::from_base64_std_flags(s)?.0)
+    }
+
+    /// Parses standard base64 representation of an address
+    ///
+    /// # Returns
+    /// the address, non-bounceable flag, non-production flag.
+    pub fn from_base64_std_flags(s: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+        if s.len() != 48 {
+            return Err(anyhow!("Not a valid base64 address: {}", s));
+        }
+        let bytes = base64::decode_config(s, base64::STANDARD_NO_PAD)?;
+        Self::from_base64_src(bytes.as_slice().try_into()?, s)
+    }
+
+    /// Parses decoded base64 representation of an address
+    ///
+    /// # Returns
+    /// the address, non-bounceable flag, non-production flag.
+    fn from_base64_src(bytes: &[u8; 36], src: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+        let (non_production, non_bounceable) = match bytes[0] {
+            0x11 => (false, false),
+            0x51 => (false, true),
+            0x91 => (true, false),
+            0xD1 => (true, true),
+            v => return Err(anyhow!("Invalid tag byte: {:#x} in address {}", v, src)),
+        };
+        let workchain = bytes[1] as i8 as i32;
+        let calc_crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
+        let addr_crc = ((bytes[34] as u16) << 8) | bytes[35] as u16;
+        if calc_crc != addr_crc {
+            return Err(anyhow!("CRC mismatch in address {}", src));
+        }
+        let mut hash_part = [0 as u8; 32];
+        hash_part.clone_from_slice(&bytes[2..34]);
+        let addr = TonAddress {
+            workchain,
+            hash_part,
+        };
+        Ok((addr, non_bounceable, non_production))
+    }
+
+    pub fn to_hex(&self) -> String {
+        format!("{}:{}", self.workchain, hex::encode(self.hash_part))
+    }
+
+    pub fn to_base64_url(&self) -> String {
+        self.to_base64_url_flags(false, false)
+    }
+
+    pub fn to_base64_url_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+        let mut buf: [u8; 36] = [0; 36];
+        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        base64::encode_config(&buf, base64::URL_SAFE_NO_PAD)
+    }
+
+    pub fn to_base64_std(&self) -> String {
+        self.to_base64_std_flags(false, false)
+    }
+
+    pub fn to_base64_std_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+        let mut buf: [u8; 36] = [0; 36];
+        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        base64::encode_config(&buf, base64::STANDARD_NO_PAD)
+    }
+
+    fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, non_production: bool) {
+        let tag: u8 = match (non_production, non_bounceable) {
+            (false, false) => 0x11,
+            (false, true) => 0x51,
+            (true, false) => 0x91,
+            (true, true) => 0xD1,
+        };
+        bytes[0] = tag;
+        bytes[1] = (self.workchain & 0xff) as u8;
+        bytes[2..34].clone_from_slice(&self.hash_part);
+        let crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
+        bytes[34] = ((crc >> 8) & 0xff) as u8;
+        bytes[35] = (crc & 0xff) as u8;
+    }
+}
+
+impl Display for TonAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_base64_url().as_str())
+    }
+}
+
+impl Debug for TonAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_base64_url().as_str())
+    }
+}
+
+impl FromStr for TonAddress {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let res = if s.len() == 48 {
+            // Some form of base64 address, check which one
+            if s.contains('-') || s.contains('_') {
+                TonAddress::from_base64_url(s)
+            } else {
+                TonAddress::from_base64_std(s)
+            }
+        } else {
+            TonAddress::from_hex_str(s)
+        };
+        res.map_err(|_| anyhow!("Unrecognized address format: {}", s))
+    }
+}
+
+impl TryFrom<String> for TonAddress {
+    type Error = anyhow::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(value.as_str())
+    }
+}
+
+impl Serialize for TonAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.to_base64_url().as_str())
+    }
+}
+
+struct TonAddressVisitor;
+
+impl<'de> Visitor<'de> for TonAddressVisitor {
+    type Value = TonAddress;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("an string representing TON address in Hex or Base64 format")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        v.parse().map_err(E::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for TonAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(TonAddressVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    use crate::address::TonAddress;
+
+    #[test]
+    fn format_works() -> anyhow::Result<()> {
+        let bytes: [u8; 32] =
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
+                .as_slice()
+                .try_into()?;
+        let addr = TonAddress::new(0, &bytes);
+        assert_eq!(
+            addr.to_hex(),
+            "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
+        );
+        assert_eq!(
+            addr.to_base64_url(),
+            "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
+        );
+        assert_eq!(
+            addr.to_base64_std(),
+            "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_format_works() -> anyhow::Result<()> {
+        let bytes: [u8; 32] =
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
+                .as_slice()
+                .try_into()?;
+        let addr = TonAddress::new(0, &bytes);
+        assert_eq!(
+            TonAddress::from_hex_str(
+                "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
+            )?,
+            addr
+        );
+        assert_eq!(
+            TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?,
+            addr
+        );
+        assert_eq!(
+            TonAddress::from_base64_std("EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR")?,
+            addr
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_works() -> anyhow::Result<()> {
+        let bytes: [u8; 32] =
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
+                .as_slice()
+                .try_into()?;
+        let addr = TonAddress::new(0, &bytes);
+        assert_eq!(
+            "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
+                .parse::<TonAddress>()?,
+            addr
+        );
+        assert_eq!(
+            "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?,
+            addr
+        );
+        assert_eq!(
+            "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?,
+            addr
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn try_from_works() -> anyhow::Result<()> {
+        let bytes: [u8; 32] =
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
+                .as_slice()
+                .try_into()?;
+        let addr = TonAddress::new(0, &bytes);
+        let res: TonAddress = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
+            .to_string()
+            .try_into()?;
+        assert_eq!(res, addr);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_verifies_crc() -> anyhow::Result<()> {
+        let res = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjra".parse::<TonAddress>();
+        assert!(res.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn serialization_works() -> anyhow::Result<()> {
+        let expected = "\"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR\"";
+
+        let res = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?;
+        let serial = serde_json::to_string(&res).unwrap();
+        println!("{}", serial);
+        assert_eq!(serial.as_str(), expected);
+
+        let res = "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
+            .parse::<TonAddress>()?;
+        let serial = serde_json::to_string(&res).unwrap();
+        println!("{}", serial);
+        assert_eq!(serial.as_str(), expected);
+
+        let res = "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?;
+        let serial = serde_json::to_string(&res).unwrap();
+        println!("{}", serial);
+        assert_eq!(serial.as_str(), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn deserialization_works() -> anyhow::Result<()> {
+        let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
+        let a = format!("\"{}\"", address);
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
+        let expected = address.parse()?;
+        println!("{}", deserial);
+        assert_eq!(deserial, expected);
+
+        let address = "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR";
+        let a = format!("\"{}\"", address);
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
+        let expected = address.parse()?;
+        println!("{}", deserial);
+        assert_eq!(deserial, expected);
+
+        let address = "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76";
+        let a = format!("\"{}\"", address);
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
+        let expected = address.parse()?;
+        println!("{}", deserial);
+        assert_eq!(deserial, expected);
+
+        let address =
+            String::from("0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76");
+        let deserial: TonAddress = serde_json::from_value(Value::String(address.clone()))?;
+        let expected = address.clone().parse()?;
+        println!("{}", deserial);
+        assert_eq!(deserial, expected);
+
+        let address = "124";
+        let a = format!("\"{}\"", address);
+        let deserial: serde_json::Result<TonAddress> = serde_json::from_str(a.as_str());
+        assert_eq!(true, deserial.is_err());
+
+        Ok(())
+    }
+}

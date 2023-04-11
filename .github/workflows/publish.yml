@@ -1,0 +1,17 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CRATES_IO_REGISTRY_TOKEN }}
