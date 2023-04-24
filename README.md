@@ -5,14 +5,14 @@ Rust SDK for [The Open Network](https://ton.org/)
 ## Features
 
 * Rust SDK for The Open Network
-* Using `tonlibjson` as data provider;
-* Support parsing and generation of Cells methods for more convenient interaction with data structures;
+* Using `tonlibjson` as data provider
+* Support parsing and generation of Cells methods for more convenient interaction with data structures
 * Support of Wallet versions (3, 3 revision 2, 4 revision 2)
 * Derive wallet address
 * Support of TON Mnemonics
 * NaCL-compatible Ed25519 signing of transactions
-* Support jetton functions. Getting of jetton data and wallet address for jetton.
-* Support internal and external jetton metadata loading.
+* Support jetton functions: getting of jetton data and wallet address for jetton
+* Support internal and external jetton metadata loading
 * Connection pooling & retries support for better server-level interaction
 * Support of IPFS jetton metadata
 
