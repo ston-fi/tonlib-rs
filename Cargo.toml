@@ -42,5 +42,5 @@ tokio-retry = "0.3"
 tonlib-sys = "0.1"
 
 [dev-dependencies]
-tokio-test = "*"
+tokio-test = "0.4"
 log4rs = "1"
