@@ -1,0 +1,16 @@
+version: '2.2'
+
+volumes:
+  ipfs-data: {}
+
+services:
+  ipfs:
+    image: ipfs/go-ipfs
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    environment:
+      IPFS_PROFILE: server
+    volumes:
+      - ipfs-data:/data/ipfs
