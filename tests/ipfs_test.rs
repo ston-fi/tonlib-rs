@@ -19,6 +19,7 @@ async fn test_ipfs_http_gateway() -> anyhow::Result<()> {
 ///
 /// Check `compose/README.md` for details
 #[tokio::test]
+#[ignore]
 async fn test_ipfs_node() -> anyhow::Result<()> {
     common::init_logging();
     let config = IpfsLoaderConfig::ipfs_node("http://localhost:5001");

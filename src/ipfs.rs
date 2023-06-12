@@ -4,22 +4,22 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(tag = "@type")]
+#[serde(rename_all = "snake_case")]
 pub enum IpfsLoaderConfig {
-    HttpGateway { uri: String },
-    IpfsNode { uri: String },
+    HttpGateway { url: String },
+    IpfsNode { url: String },
 }
 
 impl IpfsLoaderConfig {
-    pub fn http_gateway(uri: &str) -> IpfsLoaderConfig {
+    pub fn http_gateway(url: &str) -> IpfsLoaderConfig {
         IpfsLoaderConfig::HttpGateway {
-            uri: uri.to_string(),
+            url: url.to_string(),
         }
     }
 
-    pub fn ipfs_node(uri: &str) -> IpfsLoaderConfig {
+    pub fn ipfs_node(url: &str) -> IpfsLoaderConfig {
         IpfsLoaderConfig::IpfsNode {
-            uri: uri.to_string(),
+            url: url.to_string(),
         }
     }
 }
@@ -27,7 +27,7 @@ impl IpfsLoaderConfig {
 impl Default for IpfsLoaderConfig {
     fn default() -> Self {
         Self::HttpGateway {
-            uri: "https://cloudflare-ipfs.com/ipfs/".to_string(),
+            url: "https://cloudflare-ipfs.com/ipfs/".to_string(),
         }
     }
 }
@@ -39,12 +39,12 @@ pub struct IpfsLoader {
 impl IpfsLoader {
     pub fn new(config: &IpfsLoaderConfig) -> anyhow::Result<Self> {
         let loader: IpfsLoaderBackend = match config {
-            IpfsLoaderConfig::HttpGateway { uri } => IpfsLoaderBackend::HttpGateway {
-                prefix: uri.clone(),
+            IpfsLoaderConfig::HttpGateway { url } => IpfsLoaderBackend::HttpGateway {
+                prefix: url.clone(),
                 client: reqwest::Client::builder().build()?,
             },
-            IpfsLoaderConfig::IpfsNode { uri } => IpfsLoaderBackend::IpfsNode {
-                client: IpfsClient::from_str(uri.as_str())?,
+            IpfsLoaderConfig::IpfsNode { url } => IpfsLoaderBackend::IpfsNode {
+                client: IpfsClient::from_str(url.as_str())?,
             },
         };
         Ok(Self { backend: loader })
@@ -101,5 +101,32 @@ impl IpfsLoaderBackend {
                 Ok(bytes)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ipfs::IpfsLoaderConfig;
+
+    static CONFIG_JSON: &str = r#"
+    {
+      "http_gateway": {
+        "url": "http://example.com/"
+      }
+    }
+    "#;
+
+    #[test]
+    fn test_config_deserialization() -> anyhow::Result<()> {
+        let config: IpfsLoaderConfig = serde_json::from_str(CONFIG_JSON)?;
+        match config {
+            IpfsLoaderConfig::HttpGateway { url } => {
+                assert_eq!(url, "http://example.com/");
+            }
+            _ => {
+                panic!("Expected HttpGateway config, got {:?}", config);
+            }
+        };
+        Ok(())
     }
 }
