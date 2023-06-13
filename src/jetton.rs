@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::address::TonAddress;
 use crate::cell::{BagOfCells, CellBuilder};
 use crate::contract::TonContract;
+use crate::ipfs::{IpfsLoader, IpfsLoaderConfig};
 use crate::tl::stack::TvmSlice;
 use crate::tl::stack::TvmStackEntry::Slice;
 
@@ -97,22 +98,31 @@ pub struct JettonMetaData {
 }
 
 pub struct JettonContentLoader {
-    client: reqwest::Client,
+    http_client: reqwest::Client,
+    ipfs_loader: IpfsLoader,
 }
 
 impl JettonContentLoader {
-    pub fn new() -> anyhow::Result<JettonContentLoader> {
-        let client = reqwest::Client::builder().build()?;
-        Ok(JettonContentLoader { client })
+    pub fn new(ipfs_loader_config: &IpfsLoaderConfig) -> anyhow::Result<JettonContentLoader> {
+        let http_client = reqwest::Client::builder().build()?;
+        let ipfs_loader = IpfsLoader::new(ipfs_loader_config)?;
+        Ok(JettonContentLoader {
+            http_client,
+            ipfs_loader,
+        })
+    }
+
+    pub fn default() -> anyhow::Result<JettonContentLoader> {
+        Self::new(&IpfsLoaderConfig::default())
     }
 
     pub async fn load(&self, content: &JettonContent) -> anyhow::Result<JettonMetaData> {
         match content {
-            JettonContent::External { uri } => self.load_meta_from_uri(uri).await,
+            JettonContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             JettonContent::Internal { dict } => {
                 if dict.contains_key(&JETTON_META_URI.key) {
                     let uri = dict.get(&JETTON_META_URI.key).unwrap();
-                    let external_meta = self.load_meta_from_uri(uri).await?;
+                    let external_meta = self.load_meta_from_uri(uri.as_str()).await?;
                     Ok(JettonMetaData {
                         name: external_meta
                             .name
@@ -154,26 +164,25 @@ impl JettonContentLoader {
         }
     }
 
-    async fn load_meta_from_uri(&self, uri: &String) -> anyhow::Result<JettonMetaData> {
-        let url = if uri.starts_with("ipfs://") {
-            let ipfs_token: String = uri.chars().into_iter().skip(7).collect();
-            format!("{}{}", "https://cloudflare-ipfs.com/ipfs/", ipfs_token)
+    async fn load_meta_from_uri(&self, uri: &str) -> anyhow::Result<JettonMetaData> {
+        log::trace!("Downloading metadata from {}", uri);
+        let meta_str: String = if uri.starts_with("ipfs://") {
+            let path: String = uri.chars().into_iter().skip(7).collect();
+            self.ipfs_loader.load_utf8(path.as_str()).await?
         } else {
-            uri.clone()
+            let resp = self.http_client.get(uri).send().await?;
+            if resp.status().is_success() {
+                resp.text().await?
+            } else {
+                anyhow::bail!(
+                    "Failed to load jetton metadata from {}. Resp status: {}",
+                    uri,
+                    resp.status()
+                );
+            }
         };
-        let resp = self.client.get(url).send().await?;
-        let resp_status = resp.status();
-        if resp_status.is_success() {
-            let text = resp.text().await?;
-            let meta: JettonMetaData = serde_json::from_str(&text)?;
-            Ok(meta)
-        } else {
-            anyhow::bail!(
-                "Failed to load jetton metadata from {}. Resp status: {}",
-                uri,
-                resp_status
-            );
-        }
+        let meta: JettonMetaData = serde_json::from_str(&meta_str)?;
+        Ok(meta)
     }
 }
 
