@@ -1,8 +1,8 @@
-use crate::address::TonAddress;
 use crate::client::{TonConnection, TonFunctions};
 use crate::contract::TonContractError;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{SmcMethodId, SmcRunResult};
+use crate::{address::TonAddress, tl::TonResult};
 
 pub struct TonContractState {
     connection: TonConnection,
@@ -15,11 +15,17 @@ impl TonContractState {
         address: &TonAddress,
     ) -> anyhow::Result<TonContractState> {
         let (conn, state_id) = client.smc_load(&address.to_hex()).await?;
-        client.smc_forget(state_id).await?;
         Ok(TonContractState {
             connection: conn,
             state_id,
         })
+    }
+
+    pub async fn forget<C: TonFunctions + Send + Sync>(
+        &self,
+        client: &C,
+    ) -> anyhow::Result<TonResult> {
+        client.smc_forget(self.state_id).await
     }
 
     pub async fn run_get_method(

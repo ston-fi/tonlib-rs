@@ -112,4 +112,23 @@ impl TonContract {
             )),
         }
     }
+
+    async fn forget_state(&self) -> anyhow::Result<()> {
+        if let Ok(state) = self.load_state().await {
+            if let Ok(_) = state.forget(self.client()).await {
+                // Successful cleanup
+            } else {
+                return Err(anyhow::anyhow!("Failed to perform smc.forget."));
+            }
+        } else {
+            return Err(anyhow::anyhow!("Failed to load contract state."));
+        }
+        Ok(())
+    }
+}
+
+impl Drop for TonContract {
+    fn drop(&mut self) {
+        let _ = self.forget_state();
+    }
 }
