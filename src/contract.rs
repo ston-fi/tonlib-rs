@@ -113,33 +113,3 @@ impl TonContract {
         }
     }
 }
-
-impl Drop for TonContract {
-    fn drop(&mut self) {
-        let runtime = match tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(err) => {
-                log::error!(
-                    "Failed to create Tokio runtime to forget TonContract: {}",
-                    err
-                );
-                return;
-            }
-        };
-
-        runtime.block_on(async {
-            if let Ok(state) = self.load_state().await {
-                if let Ok(_) = state.forget(self.client()).await {
-                    // Successful cleanup
-                } else {
-                    log::error!("Failed to perform smc.forget.");
-                }
-            } else {
-                log::error!("Failed to load contract state.");
-            }
-        });
-    }
-}
