@@ -21,6 +21,16 @@ impl TonContractState {
         })
     }
 
+    pub async fn forget<C: TonFunctions + Send + Sync>(
+        &self,
+        client: &C,
+    ) -> anyhow::Result<TonContractState> {
+        let (conn, state_id) = client.smc_forget(self.state_id).await?;
+        Ok(TonContractState {
+            connection: conn,
+            state_id,
+        })
+    }
     pub async fn run_get_method(
         &self,
         method: &str,

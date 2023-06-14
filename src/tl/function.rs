@@ -54,10 +54,15 @@ pub enum TonFunction {
     GetAccountState {
         account_address: AccountAddress,
     },
-    // tonlib_api.tl, line 293
+    // tonlib_api.tl, line 300
     #[serde(rename = "smc.load")]
     SmcLoad {
         account_address: AccountAddress,
+    },
+    // tonlib_api.tl, line 302
+    #[serde(rename = "smc.forget")]
+    SmcForget {
+        id: i64,
     },
     // tonlib_api.tl, line 298
     #[serde(rename = "smc.runGetMethod")]

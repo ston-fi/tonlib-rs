@@ -226,6 +226,15 @@ pub trait TonFunctions {
         }
     }
 
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<(TonConnection, i64)> {
+        let func = TonFunction::SmcForget { id };
+        let (conn, result) = self.invoke_on_connection(&func).await?;
+        match result {
+            TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
+            r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
+        }
+    }
+
     async fn get_masterchain_info(&self) -> anyhow::Result<BlocksMasterchainInfo> {
         let func = TonFunction::BlocksGetMasterchainInfo {};
         let result = self.invoke(&func).await?;
