@@ -226,7 +226,7 @@ pub trait TonFunctions {
         }
     }
 
-    async fn smc_forget(&self, id: i64) -> anyhow::Result< TonResult> {
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
         let func = TonFunction::SmcForget { id };
         let result = self.invoke(&func).await?;
         Ok(result)
