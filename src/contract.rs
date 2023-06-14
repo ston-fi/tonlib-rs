@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use std::error::Error;
 use std::fmt;
 
-use crate::client::{TonClient, TonFunctions};
+use crate::client::TonFunctions;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
     FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction, RawTransactions,
@@ -33,30 +33,36 @@ impl fmt::Display for TonContractError {
 
 impl Error for TonContractError {}
 
-pub struct TonContract {
-    client: TonClient,
-    address: TonAddress,
+pub struct TonContract<'a, C>
+where
+    C: TonFunctions + Send + Sync,
+{
+    client: &'a C,
+    address: &'a TonAddress,
     address_hex: String,
 }
 
-impl TonContract {
-    pub fn new(client: &TonClient, address: &TonAddress) -> TonContract {
+impl<'a, C: TonFunctions> TonContract<'a, C>
+where
+    C: TonFunctions + Send + Sync,
+{
+    pub fn new(client: &'a C, address: &'a TonAddress) -> TonContract<'a, C> {
         let contract = TonContract {
-            client: client.clone(),
-            address: address.clone(),
+            client,
+            address,
             address_hex: address.to_hex(),
         };
         contract
     }
 
     #[inline(always)]
-    pub fn client(&self) -> &TonClient {
-        &self.client
+    pub fn client(&self) -> &C {
+        self.client
     }
 
     #[inline(always)]
     pub fn address(&self) -> &TonAddress {
-        &self.address
+        self.address
     }
 
     #[inline(always)]
@@ -64,8 +70,8 @@ impl TonContract {
         self.address_hex.as_str()
     }
 
-    pub async fn load_state(&self) -> anyhow::Result<TonContractState> {
-        let state = TonContractState::load(&self.client, &self.address).await?;
+    pub async fn load_state(&self) -> anyhow::Result<TonContractState<'a, C>> {
+        let state = TonContractState::load(self.client, self.address).await?;
         Ok(state)
     }
 
@@ -115,7 +121,7 @@ impl TonContract {
 
     async fn forget_state(&self) -> anyhow::Result<()> {
         if let Ok(state) = self.load_state().await {
-            if let Ok(_) = state.forget(self.client()).await {
+            if let Ok(_) = state.forget(self.client).await {
                 // Successful cleanup
             } else {
                 return Err(anyhow::anyhow!("Failed to perform smc.forget."));
@@ -127,7 +133,10 @@ impl TonContract {
     }
 }
 
-impl Drop for TonContract {
+impl<'a, C> Drop for TonContract<'a, C>
+where
+    C: TonFunctions + Send + Sync,
+{
     fn drop(&mut self) {
         let _ = self.forget_state();
     }

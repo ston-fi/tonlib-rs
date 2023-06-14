@@ -8,10 +8,8 @@ mod common;
 async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?,
-    ); //MOON jetton
+    let address: TonAddress = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?;
+    let contract = TonContract::new(&client, &address); //MOON jetton
     let res = contract.get_jetton_data().await?;
     assert_eq!(
         res.content,
@@ -31,10 +29,8 @@ async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
 async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86".parse()?,
-    ); //FunZee jetton
+    let address: TonAddress = "EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86".parse()?;
+    let contract = TonContract::new(&client, &address); //FunZee jetton
     let res = contract.get_jetton_data().await?;
     let loader = JettonContentLoader::default()?;
     let content_res = loader.load(&res.content).await?;
@@ -48,10 +44,8 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
 async fn test_get_jetton_content_internal_uri_tgr() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQAvDfWFG0oYX19jwNDNBBL1rKNT9XfaGP9HyTb5nb2Eml6y".parse()?,
-    ); //FunZee jetton
+    let address: TonAddress = "EQAvDfWFG0oYX19jwNDNBBL1rKNT9XfaGP9HyTb5nb2Eml6y".parse()?;
+    let contract = TonContract::new(&client, &address); //FunZee jetton
     let res = contract.get_jetton_data().await?;
     let loader = JettonContentLoader::default()?;
     let content_res = loader.load(&res.content).await?;
@@ -60,14 +54,13 @@ async fn test_get_jetton_content_internal_uri_tgr() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 #[tokio::test]
 async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIw".parse()?,
-    ); // BOLT jetton
+    let address: TonAddress = "EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIw".parse()?;
+    let contract = TonContract::new(&client, &address); // BOLT jetton
     let res = contract.get_jetton_data().await?;
     let loader = JettonContentLoader::default()?;
     let content_res = loader.load(&res.content).await?;
@@ -83,10 +76,8 @@ async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
 async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?,
-    ); // jUSDC jetton
+    let address: TonAddress = "EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?;
+    let contract = TonContract::new(&client, &address); // jUSDC jetton
     let res = contract.get_jetton_data().await?;
     let loader = JettonContentLoader::default()?;
     let content_res = loader.load(&res.content).await?;
@@ -101,10 +92,8 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
 async fn test_get_wallet_address() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?,
-    );
+    let address: TonAddress = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?;
+    let contract = TonContract::new(&client, &address);
     let owner_address =
         TonAddress::from_base64_url("EQB2BtXDXaQuIcMYW7JEWhHmwHfPPwa-eoCdefiAxOhU3pQg")?;
     let wallet_address = contract.get_wallet_address(&owner_address).await?;

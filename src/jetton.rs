@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
 use sha2::{Digest, Sha256};
 
-use crate::address::TonAddress;
 use crate::cell::{BagOfCells, CellBuilder};
 use crate::contract::TonContract;
 use crate::ipfs::{IpfsLoader, IpfsLoaderConfig};
 use crate::tl::stack::TvmSlice;
 use crate::tl::stack::TvmStackEntry::Slice;
+use crate::{address::TonAddress, client::TonFunctions};
 
 // Constants from jetton reference implementation:
 // https://github.com/ton-blockchain/token-contract/blob/main/ft/op-codes.fc
@@ -193,7 +193,10 @@ pub trait JettonMasterContract {
 }
 
 #[async_trait]
-impl JettonMasterContract for TonContract {
+impl<'a, C> JettonMasterContract for TonContract<'a, C>
+where
+    C: TonFunctions + Send + Sync,
+{
     async fn get_jetton_data(&self) -> anyhow::Result<JettonData> {
         let res = self.run_get_method("get_jetton_data", &Vec::new()).await?;
         let stack = res.stack;
@@ -281,7 +284,10 @@ pub trait JettonWalletContract {
 }
 
 #[async_trait]
-impl JettonWalletContract for TonContract {
+impl<'a, C> JettonWalletContract for TonContract<'a, C>
+where
+    C: TonFunctions + Send + Sync,
+{
     async fn get_wallet_data(&self) -> anyhow::Result<WalletData> {
         let res = self.run_get_method("get_wallet_data", &Vec::new()).await?;
         let stack = res.stack;
