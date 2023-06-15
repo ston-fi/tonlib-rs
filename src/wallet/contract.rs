@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 
-use crate::{client::TonFunctions, contract::TonContract};
+use crate::contract::TonContract;
 
 #[async_trait]
 pub trait TonWalletContract {
@@ -10,7 +10,7 @@ pub trait TonWalletContract {
 }
 
 #[async_trait]
-impl<C: TonFunctions + Send + Sync> TonWalletContract for TonContract<'_, C> {
+impl TonWalletContract for TonContract {
     async fn seqno(&self) -> anyhow::Result<u32> {
         let res = self.run_get_method("seqno", &Vec::new()).await?;
         let stack = res.stack;

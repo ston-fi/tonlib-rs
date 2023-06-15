@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use std::error::Error;
 use std::fmt;
 
-use crate::client::TonFunctions;
+use crate::client::{TonClient, TonFunctions};
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
     FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction, RawTransactions,
@@ -33,36 +33,30 @@ impl fmt::Display for TonContractError {
 
 impl Error for TonContractError {}
 
-pub struct TonContract<'a, C>
-where
-    C: TonFunctions + Send + Sync,
-{
-    client: &'a C,
-    address: &'a TonAddress,
+pub struct TonContract {
+    client: TonClient,
+    address: TonAddress,
     address_hex: String,
 }
 
-impl<'a, C: TonFunctions> TonContract<'a, C>
-where
-    C: TonFunctions + Send + Sync,
-{
-    pub fn new(client: &'a C, address: &'a TonAddress) -> TonContract<'a, C> {
+impl TonContract {
+    pub fn new(client: &TonClient, address: &TonAddress) -> TonContract {
         let contract = TonContract {
-            client,
-            address,
+            client: client.clone(),
+            address: address.clone(),
             address_hex: address.to_hex(),
         };
         contract
     }
 
     #[inline(always)]
-    pub fn client(&self) -> &C {
-        self.client
+    pub fn client(&self) -> &TonClient {
+        &self.client
     }
 
     #[inline(always)]
     pub fn address(&self) -> &TonAddress {
-        self.address
+        &self.address
     }
 
     #[inline(always)]
@@ -71,7 +65,7 @@ where
     }
 
     pub async fn load_state(&self) -> anyhow::Result<TonContractState> {
-        let state = TonContractState::load(self.client, self.address).await?;
+        let state = TonContractState::load(&self.client, &self.address).await?;
         Ok(state)
     }
 

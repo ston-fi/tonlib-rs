@@ -2,8 +2,8 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
 
+use tonlib::address::TonAddress;
 use tonlib::contract::TonContract;
-use tonlib::{address::TonAddress, client::TonFunctions};
 
 mod common;
 
@@ -30,7 +30,7 @@ pub trait PoolContract {
 }
 
 #[async_trait]
-impl<C: TonFunctions + Send + Sync> PoolContract for TonContract<'_, C> {
+impl PoolContract for TonContract {
     async fn get_pool_data(&self) -> anyhow::Result<PoolData> {
         let res = self.run_get_method("get_pool_data", &Vec::new()).await?;
         if res.stack.elements.len() == 10 {
@@ -77,8 +77,10 @@ impl<C: TonFunctions + Send + Sync> PoolContract for TonContract<'_, C> {
 async fn client_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let address: TonAddress = "EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?;
-    let contract = TonContract::new(&client, &address);
+    let contract = TonContract::new(
+        &client,
+        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
+    );
     let pool_data = contract.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;

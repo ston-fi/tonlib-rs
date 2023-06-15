@@ -6,12 +6,13 @@ use anyhow::anyhow;
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
+use crate::client::TonClient;
+use crate::contract::TonContract;
 use crate::tl::types::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-use crate::{client::TonFunctions, contract::TonContract};
 
-pub struct LatestContractTransactions<'a, C: TonFunctions + Send + Sync> {
+pub struct LatestContractTransactions {
     capacity: usize,
-    contract: TonContract<'a, C>,
+    contract: TonContract,
     inner: Mutex<Inner>,
 }
 
@@ -19,15 +20,15 @@ struct Inner {
     transactions: LinkedList<Arc<RawTransaction>>,
 }
 
-impl<'a, C: TonFunctions + Send + Sync> LatestContractTransactions<'a, C> {
+impl LatestContractTransactions {
     pub fn new(
-        client: &'a C,
-        contract_address: &'a TonAddress,
+        client: &TonClient,
+        contract_address: &TonAddress,
         capacity: usize,
-    ) -> LatestContractTransactions<'a, C> {
+    ) -> LatestContractTransactions {
         LatestContractTransactions {
             capacity,
-            contract: TonContract::new(client, contract_address),
+            contract: TonContract::new(client, &contract_address.clone()),
             inner: Mutex::new(Inner {
                 transactions: LinkedList::new(),
             }),
