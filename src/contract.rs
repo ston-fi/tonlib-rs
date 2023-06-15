@@ -70,7 +70,7 @@ where
         self.address_hex.as_str()
     }
 
-    pub async fn load_state(&self) -> anyhow::Result<TonContractState<'a, C>> {
+    pub async fn load_state(&self) -> anyhow::Result<TonContractState> {
         let state = TonContractState::load(self.client, self.address).await?;
         Ok(state)
     }

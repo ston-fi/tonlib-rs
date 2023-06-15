@@ -4,33 +4,25 @@ use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{SmcMethodId, SmcRunResult};
 use crate::{address::TonAddress, tl::TonResult};
 
-pub struct TonContractState<'a, C>
-where
-    C: TonFunctions + Send + Sync,
-{
+pub struct TonContractState {
     connection: TonConnection,
     state_id: i64,
-    client: &'a C,
 }
 
-impl<'a, T> TonContractState<'a, T>
-where
-    T: TonFunctions + Send + Sync,
-{
-    pub(crate) async fn load(
-        client: &'a T,
+impl TonContractState {
+    pub(crate) async fn load<C: TonFunctions + Send + Sync>(
+        client: &C,
         address: &TonAddress,
-    ) -> anyhow::Result<TonContractState<'a, T>> {
+    ) -> anyhow::Result<TonContractState> {
         let (conn, state_id) = client.smc_load(&address.to_hex()).await?;
         Ok(TonContractState {
-            client,
             connection: conn,
             state_id,
         })
     }
 
-    pub async fn forget(&self, client: &'a T) -> anyhow::Result<TonResult> {
-        client.smc_forget(self.state_id).await
+    pub async fn forget(&self) -> anyhow::Result<TonResult> {
+        self.connection.smc_forget(self.state_id).await
     }
 
     pub async fn run_get_method(
@@ -58,8 +50,8 @@ where
     }
 }
 
-impl<T: TonFunctions + Send + Sync> Drop for TonContractState<'_, T> {
+impl Drop for TonContractState {
     fn drop(&mut self) {
-        let _ = self.forget(self.client);
+        let _ = self.forget();
     }
 }
