@@ -1,8 +1,8 @@
-use crate::address::TonAddress;
 use crate::client::{TonConnection, TonFunctions};
 use crate::contract::TonContractError;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{SmcMethodId, SmcRunResult};
+use crate::{address::TonAddress, tl::TonResult};
 
 pub struct TonContractState {
     connection: TonConnection,
@@ -19,6 +19,10 @@ impl TonContractState {
             connection: conn,
             state_id,
         })
+    }
+
+    pub async fn forget(&self) -> anyhow::Result<TonResult> {
+        self.connection.smc_forget(self.state_id).await
     }
 
     pub async fn run_get_method(
@@ -43,5 +47,11 @@ impl TonContractState {
             };
             Err(anyhow::Error::from(err))
         }
+    }
+}
+
+impl Drop for TonContractState {
+    fn drop(&mut self) {
+        let _ = self.forget();
     }
 }

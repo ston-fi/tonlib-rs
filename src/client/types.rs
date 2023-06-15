@@ -226,6 +226,12 @@ pub trait TonFunctions {
         }
     }
 
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
+        let func = TonFunction::SmcForget { id };
+        let result = self.invoke(&func).await?;
+        Ok(result)
+    }
+
     async fn get_masterchain_info(&self) -> anyhow::Result<BlocksMasterchainInfo> {
         let func = TonFunction::BlocksGetMasterchainInfo {};
         let result = self.invoke(&func).await?;
