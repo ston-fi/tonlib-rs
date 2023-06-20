@@ -22,6 +22,7 @@ impl TonContractState {
     }
 
     pub async fn forget(&self) -> anyhow::Result<TonResult> {
+        log::trace!("Calling smc_forget");
         self.connection.smc_forget(self.state_id).await
     }
 
