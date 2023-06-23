@@ -34,13 +34,13 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib-rs = "0.5.0"
+tonlib = "0.5.1"
 ```
 
 Then, in your Rust code, you can import the library with:
 
 ```rust
-use tonlib_rs;
+use tonlib;
 ```
 
 ### Cell
