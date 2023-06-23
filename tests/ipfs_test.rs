@@ -24,10 +24,20 @@ async fn test_ipfs_node() -> anyhow::Result<()> {
     common::init_logging();
     let config = IpfsLoaderConfig::ipfs_node("http://localhost:5001");
     let loader = IpfsLoader::new(&config)?;
-    let result = loader
-        .load_utf8("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
-        .await?;
+    let result = tokio::spawn(async move {
+        let r = loader
+            .load_utf8("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
+            .await;
+        r
+    })
+    .await??;
     println!("{}", result);
     assert!(result.contains("BOLT"));
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_ipfs() -> anyhow::Result<()> {
     Ok(())
 }

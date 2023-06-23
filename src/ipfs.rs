@@ -1,7 +1,6 @@
-use futures::TryStreamExt;
-use ipfs_api_backend_hyper::{IpfsApi, IpfsClient, TryFromUri};
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -32,26 +31,50 @@ impl Default for IpfsLoaderConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct IpfsLoader {
-    backend: IpfsLoaderBackend,
+    config: IpfsLoaderConfig,
+    client: reqwest::Client,
 }
 
 impl IpfsLoader {
     pub fn new(config: &IpfsLoaderConfig) -> anyhow::Result<Self> {
-        let loader: IpfsLoaderBackend = match config {
-            IpfsLoaderConfig::HttpGateway { url } => IpfsLoaderBackend::HttpGateway {
-                prefix: url.clone(),
-                client: reqwest::Client::builder().build()?,
-            },
-            IpfsLoaderConfig::IpfsNode { url } => IpfsLoaderBackend::IpfsNode {
-                client: IpfsClient::from_str(url.as_str())?,
-            },
-        };
-        Ok(Self { backend: loader })
+        Ok(Self {
+            config: config.clone(),
+            client: reqwest::Client::builder().build()?,
+        })
     }
 
     pub async fn load(&self, path: &str) -> anyhow::Result<Vec<u8>> {
-        self.backend.load(path).await
+        let response = match &self.config {
+            IpfsLoaderConfig::HttpGateway { url } => {
+                let uri = format!("{}/{}", url, path);
+                self.client.get(uri).send().await?
+            }
+            IpfsLoaderConfig::IpfsNode { url } => {
+                let uri = format!("{}/api/v0/cat?arg={}", url, path);
+                self.client.post(uri).send().await?
+            }
+        };
+        let status = response.status();
+        if status.is_success() {
+            let bytes = response.bytes().await?.to_vec();
+            Ok(bytes)
+        } else {
+            const MAX_MESSAGE_SIZE: usize = 200;
+            let body = String::from_utf8(response.bytes().await?.to_vec())?;
+            let message = if body.len() > MAX_MESSAGE_SIZE {
+                format!("{}...", &body[0..MAX_MESSAGE_SIZE - 3])
+            } else {
+                body.clone()
+            };
+            anyhow::bail!(
+                "Failed to load IPFS object {}, status: {}, message: {}",
+                path,
+                status,
+                message
+            );
+        }
     }
 
     pub async fn load_utf8(&self, path: &str) -> anyhow::Result<String> {
@@ -62,45 +85,6 @@ impl IpfsLoader {
 
     pub fn default() -> anyhow::Result<Self> {
         Self::new(&IpfsLoaderConfig::default())
-    }
-}
-
-enum IpfsLoaderBackend {
-    HttpGateway {
-        prefix: String,
-        client: reqwest::Client,
-    },
-    IpfsNode {
-        client: IpfsClient,
-    },
-}
-
-impl IpfsLoaderBackend {
-    pub async fn load(&self, path: &str) -> anyhow::Result<Vec<u8>> {
-        match self {
-            IpfsLoaderBackend::HttpGateway { prefix, client } => {
-                let url = format!("{}{}", prefix, path);
-                let resp = client.get(url).send().await?;
-                let bytes = if resp.status().is_success() {
-                    resp.bytes().await?.to_vec()
-                } else {
-                    anyhow::bail!(
-                        "Failed to load IPFS object {}, status: {}",
-                        path,
-                        resp.status()
-                    );
-                };
-                Ok(bytes)
-            }
-            IpfsLoaderBackend::IpfsNode { client } => {
-                let bytes = client
-                    .cat(path)
-                    .map_ok(|chunk| chunk.to_vec())
-                    .try_concat()
-                    .await?;
-                Ok(bytes)
-            }
-        }
     }
 }
 
