@@ -35,9 +35,3 @@ async fn test_ipfs_node() -> anyhow::Result<()> {
     assert!(result.contains("BOLT"));
     Ok(())
 }
-
-#[tokio::test]
-#[ignore]
-async fn test_ipfs() -> anyhow::Result<()> {
-    Ok(())
-}
