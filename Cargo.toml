@@ -39,7 +39,7 @@ pbkdf2 = "0.11"
 reqwest = "0.11"
 tokio = { version = "1", features = ["full"] }
 tokio-retry = "0.3"
-tonlib-sys = "2023.6.1"
+tonlib-sys = "2023.6.2"
 
 [dev-dependencies]
 tokio-test = "0.4"
