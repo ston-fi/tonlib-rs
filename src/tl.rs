@@ -76,23 +76,22 @@ impl TlTonClient {
     }
 
     pub fn receive(&self, timeout: f64) -> Option<(Result<TonResult>, Option<String>)> {
-        unsafe {
-            let c_str = tonlib_client_json_receive(self.ptr, timeout);
-            if c_str.is_null() {
-                None
+        let c_str = unsafe { tonlib_client_json_receive(self.ptr, timeout) };
+        if c_str.is_null() {
+            None
+        } else {
+            let c_str_slice = unsafe { CStr::from_ptr(c_str) };
+            if let Ok(c_str_str) = c_str_slice.to_str() {
+                trace!("{} receive: {}", self.tag, c_str_str);
             } else {
-                trace!(
-                    "{} receive: {}",
-                    self.tag,
-                    CStr::from_ptr(c_str)
-                        .to_str()
-                        .unwrap_or("<Error decoding string as UTF-8>")
-                );
-                let (result, extra) = deserialize_result_extra(c_str);
-                Some((result, extra))
+                trace!("{} receive: <Error decoding string as UTF-8>", self.tag);
             }
+            let c_str_bytes = c_str_slice.to_bytes();
+            let (result, extra) = unsafe { deserialize_result_extra(c_str_bytes.as_ptr() as *const i8) };
+            Some((result, extra))
         }
     }
+    
 
     pub fn set_log_verbosity_level(verbosity_level: u32) {
         unsafe { tonlib_sys::tonlib_client_set_verbosity_level(verbosity_level) }
