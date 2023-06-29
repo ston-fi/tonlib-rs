@@ -100,7 +100,12 @@ impl TlTonClient {
 
 impl Drop for TlTonClient {
     fn drop(&mut self) {
-        unsafe { tonlib_client_json_destroy(self.ptr) }
+        unsafe {
+            if !self.ptr.is_null() {
+                tonlib_client_json_destroy(self.ptr);
+                self.ptr = std::ptr::null_mut();
+            }
+        }
     }
 }
 
