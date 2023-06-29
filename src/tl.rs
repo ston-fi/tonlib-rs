@@ -87,11 +87,11 @@ impl TlTonClient {
                 trace!("{} receive: <Error decoding string as UTF-8>", self.tag);
             }
             let c_str_bytes = c_str_slice.to_bytes();
-            let (result, extra) = unsafe { deserialize_result_extra(c_str_bytes.as_ptr() as *const i8) };
+            let (result, extra) =
+                unsafe { deserialize_result_extra(c_str_bytes.as_ptr() as *const i8) };
             Some((result, extra))
         }
     }
-    
 
     pub fn set_log_verbosity_level(verbosity_level: u32) {
         unsafe { tonlib_sys::tonlib_client_set_verbosity_level(verbosity_level) }
