@@ -190,7 +190,7 @@ impl Clone for TonConnection {
 fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
     loop {
         if let Some(inner) = weak_inner.upgrade() {
-            let recv = unsafe { inner.tl_client.receive(1.0) };
+            let recv = inner.tl_client.receive(1.0);
             if let Some((ton_result, maybe_extra)) = recv {
                 let maybe_request_id = maybe_extra.and_then(|s| s.parse::<u32>().ok());
                 let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));

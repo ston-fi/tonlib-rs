@@ -75,7 +75,7 @@ impl TlTonClient {
         Ok(())
     }
 
-    pub unsafe fn receive(&self, timeout: f64) -> Option<(Result<TonResult>, Option<String>)> {
+    pub fn receive(&self, timeout: f64) -> Option<(Result<TonResult>, Option<String>)> {
         let c_str = unsafe { tonlib_client_json_receive(self.ptr, timeout) };
         if c_str.is_null() {
             None
