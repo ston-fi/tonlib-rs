@@ -45,7 +45,7 @@ impl TonContractState {
         }
     }
 }
-
+/* TODO: support in 2023.6 version
 impl Drop for TonContractState {
     fn drop(&mut self) {
         let conn = self.connection.clone();
@@ -55,3 +55,4 @@ impl Drop for TonContractState {
         });
     }
 }
+*/
