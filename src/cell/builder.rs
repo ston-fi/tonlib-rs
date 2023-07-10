@@ -105,8 +105,8 @@ impl CellBuilder {
     pub fn store_raw_address(&mut self, val: &TonAddress) -> anyhow::Result<&mut Self> {
         self.store_u8(2, 0b10u8)?;
         self.store_bit(false)?;
-        let wc = (val.workchain & 0xff) as i8;
-        self.store_i8(8, wc)?;
+        let wc = (val.workchain & 0xff) as u8;
+        self.store_u8(8, wc)?;
         self.store_slice(&val.hash_part)?;
         Ok(self)
     }
