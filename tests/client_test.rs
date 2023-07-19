@@ -1,5 +1,5 @@
-use std::thread;
 use std::time::Duration;
+use std::{str::FromStr, thread};
 
 use tokio;
 use tokio::time::timeout;
@@ -94,6 +94,60 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
         println!("{:?}", r);
     }
     thread::sleep(Duration::from_secs(2));
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
+    common::init_logging();
+
+    let client = common::new_test_client().await?;
+    let address = "EQCVx4vipWfDkf2uNhTUkpT97wkzRXHm-N1cNn_kqcLxecxT";
+    let internal_transaction_id = InternalTransactionId::from_str(
+        "32016630000001:91485a21ba6eaaa91827e357378fe332228d11f3644e802f7e0f873a11ce9c6f",
+    )?;
+
+    let state = client.get_raw_account_state(address).await.unwrap();
+
+    println!("TRANSACTION_ID{}", &state.last_transaction_id);
+    let res = client
+        .smc_load_by_transaction(address, &internal_transaction_id)
+        .await;
+
+    assert!(res.is_ok());
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_get_code_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
+    let (_, id1) = client.smc_load(address).await?;
+    let cell = client.smc_get_code(id1).await?;
+    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_get_data_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
+    let (_, id1) = client.smc_load(address).await?;
+    let cell = client.smc_get_data(id1).await?;
+    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_get_state_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
+    let (_, id1) = client.smc_load(address).await?;
+    let cell = client.smc_get_state(id1).await?;
+    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
     Ok(())
 }
 
