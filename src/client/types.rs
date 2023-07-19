@@ -1,6 +1,6 @@
-use crate::client::connection::TonConnection;
 use crate::config::MAINNET_CONFIG;
 use crate::tl::TonFunction;
+use crate::{client::connection::TonConnection, tl::stack::TvmCell};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use lazy_static::lazy_static;
@@ -225,13 +225,58 @@ pub trait TonFunctions {
             r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
         }
     }
-    /*
-        async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
-            let func = TonFunction::SmcForget { id };
-            let result = self.invoke(&func).await?;
-            Ok(result)
+
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
+        let func = TonFunction::SmcForget { id };
+        let result = self.invoke(&func).await?;
+        Ok(result)
+    }
+
+    async fn smc_load_by_transaction(
+        &self,
+        account_address: &str,
+        transaction_id: &InternalTransactionId,
+    ) -> anyhow::Result<(TonConnection, i64)> {
+        let func = TonFunction::SmcLoadByTransaction {
+            account_address: AccountAddress {
+                account_address: String::from(account_address),
+            },
+            transaction_id: transaction_id.clone(),
+        };
+        let (conn, result) = self.invoke_on_connection(&func).await?;
+        match result {
+            TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
+            r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
         }
-    */
+    }
+
+    async fn smc_get_code(&self, id: i64) -> anyhow::Result<TvmCell> {
+        let func = TonFunction::SmcGetCode { id: id };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::TvmCell(cell) => Ok(cell),
+            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+        }
+    }
+
+    async fn smc_get_data(&self, id: i64) -> anyhow::Result<TvmCell> {
+        let func = TonFunction::SmcGetData { id: id };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::TvmCell(cell) => Ok(cell),
+            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+        }
+    }
+
+    async fn smc_get_state(&self, id: i64) -> anyhow::Result<TvmCell> {
+        let func = TonFunction::SmcGetState { id: id };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::TvmCell(cell) => Ok(cell),
+            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+        }
+    }
+
     async fn get_masterchain_info(&self) -> anyhow::Result<BlocksMasterchainInfo> {
         let func = TonFunction::BlocksGetMasterchainInfo {};
         let result = self.invoke(&func).await?;

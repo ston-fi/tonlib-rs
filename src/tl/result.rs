@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
+use crate::tl::stack::TvmCell;
 use crate::tl::types::{
     BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     FullAccountState, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo, RawFullAccountState,
@@ -42,6 +43,8 @@ pub enum TonResult {
     // tonlib_api.tl, line 181
     #[serde(rename = "smc.runResult")]
     SmcRunResult(SmcRunResult),
+    #[serde(rename = "tvm.cell")]
+    TvmCell(TvmCell),
     // tonlib_api.tl, line 187
     #[serde(rename = "updateSyncState")]
     UpdateSyncState(UpdateSyncState),

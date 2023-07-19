@@ -59,9 +59,27 @@ pub enum TonFunction {
     SmcLoad {
         account_address: AccountAddress,
     },
+    #[serde(rename = "smc.loadByTransaction")]
+    SmcLoadByTransaction {
+        account_address: AccountAddress,
+        transaction_id: InternalTransactionId,
+    },
+
     // tonlib_api.tl, line 302
     #[serde(rename = "smc.forget")]
     SmcForget {
+        id: i64,
+    },
+    #[serde(rename = "smc.getCode")]
+    SmcGetCode {
+        id: i64,
+    },
+    #[serde(rename = "smc.getData")]
+    SmcGetData {
+        id: i64,
+    },
+    #[serde(rename = "smc.getState")]
+    SmcGetState {
         id: i64,
     },
     // tonlib_api.tl, line 298
