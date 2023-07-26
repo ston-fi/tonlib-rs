@@ -46,6 +46,7 @@ impl TonContractState {
     }
 }
 
+#[cfg(feature = "smc_forget")]
 impl Drop for TonContractState {
     fn drop(&mut self) {
         let conn = self.connection.clone();

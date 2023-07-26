@@ -66,6 +66,7 @@ pub enum TonFunction {
     },
 
     // tonlib_api.tl, line 302
+    #[cfg(feature = "smc_forget")]
     #[serde(rename = "smc.forget")]
     SmcForget {
         id: i64,
