@@ -45,7 +45,7 @@ pub struct TestTonConnectionCallback {}
 
 impl TonConnectionCallback for TestTonConnectionCallback {
     fn on_invoke(&self, id: u32) {
-        log::info!("on_invoke: {:?}", id);
+        log::trace!("on_invoke: {:?}", id);
     }
 
     fn on_invoke_result(
@@ -55,7 +55,7 @@ impl TonConnectionCallback for TestTonConnectionCallback {
         duration: &Duration,
         res: &anyhow::Result<TonResult>,
     ) {
-        log::info!(
+        log::trace!(
             "on_invoke_result: {:?} {} {} {:?}",
             id,
             method,
@@ -65,7 +65,7 @@ impl TonConnectionCallback for TestTonConnectionCallback {
     }
 
     fn on_notification(&self, notification: &TonNotification) {
-        log::info!("on_notification: {:?}", notification);
+        log::trace!("on_notification: {:?}", notification);
     }
 
     fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {

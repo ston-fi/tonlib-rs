@@ -2,7 +2,6 @@ use std::ffi::CStr;
 
 use anyhow::Result;
 use base64_serde::base64_serde_type;
-use log::trace;
 
 use crate::tl::serial::{
     deserialize_result, deserialize_result_extra, serialize_function, serialize_function_extra,
@@ -45,15 +44,15 @@ impl TlTonClient {
 
     pub fn execute(&self, function: &TonFunction) -> Result<TonResult> {
         let f_str = serialize_function(function)?;
-        trace!(
-            "{} execute: {}",
+        log::trace!(
+            "[{}] execute: {}",
             self.tag,
             f_str.to_str().unwrap_or("<Error decoding string as UTF-8>")
         );
         let result = unsafe {
             let c_str = tonlib_client_json_execute(self.ptr, f_str.as_ptr());
-            trace!(
-                "{} result: {}",
+            log::trace!(
+                "[{}] result: {}",
                 self.tag,
                 CStr::from_ptr(c_str)
                     .to_str()
@@ -66,8 +65,8 @@ impl TlTonClient {
 
     pub fn send(&self, function: &TonFunction, extra: &str) -> Result<()> {
         let f_str = serialize_function_extra(function, extra)?;
-        trace!(
-            "{} send: {}",
+        log::trace!(
+            "[{}] send: {}",
             self.tag,
             f_str.to_str().unwrap_or("<Error decoding string as UTF-8>")
         );
@@ -82,9 +81,9 @@ impl TlTonClient {
         } else {
             let c_str_slice = unsafe { CStr::from_ptr(c_str) };
             if let Ok(c_str_str) = c_str_slice.to_str() {
-                trace!("{} receive: {}", self.tag, c_str_str);
+                log::trace!("[{}] receive: {}", self.tag, c_str_str);
             } else {
-                trace!("{} receive: <Error decoding string as UTF-8>", self.tag);
+                log::trace!("[{}] receive: <Error decoding string as UTF-8>", self.tag);
             }
             let c_str_bytes = c_str_slice.to_bytes();
             let (result, extra) =
