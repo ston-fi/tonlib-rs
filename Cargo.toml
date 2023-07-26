@@ -41,7 +41,7 @@ pbkdf2 = "0.11"
 reqwest = "0.11"
 tokio = { version = "1", features = ["full"] }
 tokio-retry = "0.3"
-tonlib-sys = "2023.6.3"
+tonlib-sys = { git = "https://ston-read:-sFs4_H5GsRZTbvFCCqE@git.stonfi.net/ston-fi/oss/tonlib-sys.git", tag = "v2023.5.0"}
 
 [dev-dependencies]
 tokio-test = "0.4"
