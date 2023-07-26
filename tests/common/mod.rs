@@ -35,6 +35,7 @@ pub async fn new_test_client() -> anyhow::Result<TonClient> {
     let client = TonClient::builder()
         .with_pool_size(2)
         .with_callback(TEST_TON_CONNECTION_CALLBACK.clone())
+        .with_keystore_dir("./var/ton".to_string())
         .build()
         .await?;
     Ok(client)
