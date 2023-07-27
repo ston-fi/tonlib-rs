@@ -6,6 +6,7 @@ use serde_aux::prelude::*;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
+use crate::tl::stack::TvmCell;
 use crate::tl::stack::TvmStack;
 use crate::tl::Base64Standard;
 
@@ -527,6 +528,12 @@ pub struct BlocksHeader {
     pub gen_utime: i64,
     pub vert_seqno: i32,
     pub prev_blocks: Vec<BlockIdExt>,
+}
+
+// tonlib_api.tl, line 228
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ChainConfigInfo {
+    pub config: TvmCell,
 }
 
 #[cfg(test)]

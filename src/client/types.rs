@@ -13,7 +13,7 @@ use tokio::sync::broadcast;
 
 use crate::tl::types::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
-    BlocksMasterchainInfo, BlocksShards, BlocksTransactions, FullAccountState,
+    BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ChainConfigInfo, FullAccountState,
     InternalTransactionId, RawFullAccountState, RawTransactions,
 };
 use crate::tl::TonNotification;
@@ -356,6 +356,15 @@ pub trait TonFunctions {
         match result {
             TonResult::BlocksHeader(header) => Ok(header),
             r => Err(anyhow!("Expected BlocksHeader, got: {:?}", r)),
+        }
+    }
+
+    async fn get_config_param(&self, mode: u32, param: u32) -> anyhow::Result<ChainConfigInfo> {
+        let func = TonFunction::GetConfigParam { mode, param };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::ChainConfigInfo(result) => Ok(result),
+            r => Err(anyhow!("Expected ChainConfigInfo, got: {:?}", r)),
         }
     }
 

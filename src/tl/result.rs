@@ -5,8 +5,8 @@ use strum::IntoStaticStr;
 use crate::tl::stack::TvmCell;
 use crate::tl::types::{
     BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
-    FullAccountState, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo, RawFullAccountState,
-    RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
+    ChainConfigInfo, FullAccountState, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
+    RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
 };
 
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -64,6 +64,9 @@ pub enum TonResult {
     // tonlib_api.tl, line 219
     #[serde(rename = "blocks.header")]
     BlocksHeader(BlocksHeader),
+    // tonlib_api.tl, line 228
+    #[serde(rename = "configInfo")]
+    ChainConfigInfo(ChainConfigInfo),
 }
 
 impl TonResult {
