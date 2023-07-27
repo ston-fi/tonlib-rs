@@ -226,12 +226,6 @@ pub trait TonFunctions {
         }
     }
 
-    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
-        let func = TonFunction::SmcForget { id };
-        let result = self.invoke(&func).await?;
-        Ok(result)
-    }
-
     async fn smc_load_by_transaction(
         &self,
         account_address: &str,
@@ -248,6 +242,12 @@ pub trait TonFunctions {
             TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
             r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
         }
+    }
+
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
+        let func = TonFunction::SmcForget { id };
+        let result = self.invoke(&func).await?;
+        Ok(result)
     }
 
     async fn smc_get_code(&self, id: i64) -> anyhow::Result<TvmCell> {
