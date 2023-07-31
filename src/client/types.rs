@@ -1,6 +1,6 @@
-use crate::config::MAINNET_CONFIG;
 use crate::tl::TonFunction;
 use crate::{client::connection::TonConnection, tl::stack::TvmCell};
+use crate::{config::MAINNET_CONFIG, tl::types::LiteServerInfo};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use lazy_static::lazy_static;
@@ -345,6 +345,15 @@ pub trait TonFunctions {
         match result {
             TonResult::BlocksTransactions(result) => Ok(result),
             r => Err(anyhow!("Expected BlocksTransactions, got: {:?}", r)),
+        }
+    }
+
+    async fn lite_server_get_info(&self) -> anyhow::Result<LiteServerInfo> {
+        let func = TonFunction::LiteServerGetInfo {};
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::LiteServerInfo(result) => Ok(result),
+            r => Err(anyhow!("Expected LiteServerInfo, got: {:?}", r)),
         }
     }
 

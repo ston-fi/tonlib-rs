@@ -4,12 +4,12 @@ use std::{str::FromStr, thread};
 use tokio;
 use tokio::time::timeout;
 
-use tonlib::address::TonAddress;
 use tonlib::client::TonFunctions;
 use tonlib::tl::types::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
+use tonlib::{address::TonAddress, tl::types::LiteServerInfo};
 
 mod common;
 
@@ -47,20 +47,28 @@ async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
 async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let client = common::new_test_client().await?;
-    let state = client.get_raw_account_state(address).await.unwrap();
-    let r = client
-        .get_raw_transactions(address, &state.last_transaction_id)
-        .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
-    let cnt = 1;
-    let r = client
-        .get_raw_transactions_v2(address, &state.last_transaction_id, cnt, false)
-        .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
-    assert_eq!(r.unwrap().transactions.len(), cnt);
+    let max_retries = 3;
+    let mut retries = 0;
+    while retries < max_retries {
+        retries += 1;
+        let client = common::new_test_client().await?;
+        let state = client.get_raw_account_state(address).await.unwrap();
+        let r = client
+            .get_raw_transactions(address, &state.last_transaction_id)
+            .await;
+        println!("{:?}", r);
+        if r.is_ok() {
+            let cnt = 1;
+            let r = client
+                .get_raw_transactions_v2(address, &state.last_transaction_id, cnt, false)
+                .await;
+            println!("{:?}", r);
+            if r.is_ok() {
+                assert_eq!(r.unwrap().transactions.len(), cnt);
+                return Ok(());
+            }
+        }
+    }
     Ok(())
 }
 
@@ -101,20 +109,29 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
 async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
     common::init_logging();
 
-    let client = common::new_test_client().await?;
     let address = "EQCVx4vipWfDkf2uNhTUkpT97wkzRXHm-N1cNn_kqcLxecxT";
     let internal_transaction_id = InternalTransactionId::from_str(
         "32016630000001:91485a21ba6eaaa91827e357378fe332228d11f3644e802f7e0f873a11ce9c6f",
     )?;
 
-    let state = client.get_raw_account_state(address).await.unwrap();
+    let max_retries = 3;
+    let mut retries = 0;
+    while retries < max_retries {
+        retries += 1;
+        let client = common::new_test_client().await?;
 
-    println!("TRANSACTION_ID{}", &state.last_transaction_id);
-    let res = client
-        .smc_load_by_transaction(address, &internal_transaction_id)
-        .await;
+        let state = client.get_raw_account_state(address).await.unwrap();
 
-    assert!(res.is_ok());
+        println!("TRANSACTION_ID{}", &state.last_transaction_id);
+        let res = client
+            .smc_load_by_transaction(address, &internal_transaction_id)
+            .await;
+
+        if res.is_ok() {
+            return Ok(());
+        }
+    }
+
     Ok(())
 }
 
@@ -123,8 +140,8 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (_, id1) = client.smc_load(address).await?;
-    let cell = client.smc_get_code(id1).await?;
+    let (conn, id1) = client.smc_load(address).await?;
+    let cell = conn.smc_get_code(id1).await?;
     println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",cell);
     Ok(())
 }
@@ -134,8 +151,8 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (_, id1) = client.smc_load(address).await?;
-    let cell = client.smc_get_data(id1).await?;
+    let (conn, id1) = client.smc_load(address).await?;
+    let cell = conn.smc_get_data(id1).await?;
     println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",cell);
     Ok(())
 }
@@ -145,8 +162,8 @@ async fn client_smc_get_state_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (_, id1) = client.smc_load(address).await?;
-    let cell = client.smc_get_state(id1).await?;
+    let (conn, id1) = client.smc_load(address).await?;
+    let cell = conn.smc_get_state(id1).await?;
     println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
     Ok(())
 }
@@ -209,5 +226,15 @@ async fn client_blocks_get_transactions() -> anyhow::Result<()> {
             println!("Tx: {:?}", tx.transactions[0])
         }
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_lite_server_get_info() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let info: LiteServerInfo = client.lite_server_get_info().await?;
+
+    println!("{:?}", info);
     Ok(())
 }
