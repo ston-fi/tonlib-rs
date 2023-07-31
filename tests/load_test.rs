@@ -10,6 +10,7 @@ mod common;
 const NUM_RUNNERS: usize = 1024;
 const NUM_ITERATIONS: usize = 1000000;
 
+#[ignore]
 #[tokio::test]
 async fn load_test_smc_methods() -> anyhow::Result<()> {
     common::init_logging();

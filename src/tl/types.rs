@@ -449,6 +449,17 @@ pub struct LogVerbosityLevel {
     pub verbosity_level: u32,
 }
 
+// tonlib_api.tl, line 210
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LiteServerInfo {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    now: i64,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    version: i32,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    capabilities: i64,
+}
+
 // tonlib_api.tl, line 213
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksMasterchainInfo {

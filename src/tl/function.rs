@@ -11,6 +11,12 @@ use crate::tl::Base64Standard;
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type", rename_all = "camelCase")]
 pub enum TonFunction {
+    // tonlib_api.tl, line 210
+    LiteServerInfo {
+        now: i64,
+        version: i32,
+        capabilities: i64,
+    },
     // tonlib_api.tl, line 232
     Init {
         options: Options,
@@ -116,6 +122,9 @@ pub enum TonFunction {
         count: u32,
         after: BlocksAccountTransactionId,
     },
+    // tonlib_ai.tl, line 335
+    #[serde(rename = "liteServer.getInfo")]
+    LiteServerGetInfo {},
     // tonlib_api.tl, line 324
     #[serde(rename = "blocks.getBlockHeader")]
     GetBlockHeader {
