@@ -90,10 +90,16 @@ pub trait TonConnectionCallback {
         res: &anyhow::Result<TonResult>,
     ) {
     }
+    fn on_invoke_result_send_error(
+        &self,
+        id: u32,
+        duration: &Duration,
+        res: &anyhow::Result<TonResult>,
+    ) {
+    }
     fn on_notification(&self, notification: &TonNotification) {}
     fn on_invoke_error(&self, id: u32, error: &anyhow::Error) {}
     fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {}
-    fn on_invoke_result_send_error(&self, id: u32, res: &anyhow::Result<TonResult>) {}
     fn on_notification_parse_error(&self, error: &anyhow::Error) {}
 }
 
