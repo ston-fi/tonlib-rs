@@ -5,8 +5,8 @@ use strum::IntoStaticStr;
 use crate::tl::stack::TvmCell;
 use crate::tl::types::{
     BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
-    FullAccountState, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo, RawFullAccountState,
-    RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
+    FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
+    RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
 };
 
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -43,27 +43,30 @@ pub enum TonResult {
     // tonlib_api.tl, line 182
     #[serde(rename = "smc.runResult")]
     SmcRunResult(SmcRunResult),
-    // tonlib_api.tl, line 165
-    #[serde(rename = "tvm.cell")]
-    TvmCell(TvmCell),
     // tonlib_api.tl, line 188
     #[serde(rename = "updateSyncState")]
     UpdateSyncState(UpdateSyncState),
-    // tonlib_api.tl, line 345
+    // tonlib_api.tl, line 203
+    #[serde(rename = "liteServer.info")]
+    LiteServerInfo(LiteServerInfo),
+    // tonlib_api.tl, line 210
     #[serde(rename = "logVerbosityLevel")]
     LogVerbosityLevel(LogVerbosityLevel),
-    // tonlib_api.tl, line 212
+    // tonlib_api.tl, line 213
     #[serde(rename = "blocks.masterchainInfo")]
     BlocksMasterchainInfo(BlocksMasterchainInfo),
     // tonlib_api.tl, line 214
     #[serde(rename = "blocks.shards")]
     BlocksShards(BlocksShards),
-    // tonlib_api.tl, line 218
+    // tonlib_api.tl, line 217
     #[serde(rename = "blocks.transactions")]
     BlocksTransactions(BlocksTransactions),
-    // tonlib_api.tl, line 219
+    // tonlib_api.tl, line 218
     #[serde(rename = "blocks.header")]
     BlocksHeader(BlocksHeader),
+    // tonlib_api.tl, line 228
+    #[serde(rename = "tvm.cell")]
+    TvmCell(TvmCell),
 }
 
 impl TonResult {

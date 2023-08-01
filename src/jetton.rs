@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::str;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -102,9 +103,34 @@ pub struct JettonContentLoader {
     ipfs_loader: IpfsLoader,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub struct HttpLoaderConfig {
+    #[serde(default = "default_connect_timeout")]
+    #[serde(with = "humantime_serde")]
+    pub connect_timeout: Duration,
+}
+
+fn default_connect_timeout() -> Duration {
+    Duration::from_secs(30)
+}
+
+impl Default for HttpLoaderConfig {
+    fn default() -> Self {
+        Self {
+            connect_timeout: default_connect_timeout(),
+        }
+    }
+}
+
 impl JettonContentLoader {
-    pub fn new(ipfs_loader_config: &IpfsLoaderConfig) -> anyhow::Result<JettonContentLoader> {
-        let http_client = reqwest::Client::builder().build()?;
+    pub fn new(
+        http_loader_config: &HttpLoaderConfig,
+        ipfs_loader_config: &IpfsLoaderConfig,
+    ) -> anyhow::Result<JettonContentLoader> {
+        let http_client = reqwest::Client::builder()
+            .connect_timeout(http_loader_config.connect_timeout)
+            .build()?;
         let ipfs_loader = IpfsLoader::new(ipfs_loader_config)?;
         Ok(JettonContentLoader {
             http_client,
@@ -113,7 +139,7 @@ impl JettonContentLoader {
     }
 
     pub fn default() -> anyhow::Result<JettonContentLoader> {
-        Self::new(&IpfsLoaderConfig::default())
+        Self::new(&HttpLoaderConfig::default(), &IpfsLoaderConfig::default())
     }
 
     pub async fn load(&self, content: &JettonContent) -> anyhow::Result<JettonMetaData> {

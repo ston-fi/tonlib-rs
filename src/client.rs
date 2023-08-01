@@ -87,15 +87,7 @@ impl TonClient {
         let res = conn.invoke(function).await;
         match res {
             Ok(result) => Ok((conn, result)),
-            Err(error) => {
-                if let Some(code) = maybe_error_code(&error) {
-                    if code == 500 {
-                        log::warn!("Resetting connection after error {:?}", error);
-                        item.reset().await;
-                    }
-                }
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 
@@ -177,6 +169,7 @@ impl PoolConnection {
         }
     }
 
+    #[allow(dead_code)]
     async fn reset(&self) {
         let mut guard = self.conn.lock().await;
         *guard = None;
