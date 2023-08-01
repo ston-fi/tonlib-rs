@@ -197,7 +197,7 @@ let wallet_address = contract.get_wallet_address(&owner_address).await?;
 Create key pair from secret phrase (mnemonic)
 
 ```rust
-let mnemonic_str = "<your secret phrase composed of 24 words>"
+let mnemonic_str = "<your secret phrase composed of 24 words>";
 let mnemonic: Mnemonic = Mnemonic::from_str(mnemonic_str, &None).unwrap();
 let key_pair: KeyPair = mnemonic.to_key_pair().unwrap();
 ```
@@ -255,7 +255,7 @@ let body = wallet.create_external_body(now + 60, SEQNO, transfer)?;
 let signed = wallet.sign_external_body(&body)?;
 let wrapped = wallet.wrap_signed_body(signed)?;
 let boc = BagOfCells::from_root(wrapped);
-let tx = boc.serialize(true)?
+let tx = boc.serialize(true)?;
 let hash = client.send_raw_message_return_hash(tx.as_slice()).await?;
 ```
 
