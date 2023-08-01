@@ -225,7 +225,9 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                             &duration
                         );
                         if let Err(e) = data.sender.send(result) {
-                            inner.callback.on_invoke_result_send_error(request_id, &e);
+                            inner
+                                .callback
+                                .on_invoke_result_send_error(request_id, &duration, &e);
                             log::warn!(
                                 "[{}] Error sending invoke result, request_id: {}: {:?}",
                                 tag,
