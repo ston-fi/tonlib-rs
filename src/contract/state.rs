@@ -1,8 +1,11 @@
-use crate::address::TonAddress;
-use crate::client::{TonConnection, TonFunctions};
 use crate::contract::TonContractError;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{SmcMethodId, SmcRunResult};
+use crate::{address::TonAddress, tl::types::InternalTransactionId};
+use crate::{
+    client::{TonConnection, TonFunctions},
+    tl::stack::TvmCell,
+};
 
 pub struct TonContractState {
     connection: TonConnection,
@@ -10,7 +13,7 @@ pub struct TonContractState {
 }
 
 impl TonContractState {
-    pub(crate) async fn load<C: TonFunctions + Send + Sync>(
+    pub async fn load<C: TonFunctions + Send + Sync>(
         client: &C,
         address: &TonAddress,
     ) -> anyhow::Result<TonContractState> {
@@ -20,7 +23,19 @@ impl TonContractState {
             state_id,
         })
     }
-
+    pub async fn load_by_transaction_id<C: TonFunctions + Send + Sync>(
+        client: &C,
+        address: &TonAddress,
+        transaction_id: &InternalTransactionId,
+    ) -> anyhow::Result<TonContractState> {
+        let (conn, state_id) = client
+            .smc_load_by_transaction(&address.to_hex(), transaction_id)
+            .await?;
+        Ok(TonContractState {
+            connection: conn,
+            state_id,
+        })
+    }
     pub async fn run_get_method(
         &self,
         method: &str,
@@ -43,6 +58,11 @@ impl TonContractState {
             };
             Err(anyhow::Error::from(err))
         }
+    }
+
+    pub async fn get_code(&self) -> anyhow::Result<TvmCell> {
+        let result = self.connection.smc_get_code(self.state_id).await?;
+        Ok(result)
     }
 }
 
