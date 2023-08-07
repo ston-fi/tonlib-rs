@@ -413,14 +413,14 @@ pub enum MsgData {
     },
 }
 
-// tonlib_api.tl, line 176
+// tonlib_api.tl, line 177
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SmcInfo {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub id: i64,
 }
 
-// tonlib_api.tl, line 178-179
+// tonlib_api.tl, line 179-180
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type")]
 pub enum SmcMethodId {
@@ -430,7 +430,7 @@ pub enum SmcMethodId {
     Name { name: String },
 }
 
-// tonlib_api.tl, line 181
+// tonlib_api.tl, line 182
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SmcRunResult {
     pub gas_used: i64,
@@ -438,19 +438,30 @@ pub struct SmcRunResult {
     pub exit_code: i32,
 }
 
-// tonlib_api.tl, line 187
+// tonlib_api.tl, line 188
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UpdateSyncState {
     pub sync_state: SyncState,
 }
 
-// tonlib_api.tl, line 202
+// tonlib_api.tl, line 203
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LogVerbosityLevel {
     pub verbosity_level: u32,
 }
 
-// tonlib_api.tl, line 212
+// tonlib_api.tl, line 210
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LiteServerInfo {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    now: i64,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    version: i32,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    capabilities: i64,
+}
+
+// tonlib_api.tl, line 213
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksMasterchainInfo {
     pub last: BlockIdExt,
@@ -459,13 +470,13 @@ pub struct BlocksMasterchainInfo {
     pub init: BlockIdExt,
 }
 
-// tonlib_api.tl, line 213
+// tonlib_api.tl, line 214
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksShards {
     pub shards: Vec<BlockIdExt>,
 }
 
-// tonlib_api.tl, line 214
+// tonlib_api.tl, line 215
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksAccountTransactionId {
     #[serde(with = "Base64Standard")]
@@ -482,7 +493,7 @@ lazy_static! {
         };
 }
 
-// tonlib_api.tl, line 215
+// tonlib_api.tl, line 216
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksShortTxId {
     pub mode: u32,
@@ -494,7 +505,7 @@ pub struct BlocksShortTxId {
     pub hash: Vec<u8>,
 }
 
-// tonlib_api.tl, line 216
+// tonlib_api.tl, line 217
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksTransactions {
     pub id: BlockIdExt,
@@ -503,7 +514,7 @@ pub struct BlocksTransactions {
     pub transactions: Vec<BlocksShortTxId>,
 }
 
-// tonlib_api.tl, line 217
+// tonlib_api.tl, line 218
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlocksHeader {
     pub id: BlockIdExt,

@@ -40,7 +40,7 @@ pub struct TonConnection {
     inner: Arc<Inner>,
 }
 
-static CLIENT_COUNTER: AtomicU32 = AtomicU32::new(0);
+static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl TonConnection {
     /// Creates a new uninitialized TonConnection
@@ -51,13 +51,13 @@ impl TonConnection {
     pub fn new(
         callback: Arc<dyn TonConnectionCallback + Send + Sync>,
     ) -> anyhow::Result<TonConnection> {
-        let client_name = format!(
-            "ton-client-{}",
-            CLIENT_COUNTER.fetch_add(1, Ordering::SeqCst)
+        let tag = format!(
+            "ton-conn-{}",
+            CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
         );
         let (sender, receiver) = broadcast::channel::<Arc<TonNotification>>(10000); // TODO: Configurable
         let inner = Inner {
-            tl_client: TlTonClient::new(client_name.as_str()),
+            tl_client: TlTonClient::new(tag.as_str()),
             counter: AtomicU32::new(0),
             request_map: RequestMap::new(),
             notification_sender: sender,
@@ -68,8 +68,8 @@ impl TonConnection {
             inner: Arc::new(inner),
         };
         let client_inner: Weak<Inner> = Arc::downgrade(&client.inner);
-        let thread_builder = thread::Builder::new().name(client_name.clone());
-        thread_builder.spawn(|| run_loop(client_name, client_inner))?;
+        let thread_builder = thread::Builder::new().name(tag.clone());
+        thread_builder.spawn(|| run_loop(tag, client_inner))?;
         Ok(client)
     }
 
@@ -188,6 +188,7 @@ impl Clone for TonConnection {
 
 /// Client run loop
 fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
+    log::info!("[{}] Starting event loop", tag);
     loop {
         if let Some(inner) = weak_inner.upgrade() {
             let recv = inner.tl_client.receive(1.0);
@@ -216,16 +217,20 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                             &duration,
                             &result,
                         );
-                        log::info!(
-                            "Invoke successful, request_id: {}, method: {}, elapsed: {:?}",
+                        log::debug!(
+                            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}",
+                            tag,
                             request_id,
                             data.method,
                             &duration
                         );
                         if let Err(e) = data.sender.send(result) {
-                            inner.callback.on_invoke_result_send_error(request_id, &e);
+                            inner
+                                .callback
+                                .on_invoke_result_send_error(request_id, &duration, &e);
                             log::warn!(
-                                "Error sending invoke result, request_id: {}: {:?}",
+                                "[{}] Error sending invoke result, request_id: {}: {:?}",
+                                tag,
                                 request_id,
                                 e
                             );
@@ -240,12 +245,12 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                                 if let Err(e) =
                                     inner.notification_sender.send(Arc::new(notification))
                                 {
-                                    log::warn!("Error sending notification: {}", e);
+                                    log::warn!("[{}] Error sending notification: {}", tag, e);
                                 }
                             }
                             Err(e) => {
                                 inner.callback.on_notification_parse_error(&e);
-                                log::warn!("Error parsing notification: {}", e);
+                                log::warn!("[{}] Error parsing notification: {}", tag, e);
                             }
                         }
                     }
@@ -253,7 +258,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                 ()
             }
         } else {
-            log::info!(target: tag.as_str(), "Exiting event loop");
+            log::info!("[{}] Exiting event loop", tag);
             return Ok(());
         }
     }

@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.6.2"
+version = "0.6.5"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -9,6 +9,7 @@ include = [
     "src/*",
     "Cargo.toml"
 ]
+[features]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -24,6 +25,7 @@ dashmap = "5"
 futures = "0.3"
 hex = "0.4"
 hmac = "0.12"
+humantime-serde = "1.1"
 lazy_static = "1"
 log = "0.4"
 nacl = "0.5"

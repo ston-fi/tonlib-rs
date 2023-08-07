@@ -1,6 +1,6 @@
-use crate::config::MAINNET_CONFIG;
 use crate::tl::TonFunction;
 use crate::{client::connection::TonConnection, tl::stack::TvmCell};
+use crate::{config::MAINNET_CONFIG, tl::types::LiteServerInfo};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use lazy_static::lazy_static;
@@ -90,10 +90,16 @@ pub trait TonConnectionCallback {
         res: &anyhow::Result<TonResult>,
     ) {
     }
+    fn on_invoke_result_send_error(
+        &self,
+        id: u32,
+        duration: &Duration,
+        res: &anyhow::Result<TonResult>,
+    ) {
+    }
     fn on_notification(&self, notification: &TonNotification) {}
     fn on_invoke_error(&self, id: u32, error: &anyhow::Error) {}
     fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {}
-    fn on_invoke_result_send_error(&self, id: u32, res: &anyhow::Result<TonResult>) {}
     fn on_notification_parse_error(&self, error: &anyhow::Error) {}
 }
 
@@ -226,12 +232,6 @@ pub trait TonFunctions {
         }
     }
 
-    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
-        let func = TonFunction::SmcForget { id };
-        let result = self.invoke(&func).await?;
-        Ok(result)
-    }
-
     async fn smc_load_by_transaction(
         &self,
         account_address: &str,
@@ -248,6 +248,12 @@ pub trait TonFunctions {
             TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
             r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
         }
+    }
+
+    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
+        let func = TonFunction::SmcForget { id };
+        let result = self.invoke(&func).await?;
+        Ok(result)
     }
 
     async fn smc_get_code(&self, id: i64) -> anyhow::Result<TvmCell> {
@@ -345,6 +351,15 @@ pub trait TonFunctions {
         match result {
             TonResult::BlocksTransactions(result) => Ok(result),
             r => Err(anyhow!("Expected BlocksTransactions, got: {:?}", r)),
+        }
+    }
+
+    async fn lite_server_get_info(&self) -> anyhow::Result<LiteServerInfo> {
+        let func = TonFunction::LiteServerGetInfo {};
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::LiteServerInfo(result) => Ok(result),
+            r => Err(anyhow!("Expected LiteServerInfo, got: {:?}", r)),
         }
     }
 
