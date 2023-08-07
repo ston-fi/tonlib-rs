@@ -1,6 +1,6 @@
 mod state;
 
-use crate::address::TonAddress;
+use crate::{address::TonAddress, tl::stack::TvmCell};
 use anyhow::anyhow;
 use std::error::Error;
 use std::fmt;
@@ -67,6 +67,31 @@ impl TonContract {
     pub async fn load_state(&self) -> anyhow::Result<TonContractState> {
         let state = TonContractState::load(&self.client, &self.address).await?;
         Ok(state)
+    }
+
+    pub async fn load_state_by_transaction_id(
+        &self,
+        transaction_id: &InternalTransactionId,
+    ) -> anyhow::Result<TonContractState> {
+        let state =
+            TonContractState::load_by_transaction_id(&self.client, &self.address, transaction_id)
+                .await?;
+        Ok(state)
+    }
+
+    pub async fn get_code(&self) -> anyhow::Result<TvmCell> {
+        let state = self.load_state().await?;
+        let result = state.get_code().await?;
+        Ok(result)
+    }
+
+    pub async fn get_code_by_transaction_id(
+        &self,
+        transaction_id: &InternalTransactionId,
+    ) -> anyhow::Result<TvmCell> {
+        let state = self.load_state_by_transaction_id(transaction_id).await?;
+        let result = state.get_code().await?;
+        Ok(result)
     }
 
     pub async fn run_get_method(
