@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -15,13 +14,6 @@ pub enum IpfsConnectionType {
 pub struct IpfsLoaderConfig {
     connection_type: IpfsConnectionType,
     base_url: String,
-    #[serde(default = "default_connect_timeout")]
-    #[serde(with = "humantime_serde")]
-    pub connect_timeout: Duration,
-}
-
-fn default_connect_timeout() -> Duration {
-    Duration::from_secs(30)
 }
 
 impl IpfsLoaderConfig {
@@ -29,7 +21,6 @@ impl IpfsLoaderConfig {
         IpfsLoaderConfig {
             connection_type: IpfsConnectionType::HttpGateway,
             base_url: url.to_string(),
-            connect_timeout: default_connect_timeout(),
         }
     }
 
@@ -37,7 +28,6 @@ impl IpfsLoaderConfig {
         IpfsLoaderConfig {
             connection_type: IpfsConnectionType::IpfsNode,
             base_url: url.to_string(),
-            connect_timeout: default_connect_timeout(),
         }
     }
 }
@@ -47,7 +37,6 @@ impl Default for IpfsLoaderConfig {
         Self {
             connection_type: IpfsConnectionType::HttpGateway,
             base_url: "https://cloudflare-ipfs.com/ipfs/".to_string(),
-            connect_timeout: default_connect_timeout(),
         }
     }
 }
@@ -64,9 +53,7 @@ impl IpfsLoader {
         Ok(Self {
             connection_type: config.connection_type.clone(),
             base_url: config.base_url.clone(),
-            client: reqwest::Client::builder()
-                .connect_timeout(config.connect_timeout)
-                .build()?,
+            client: reqwest::Client::builder().build()?,
         })
     }
 
