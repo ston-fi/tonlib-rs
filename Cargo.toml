@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.6.4-dev"
+version = "0.6.5-dev"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -41,7 +41,7 @@ pbkdf2 = "0.11"
 reqwest = "0.11"
 tokio = { version = "1", features = ["full"] }
 tokio-retry = "0.3"
-tonlib-sys = "2023.6.3"
+tonlib-sys = "2023.6"
 
 [dev-dependencies]
 tokio-test = "0.4"
