@@ -114,6 +114,12 @@ pub enum TonFunction {
         lt: i64,
         utime: i32,
     },
+    // tonlib_api.tl, line 288
+    #[serde(rename = "getConfigParam")]
+    GetConfigParam {
+        mode: u32,
+        param: u32,
+    },
     // tonlib_api.tl, line 322
     #[serde(rename = "blocks.getTransactions")]
     BlocksGetTransactions {
