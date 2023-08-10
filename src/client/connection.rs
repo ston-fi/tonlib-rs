@@ -229,8 +229,9 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                                 .callback
                                 .on_invoke_result_send_error(request_id, &duration, &e);
                             log::warn!(
-                                "[{}] Error sending invoke result, request_id: {}: {:?}",
+                                "[{}] Error sending invoke result, method: {} request_id: {}: {:?}",
                                 tag,
+                                data.method,
                                 request_id,
                                 e
                             );
