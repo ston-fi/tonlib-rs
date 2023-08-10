@@ -4,6 +4,7 @@ use std::{str::FromStr, thread};
 use tokio;
 use tokio::time::timeout;
 
+use tonlib::cell::BagOfCells;
 use tonlib::client::TonFunctions;
 use tonlib::tl::types::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
@@ -236,5 +237,19 @@ async fn client_lite_server_get_info() -> anyhow::Result<()> {
     let info: LiteServerInfo = client.lite_server_get_info().await?;
 
     println!("{:?}", info);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_config_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let info = client.get_config_param(0u32, 34u32).await?;
+    let config_data = info.config.bytes;
+    let bag = BagOfCells::parse(config_data.as_slice())?;
+    let config_cell = bag.single_root()?;
+    let mut parser = config_cell.parser();
+    let n = parser.load_u8(8)?;
+    assert!(n == 0x12u8);
     Ok(())
 }
