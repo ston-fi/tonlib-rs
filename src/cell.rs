@@ -64,8 +64,9 @@ impl Cell {
         //TODO level calculation differ for exotic cells
         let mut max_level = 0;
         for k in &self.references {
-            if k.get_max_level() > max_level {
-                max_level = k.get_max_level();
+            let level = k.get_max_level();
+            if level > max_level {
+                max_level = level;
             }
         }
         return max_level;
@@ -75,8 +76,9 @@ impl Cell {
         let mut max_depth = 0;
         if self.references.len() > 0 {
             for k in &self.references {
-                if k.get_max_depth() > max_depth {
-                    max_depth = k.get_max_depth();
+                let depth = k.get_max_depth();
+                if depth > max_depth {
+                    max_depth = depth;
                 }
             }
             max_depth = max_depth + 1;
