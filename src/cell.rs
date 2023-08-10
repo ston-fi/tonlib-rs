@@ -1,9 +1,11 @@
-use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    io::Cursor,
+};
 
 use anyhow::anyhow;
-use bitreader::BitReader;
-use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 use num_bigint::BigInt;
 use num_traits::{Num, ToPrimitive};
 use sha2::{Digest, Sha256};
@@ -25,10 +27,14 @@ pub struct Cell {
 }
 
 impl Cell {
-    pub fn parser<'a>(&'a self) -> CellParser<'a> {
-        let bit_reader =
-            BitReader::new(self.data.as_slice()).relative_reader_atmost(self.bit_len as u64);
+    pub fn parser<'a>(&'a self) -> CellParser {
+        let bit_len = self.bit_len;
+        let cursor = Cursor::new(&self.data);
+        let bit_reader: BitReader<Cursor<&Vec<u8>>, BigEndian> =
+            BitReader::endian(cursor, BigEndian);
+
         CellParser {
+            bit_len: bit_len,
             bit_reader: bit_reader,
         }
     }
@@ -324,7 +330,7 @@ impl BagOfCells {
     pub fn parse_hex(hex: &str) -> anyhow::Result<BagOfCells> {
         let str: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
         let bin = hex::decode(str.as_str())?;
-        Self::parse(bin.as_slice())
+        Self::parse(&bin)
     }
 
     pub fn serialize(&self, has_crc32: bool) -> anyhow::Result<Vec<u8>> {
@@ -422,7 +428,7 @@ impl BagOfCells {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Instant};
 
     use num_bigint::BigUint;
     use num_traits::Zero;
@@ -536,7 +542,7 @@ mod tests {
         CONfgo+E0QI3BUIBNUFAPIUAT6AljPFgHPFszJIsjLARL0APQAywDJ+QBwdMjLAsoHy//J0M8WlHAyywHiEvQAyds8f\
         1MALHGAGMjLBVADzxZw+gISy2rMyYMG+wBA0lqA";
 
-        let boc = BagOfCells::parse(base64::decode(raw)?.as_slice())?;
+        let boc = BagOfCells::parse(&base64::decode(raw)?)?;
         let cell = boc.single_root()?;
 
         let jetton_wallet_code_lp = cell.reference(0)?;
@@ -581,5 +587,22 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[ignore]
+    #[test]
+    fn benchmark_cell_repr() -> anyhow::Result<()> {
+        let now = Instant::now();
+        for _ in 1..10000 {
+            let result = cell_repr_works();
+            match result {
+                Ok(_) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        let elapsed = now.elapsed();
+        println!("Elapsed: {:.2?}", elapsed);
+        Ok(())
+        // initially it works for 10.39seceonds
     }
 }

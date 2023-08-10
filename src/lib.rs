@@ -1,7 +1,5 @@
 extern crate core;
 
-mod binary;
-
 pub mod address;
 pub mod cell;
 pub mod client;

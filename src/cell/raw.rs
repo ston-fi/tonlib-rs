@@ -1,6 +1,7 @@
-use crate::binary::reader::BinaryReader;
+use std::io::Cursor;
+
 use anyhow::{anyhow, bail};
-use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite, BitWriter, ByteRead, ByteReader};
 use crc::Crc;
 use lazy_static::lazy_static;
 
@@ -34,59 +35,66 @@ const _INDEXED_CRC32_MAGIC: u32 = 0xacc3a728;
 
 impl RawBagOfCells {
     pub(crate) fn parse(serial: &[u8]) -> anyhow::Result<RawBagOfCells> {
-        let mut reader: BinaryReader = BinaryReader::new(serial);
-        let magic = reader.read_u32_be()?;
-        let (has_idx, hash_crc32, _has_cache_bits, _flags, size_bytes) = match magic {
+        let cursor = Cursor::new(serial);
+
+        let mut reader: ByteReader<Cursor<&[u8]>, BigEndian> =
+            ByteReader::endian(cursor, BigEndian);
+        //   serialized_boc#b5ee9c72
+        let magic = reader.read::<u32>()?;
+
+        let (has_idx, has_crc32c, _has_cache_bits, size) = match magic {
             GENERIC_BOC_MAGIC => {
-                let flags_byte = reader.read_u8()?;
-                let has_idx = flags_byte & 0x80 == 0x80;
-                let hash_crc32 = flags_byte & 0x40 == 0x40;
-                let has_cache_bits = flags_byte & 0x20 == 0x20;
-                let flags = (flags_byte >> 3) & 0x03;
-                let size_bytes = flags_byte & 0x07;
-                (
-                    has_idx,
-                    hash_crc32,
-                    has_cache_bits,
-                    flags,
-                    size_bytes as usize,
-                )
+                //   has_idx:(## 1) has_crc32c:(## 1) has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
+                let header = reader.read::<u8>()?;
+                let has_idx = (header >> 7) & 1 == 1;
+                let has_crc32c = (header >> 6) & 1 == 1;
+                let has_cache_bits = (header >> 5) & 1 == 1;
+                //   size:(## 3) { size <= 4 }
+                let size = (header & 0b0000_0111).into();
+
+                (has_idx, has_crc32c, has_cache_bits, size)
             }
             _ => {
                 return Err(anyhow!("Unsupported cell1 magic number: {:08x}", magic));
             }
         };
-        let offset_bytes = reader.read_u8()? as usize;
-        let num_cells = reader.read_var_size_be(size_bytes)?;
-        let num_roots = reader.read_var_size_be(size_bytes)?;
-        let _num_absent = reader.read_var_size_be(size_bytes)?;
-        let total_cells_size = reader.read_var_size_be(offset_bytes)?;
-        let roots: Vec<usize> = (0..num_roots)
-            .map(|_| reader.read_var_size_be(size_bytes))
-            .collect::<anyhow::Result<Vec<usize>>>()?;
-        let _index: Vec<usize> = if has_idx {
-            (0..num_cells)
-                .map(|_| reader.read_var_size_be(size_bytes))
-                .collect::<anyhow::Result<Vec<usize>>>()?
-        } else {
-            Vec::new()
-        };
-        let hash_len: usize = if hash_crc32 { 4 } else { 0 };
-        let expected_len = reader.position() as usize + total_cells_size + hash_len;
-        if serial.len() != expected_len {
-            return Err(anyhow!(
-                "Invalid len, expected {}, actual {}",
-                expected_len,
-                serial.len()
-            ));
+        //   off_bytes:(## 8) { off_bytes <= 8 }
+        let off_bytes = reader.read::<u8>()?.into();
+        //cells:(##(size * 8))
+        let cells = read_var_size(&mut reader, size)?;
+        //   roots:(##(size * 8)) { roots >= 1 }
+        let roots = read_var_size(&mut reader, size)?;
+        //   absent:(##(size * 8)) { roots + absent <= cells }
+        let _absent = read_var_size(&mut reader, size)?;
+        //   tot_cells_size:(##(off_bytes * 8))
+        let _tot_cells_size = read_var_size(&mut reader, off_bytes)?;
+        //   root_list:(roots * ##(size * 8))
+        let mut root_list = vec![];
+        for _ in 0..roots {
+            root_list.push(read_var_size(&mut reader, size)?)
         }
+        //   index:has_idx?(cells * ##(off_bytes * 8))
+        let mut index = vec![];
+        if has_idx {
+            for _ in 0..cells {
+                index.push(read_var_size(&mut reader, off_bytes)?)
+            }
+        }
+        //   cell_data:(tot_cells_size * [ uint8 ])
+        let mut cell_vec = Vec::with_capacity(cells);
+
+        for _ in 0..cells {
+            let cell = read_cell(&mut reader, size)?;
+            cell_vec.push(cell);
+        }
+        //   crc32c:has_crc32c?uint32
+        let _crc32c = if has_crc32c { reader.read::<u32>()? } else { 0 };
         // TODO: Check crc32
-        let mut cells: Vec<RawCell> = Vec::new();
-        while (reader.position() as usize) < serial.len() - hash_len {
-            let raw_cell = read_raw_cell(&mut reader, size_bytes)?;
-            cells.push(raw_cell);
-        }
-        Ok(RawBagOfCells { cells, roots })
+
+        Ok(RawBagOfCells {
+            cells: cell_vec,
+            roots: root_list,
+        })
     }
 
     pub(crate) fn serialize(&self, has_crc32: bool) -> anyhow::Result<Vec<u8>> {
@@ -149,16 +157,20 @@ impl RawBagOfCells {
     }
 }
 
-fn read_raw_cell(reader: &mut BinaryReader, size_bytes: usize) -> anyhow::Result<RawCell> {
-    let d1 = reader.read_u8()?;
-    let d2 = reader.read_u8()?;
-    let max_level = d1 / 32;
-    let _is_exotic = d1 & 8 == 8;
+fn read_cell(
+    reader: &mut ByteReader<Cursor<&[u8]>, BigEndian>,
+    size: u8,
+) -> anyhow::Result<RawCell> {
+    let d1 = reader.read::<u8>()?;
+    let d2 = reader.read::<u8>()?;
+
+    let max_level = d1 >> 5;
+    let _is_exotic = (d1 & 8) != 0;
     let ref_num = d1 & 0x07;
-    let data_size = (d2 + 1) / 2;
-    let full_bytes = d2 & 0x01 == 0;
-    let mut data = vec![0; data_size as usize];
-    reader.read_bytes(data.as_mut_slice())?;
+    let data_size = (d2 >> 1) + (d2 & 1);
+    let full_bytes = (d2 & 0x01) == 0;
+
+    let mut data = reader.read_to_vec(data_size.try_into()?)?;
     let data_len = data.len();
     let padding_len = if data_len > 0 && !full_bytes {
         // Fix last byte,
@@ -177,15 +189,15 @@ fn read_raw_cell(reader: &mut BinaryReader, size_bytes: usize) -> anyhow::Result
     let bit_len = data.len() * 8 - padding_len as usize;
     let mut references: Vec<usize> = Vec::new();
     for _ in 0..ref_num {
-        references.push(reader.read_var_size_be(size_bytes)?);
+        references.push(read_var_size(reader, size)?);
     }
-    let res = RawCell {
+    let cell = RawCell {
         data,
         bit_len,
         references,
         max_level,
     };
-    Ok(res)
+    Ok(cell)
 }
 
 fn raw_cell_size(cell: &RawCell, ref_size_bytes: u32) -> u32 {
@@ -225,4 +237,18 @@ fn write_raw_cell(
     }
 
     Ok(())
+}
+
+fn read_var_size(
+    reader: &mut ByteReader<Cursor<&[u8]>, BigEndian>,
+    n: u8,
+) -> anyhow::Result<usize> {
+    let bytes = reader.read_to_vec(n.into())?;
+
+    let mut result = 0;
+    for &byte in &bytes {
+        result <<= 8;
+        result |= usize::from(byte);
+    }
+    Ok(result)
 }

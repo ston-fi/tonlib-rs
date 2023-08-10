@@ -190,7 +190,7 @@ impl TvmStack {
     fn extract_boc(e: &TvmStackEntry) -> anyhow::Result<BagOfCells> {
         match e {
             TvmStackEntry::Cell { cell } => {
-                let boc = BagOfCells::parse(cell.bytes.as_slice())?;
+                let boc = BagOfCells::parse(&cell.bytes)?;
                 Ok(boc)
             }
             _ => Err(anyhow!("Unsupported conversion to BagOfCells from {:?}", e)),
