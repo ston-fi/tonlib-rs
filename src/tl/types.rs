@@ -39,7 +39,7 @@ pub struct Options {
 // tonlib_api.tl, line 29
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type", rename = "options.configInfo")]
-pub struct ConfigInfo {
+pub struct OptionsConfigInfo {
     pub default_wallet_id: String,
     pub default_rwallet_init_public_key: String,
 }
@@ -47,7 +47,7 @@ pub struct ConfigInfo {
 // tonlib_api.tl, line 30
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OptionsInfo {
-    pub config_info: ConfigInfo,
+    pub config_info: OptionsConfigInfo,
 }
 
 // tonlib_api.tl, line 44
@@ -543,7 +543,7 @@ pub struct BlocksHeader {
 
 // tonlib_api.tl, line 228
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ChainConfigInfo {
+pub struct ConfigInfo {
     pub config: TvmCell,
 }
 

@@ -4,10 +4,9 @@ use strum::IntoStaticStr;
 
 use crate::tl::stack::TvmCell;
 use crate::tl::types::{
-    BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
-    ChainConfigInfo, FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo,
-    RawExtMessageInfo, RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult,
-    UpdateSyncState,
+    BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo,
+    FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
+    RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
 };
 
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -67,7 +66,7 @@ pub enum TonResult {
     BlocksHeader(BlocksHeader),
     // tonlib_api.tl, line 228
     #[serde(rename = "configInfo")]
-    ChainConfigInfo(ChainConfigInfo),
+    ConfigInfo(ConfigInfo),
 
     #[serde(rename = "tvm.cell")]
     TvmCell(TvmCell),
