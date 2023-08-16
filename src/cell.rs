@@ -137,6 +137,10 @@ impl Cell {
         Ok(hasher.finalize()[..].to_vec())
     }
 
+    pub fn cell_hash_base64(&self) -> anyhow::Result<String> {
+        Ok(base64::encode(self.cell_hash()?))
+    }
+
     ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
     ///
     ///Must be prefixed with 0x00 byte.
@@ -588,6 +592,32 @@ mod tests {
                    d553f1bdeac386cb209570c7d74fac7b2b938896147530e3fb4459f46f7b0a18a0"
         );
 
+        Ok(())
+    }
+
+    #[ignore]
+    #[test]
+    fn check_code_hash() -> anyhow::Result<()> {
+        let raw = include_str!("wallet/wallet_v3_code.hex");
+        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        println!(
+            "wallet_v3_code code_hash{:?}",
+            boc.single_root()?.cell_hash_base64()?
+        );
+
+        let raw = include_str!("wallet/wallet_v3r2_code.hex");
+        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        println!(
+            "wallet_v3r2_code code_hash{:?}",
+            boc.single_root()?.cell_hash_base64()?
+        );
+
+        let raw = include_str!("wallet/wallet_v4r2_code.hex");
+        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        println!(
+            "wallet_v4r2_code code_hash{:?}",
+            boc.single_root()?.cell_hash_base64()?
+        );
         Ok(())
     }
 
