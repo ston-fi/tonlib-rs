@@ -9,6 +9,7 @@ pub mod crypto;
 pub mod ipfs;
 pub mod jetton;
 pub mod message;
+pub mod meta;
 pub mod nft;
 pub mod tl;
 pub mod transactions;

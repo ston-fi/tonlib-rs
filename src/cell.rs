@@ -162,6 +162,34 @@ impl Cell {
         Ok(map)
     }
 
+    pub fn load_snake_formatted_string(&self) -> anyhow::Result<String> {
+        let mut current_ref = Some(Arc::new(self.clone()));
+        let mut first_cell = true;
+        let mut uri = String::new();
+        while let Some(cell) = current_ref {
+            let parsed_cell = if first_cell {
+                std::str::from_utf8(&cell.data[1..])?.to_string()
+            } else {
+                std::str::from_utf8(&cell.data)?.to_string()
+            };
+            uri.push_str(&parsed_cell);
+            if cell.references.len() == 1 {
+                let next = cell.references[0].clone();
+                current_ref = Some(next);
+                first_cell = false;
+            } else {
+                if cell.references.len() == 0 {
+                    current_ref = None;
+                } else {
+                    return Err(anyhow!(
+                        "Not valid snake formatted sting: More than one reference found."
+                    ));
+                }
+            }
+        }
+        Ok(uri)
+    }
+
     fn parse_snake_data(&self, buffer: &mut Vec<u8>, is_first: bool) -> anyhow::Result<()> {
         let mut reader = self.parser();
         if is_first && reader.load_uint(8)?.to_u32().unwrap() != 0 {
@@ -259,7 +287,6 @@ impl Cell {
                 extractor,
             )?;
         }
-
         Ok(())
     }
 }
