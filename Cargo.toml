@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.6.6"
+version = "0.6.7"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"

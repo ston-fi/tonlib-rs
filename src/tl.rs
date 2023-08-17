@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::os::raw::c_char;
 
 use anyhow::Result;
 use base64_serde::base64_serde_type;
@@ -87,7 +88,7 @@ impl TlTonClient {
             }
             let c_str_bytes = c_str_slice.to_bytes();
             let (result, extra) =
-                unsafe { deserialize_result_extra(c_str_bytes.as_ptr() as *const i8) };
+                unsafe { deserialize_result_extra(c_str_bytes.as_ptr() as *const c_char) };
             Some((result, extra))
         }
     }
