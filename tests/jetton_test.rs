@@ -1,6 +1,7 @@
 use tonlib::address::TonAddress;
 use tonlib::contract::TonContract;
-use tonlib::jetton::{JettonContent, JettonContentLoader, JettonMasterContract};
+use tonlib::jetton::JettonMasterContract;
+use tonlib::meta::*;
 
 mod common;
 
@@ -15,12 +16,12 @@ async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
     let res = contract.get_jetton_data().await?;
     assert_eq!(
         res.content,
-        JettonContent::External {
+        MetaDataContent::External {
             uri: "https://tarantini.dev/ston/moon.json".to_string()
         }
     );
-    let loader = JettonContentLoader::default()?;
-    let content_res = loader.load(&res.content).await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("MOON"));
     assert_eq!(content_res.decimals.unwrap(), 0x9);
 
@@ -36,8 +37,8 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
         &"EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86".parse()?,
     ); //FunZee jetton
     let res = contract.get_jetton_data().await?;
-    let loader = JettonContentLoader::default()?;
-    let content_res = loader.load(&res.content).await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("FNZ"));
     assert_eq!(content_res.decimals.unwrap(), 0x9);
 
@@ -53,8 +54,8 @@ async fn test_get_jetton_content_internal_uri_tgr() -> anyhow::Result<()> {
         &"EQAvDfWFG0oYX19jwNDNBBL1rKNT9XfaGP9HyTb5nb2Eml6y".parse()?,
     ); //FunZee jetton
     let res = contract.get_jetton_data().await?;
-    let loader = JettonContentLoader::default()?;
-    let content_res = loader.load(&res.content).await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TGR"));
     assert_eq!(content_res.decimals, None);
 
@@ -69,8 +70,8 @@ async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
         &"EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIw".parse()?,
     ); // BOLT jetton
     let res = contract.get_jetton_data().await?;
-    let loader = JettonContentLoader::default()?;
-    let content_res = loader.load(&res.content).await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BOLT"));
     println!("{:?}", content_res);
     println!("{:?}", content_res.image_data);
@@ -88,10 +89,13 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
         &"EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?,
     ); // jUSDC jetton
     let res = contract.get_jetton_data().await?;
-    let loader = JettonContentLoader::default()?;
-    let content_res = loader.load(&res.content).await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("jUSDC"));
-    assert_eq!(content_res.name.as_ref().unwrap(), &String::from("jUSDC"));
+    assert_eq!(
+        content_res.name.as_ref().unwrap(),
+        &String::from("USD Coin")
+    );
     assert_eq!(content_res.decimals.unwrap(), 0x6);
 
     Ok(())

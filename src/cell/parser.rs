@@ -1,16 +1,24 @@
 use crate::address::TonAddress;
 use anyhow::anyhow;
-use bitreader::BitReader;
+use bitstream_io::{BigEndian, BitRead, BitReader};
 use num_bigint::BigUint;
 use num_traits::identities::Zero;
+use std::io::{Cursor, SeekFrom};
 
 pub struct CellParser<'a> {
-    pub(crate) bit_reader: BitReader<'a>,
+    pub(crate) bit_len: usize,
+    pub(crate) bit_reader: BitReader<Cursor<&'a Vec<u8>>, BigEndian>,
 }
 
 impl CellParser<'_> {
     pub fn remaining_bits(&self) -> usize {
-        self.bit_reader.remaining() as usize
+        let pos = self
+            .bit_reader
+            .clone()
+            .seek_bits(SeekFrom::Current(0))
+            .ok()
+            .unwrap_or_default() as usize;
+        self.bit_len - pos
     }
 
     /// Return number of full bytes remaining
@@ -20,25 +28,25 @@ impl CellParser<'_> {
 
     pub fn load_bit(&mut self) -> anyhow::Result<bool> {
         self.bit_reader
-            .read_bool()
+            .read_bit()
             .map_err(|e| anyhow::Error::from(e))
     }
 
     pub fn load_u8(&mut self, bit_len: usize) -> anyhow::Result<u8> {
         self.bit_reader
-            .read_u8(bit_len as u8)
+            .read::<u8>(bit_len as u32)
             .map_err(|e| anyhow::Error::from(e))
     }
 
     pub fn load_u32(&mut self, bit_len: usize) -> anyhow::Result<u32> {
         self.bit_reader
-            .read_u32(bit_len as u8)
+            .read::<u32>(bit_len as u32)
             .map_err(|e| anyhow::Error::from(e))
     }
 
     pub fn load_u64(&mut self, bit_len: usize) -> anyhow::Result<u64> {
         self.bit_reader
-            .read_u64(bit_len as u8)
+            .read::<u64>(bit_len as u32)
             .map_err(|e| anyhow::Error::from(e))
     }
 
@@ -62,7 +70,7 @@ impl CellParser<'_> {
 
     pub fn load_slice(&mut self, slice: &mut [u8]) -> anyhow::Result<()> {
         self.bit_reader
-            .read_u8_slice(slice)
+            .read_bytes(slice)
             .map_err(|e| anyhow::Error::from(e))
     }
 
@@ -87,14 +95,14 @@ impl CellParser<'_> {
     }
 
     pub fn load_address(&mut self) -> anyhow::Result<TonAddress> {
-        let tp = self.bit_reader.read_u8(2)?;
+        let tp = self.bit_reader.read::<u8>(2)?;
         match tp {
             0 => Ok(TonAddress::null()),
             2 => {
-                let _res1 = self.bit_reader.read_u8(1)?;
-                let wc = self.bit_reader.read_u8(8)?;
+                let _res1 = self.bit_reader.read::<u8>(1)?;
+                let wc = self.bit_reader.read::<u8>(8)?;
                 let mut hash_part = [0 as u8; 32];
-                self.bit_reader.read_u8_slice(&mut hash_part)?; //.read_u8(8 * 32).unwrap();
+                self.bit_reader.read_bytes(&mut hash_part)?; //.read_u8(8 * 32).unwrap();
                 let addr = TonAddress::new(wc as i32, &hash_part);
                 Ok(addr)
             }
@@ -111,12 +119,12 @@ impl CellParser<'_> {
     }
 
     pub fn ensure_empty(&self) -> anyhow::Result<()> {
-        if self.bit_reader.remaining() == 0 {
+        if self.remaining_bits() == 0 {
             Ok(())
         } else {
             Err(anyhow!(
                 "Reader must be empty but there are {} bits left",
-                self.bit_reader.remaining()
+                self.remaining_bits()
             ))
         }
     }
