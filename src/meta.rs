@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use num_bigint::BigInt;
 use num_traits::Num;
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
 pub use jetton::*;
@@ -61,21 +61,21 @@ impl MetaDataField {
     }
 }
 
-pub struct MetaLoader<'a, MetaData>
+pub struct MetaLoader<MetaData>
 where
-    MetaData: for<'de> Deserialize<'de>,
+    MetaData: DeserializeOwned,
 {
     http_client: reqwest::Client,
     ipfs_loader: IpfsLoader,
-    meta_data_marker: std::marker::PhantomData<&'a MetaData>,
+    meta_data_marker: std::marker::PhantomData<MetaData>,
 }
-pub type JettonMetaLoader<'a> = MetaLoader<'a, JettonMetaData>;
-pub type NftItemMetaLoader<'a> = MetaLoader<'a, NftItemMetaData>;
-pub type NftColletionMetaLoader<'a> = MetaLoader<'a, NftCollectionMetaData>;
+pub type JettonMetaLoader = MetaLoader<JettonMetaData>;
+pub type NftItemMetaLoader = MetaLoader<NftItemMetaData>;
+pub type NftColletionMetaLoader = MetaLoader<NftCollectionMetaData>;
 
-impl<'a, MetaData> MetaLoader<'a, MetaData>
+impl<MetaData> MetaLoader<MetaData>
 where
-    MetaData: for<'de> Deserialize<'de>,
+    MetaData: DeserializeOwned,
 {
     pub fn new(ipfs_loader_config: &IpfsLoaderConfig) -> anyhow::Result<MetaLoader<MetaData>> {
         let http_client = reqwest::Client::builder().build()?;
@@ -87,7 +87,7 @@ where
         })
     }
 
-    pub fn default() -> anyhow::Result<MetaLoader<'a, MetaData>> {
+    pub fn default() -> anyhow::Result<MetaLoader<MetaData>> {
         let http_client = reqwest::Client::builder().build()?;
         let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?; // Replace with actual initialization
         Ok(MetaLoader {
@@ -125,7 +125,7 @@ where
 #[async_trait]
 pub trait LoadMeta<T>
 where
-    T: for<'de> Deserialize<'de>,
+    T: DeserializeOwned,
 {
-    async fn load(&self, content: MetaDataContent) -> anyhow::Result<T>;
+    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<T>;
 }

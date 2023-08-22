@@ -31,8 +31,8 @@ pub struct JettonMetaData {
 }
 
 #[async_trait]
-impl LoadMeta<JettonMetaData> for MetaLoader<'_, JettonMetaData> {
-    async fn load(&self, content: MetaDataContent) -> anyhow::Result<JettonMetaData> {
+impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
+    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<JettonMetaData> {
         match content {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
