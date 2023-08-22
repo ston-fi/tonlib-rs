@@ -81,7 +81,7 @@ impl NftItemContract for TonContract {
                 .single_root()?
                 .parse_fully(|r| r.load_address())?;
             let result: NftItemData = NftItemData {
-                init: stack.get_i32(0)? == 1,
+                init: stack.get_i32(0)? == -1,
                 index: index.clone(),
                 collection_address: collection_address.clone(),
                 owner_address: stack
