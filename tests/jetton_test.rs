@@ -21,7 +21,7 @@ async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
         }
     );
     let meta_loader = JettonMetaLoader::default()?;
-    let content_res = meta_loader.load(res.content).await?;
+    let content_res = meta_loader.load(&res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("MOON"));
     assert_eq!(content_res.decimals.unwrap(), 0x9);
 
@@ -38,7 +38,7 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
     ); //FunZee jetton
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
-    let content_res = meta_loader.load(res.content).await?;
+    let content_res = meta_loader.load(&res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("FNZ"));
     assert_eq!(content_res.decimals.unwrap(), 0x9);
 
@@ -55,7 +55,7 @@ async fn test_get_jetton_content_internal_uri_tgr() -> anyhow::Result<()> {
     ); //FunZee jetton
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
-    let content_res = meta_loader.load(res.content).await?;
+    let content_res = meta_loader.load(&res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TGR"));
     assert_eq!(content_res.decimals, None);
 
@@ -71,7 +71,7 @@ async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
     ); // BOLT jetton
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
-    let content_res = meta_loader.load(res.content).await?;
+    let content_res = meta_loader.load(&res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BOLT"));
     println!("{:?}", content_res);
     println!("{:?}", content_res.image_data);
@@ -90,7 +90,7 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     ); // jUSDC jetton
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
-    let content_res = meta_loader.load(res.content).await?;
+    let content_res = meta_loader.load(&res.content).await?;
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("jUSDC"));
     assert_eq!(
         content_res.name.as_ref().unwrap(),

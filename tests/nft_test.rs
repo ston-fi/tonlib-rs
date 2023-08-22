@@ -60,7 +60,7 @@ async fn test_get_nft_content_uri() -> anyhow::Result<()> {
         }
     );
     let meta_loader = NftItemMetaLoader::default()?;
-    let content_res = meta_loader.load(res.individual_content).await?;
+    let content_res = meta_loader.load(&res.individual_content).await?;
     assert_eq!(
         content_res.name.as_ref().unwrap(),
         &String::from("+888 0539 7120")
@@ -82,7 +82,7 @@ async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
     );
     let res = contract.get_nft_data().await?;
     let meta_loader = NftItemMetaLoader::default()?;
-    let content_res = meta_loader.load(res.individual_content).await?;
+    let content_res = meta_loader.load(&res.individual_content).await?;
     assert_eq!(
         content_res.image.unwrap(),
         "https://static.ston.fi/stake-nft/i1.jpg"
@@ -101,7 +101,7 @@ async fn test_get_nft_content_some() -> anyhow::Result<()> {
     );
     let res = contract.get_nft_data().await?;
     let meta_loader = NftItemMetaLoader::default()?;
-    let content_res = meta_loader.load(res.individual_content).await?;
+    let content_res = meta_loader.load(&res.individual_content).await?;
     assert_eq!(
         content_res.image.unwrap(),
         "https://mars.tonplanets.com/i/biomes/4v4.jpg"
@@ -130,7 +130,7 @@ async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
     );
 
     let meta_loader = NftColletionMetaLoader::default()?;
-    let content_res = meta_loader.load(res.collection_content).await?;
+    let content_res = meta_loader.load(&res.collection_content).await?;
     assert_eq!(
         content_res.name.as_ref().unwrap(),
         &String::from("Anonymous Telegram Numbers")
@@ -153,7 +153,7 @@ async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
     );
     let res = contract.get_collection_data().await?;
     let meta_loader = NftColletionMetaLoader::default()?;
-    let content_res = meta_loader.load(res.collection_content).await?;
+    let content_res = meta_loader.load(&res.collection_content).await?;
     assert_eq!(content_res.name.unwrap(), "ARKENSTON NFT");
     assert_eq!(
         content_res.image.unwrap(),
@@ -173,7 +173,7 @@ async fn test_get_nft_collection_content_some() -> anyhow::Result<()> {
     );
     let res = contract.get_nft_data().await?;
     let meta_loader = NftColletionMetaLoader::default()?;
-    let content_res = meta_loader.load(res.individual_content).await?;
+    let content_res = meta_loader.load(&res.individual_content).await?;
     assert_eq!(content_res.name.unwrap(), "Pokemon Pikachu #013 💎");
     assert_eq!(
         content_res.image.unwrap(),
