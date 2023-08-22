@@ -20,8 +20,8 @@ pub struct NftItemMetaData {
 }
 
 #[async_trait]
-impl LoadMeta<NftItemMetaData> for MetaLoader<'_, NftItemMetaData> {
-    async fn load(&self, content: MetaDataContent) -> anyhow::Result<NftItemMetaData> {
+impl LoadMeta<NftItemMetaData> for MetaLoader<NftItemMetaData> {
+    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<NftItemMetaData> {
         match content {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
