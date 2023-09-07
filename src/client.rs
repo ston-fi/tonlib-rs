@@ -74,15 +74,23 @@ impl TonClient {
     ) -> anyhow::Result<(TonConnection, TonResult)> {
         let fi = FixedInterval::from_millis(self.inner.retry_strategy.interval_ms);
         let strategy = fi.take(self.inner.retry_strategy.max_retries);
-        let result = RetryIf::spawn(strategy, || self.do_invoke(function), retry_condition).await?;
-        Ok(result)
+        let item = self.random_item();
+        let result =
+            RetryIf::spawn(strategy, || self.do_invoke(function, item), retry_condition).await;
+        match result {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                item.reset().await;
+                Err(e)
+            }
+        }
     }
 
     async fn do_invoke(
         &self,
         function: &TonFunction,
+        item: &PoolConnection,
     ) -> anyhow::Result<(TonConnection, TonResult)> {
-        let item = self.random_item();
         let conn = item.get_connection().await?;
         let res = conn.invoke(function).await;
         match res {
