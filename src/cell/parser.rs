@@ -18,7 +18,11 @@ impl CellParser<'_> {
             .seek_bits(SeekFrom::Current(0))
             .ok()
             .unwrap_or_default() as usize;
-        self.bit_len - pos
+        if self.bit_len > pos {
+            self.bit_len - pos
+        } else {
+            0
+        }
     }
 
     /// Return number of full bytes remaining
