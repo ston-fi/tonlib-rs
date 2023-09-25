@@ -6,6 +6,8 @@ use crate::address::TonAddress;
 use crate::cell::{Cell, CellBuilder};
 use crate::message::ZERO_COINS;
 
+use super::TonMessageError;
+
 pub struct TransferBuilder {
     dest: TonAddress,
     value: BigUint,
@@ -41,7 +43,7 @@ impl TransferBuilder {
         self
     }
 
-    pub fn build(&self) -> anyhow::Result<Cell> {
+    pub fn build(&self) -> Result<Cell, TonMessageError> {
         let mut builder = CellBuilder::new();
         builder.store_bit(false)?; // bit0
         builder.store_bit(true)?; // ihr_disabled
@@ -63,6 +65,6 @@ impl TransferBuilder {
         if let Some(data) = self.data.as_ref() {
             builder.store_reference(data)?;
         }
-        builder.build()
+        Ok(builder.build()?)
     }
 }

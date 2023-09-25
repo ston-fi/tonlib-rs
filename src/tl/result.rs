@@ -1,15 +1,30 @@
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use strum::IntoStaticStr;
+use strum::{Display, EnumDiscriminants, IntoStaticStr};
 
 use crate::tl::stack::TvmCell;
-use crate::tl::types::{
-    BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo,
-    FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
-    RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
+use crate::{
+    client::TonClientError,
+    tl::types::{
+        BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
+        ConfigInfo, FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo,
+        RawExtMessageInfo, RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult,
+        UpdateSyncState,
+    },
 };
 
-#[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    IntoStaticStr,
+    EnumDiscriminants,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+)]
+#[strum_discriminants(derive(IntoStaticStr, Display))]
 #[serde(tag = "@type", rename_all = "camelCase")]
 pub enum TonResult {
     // tonlib_api.tl, line 20
@@ -73,10 +88,13 @@ pub enum TonResult {
 }
 
 impl TonResult {
-    pub fn expect_ok(&self) -> anyhow::Result<()> {
+    pub fn expect_ok(&self) -> Result<(), TonClientError> {
         match self {
             TonResult::Ok {} => Ok(()),
-            r => Err(anyhow!("Expected Ok, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::Ok,
+                r.clone(),
+            )),
         }
     }
 }

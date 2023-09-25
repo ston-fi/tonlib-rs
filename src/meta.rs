@@ -16,6 +16,9 @@ pub use jetton::*;
 pub use nft_collection::*;
 pub use nft_item::*;
 
+use self::error::MetaLoaderError;
+
+pub mod error;
 mod jetton;
 mod nft_collection;
 mod nft_item;
@@ -77,7 +80,9 @@ impl<MetaData> MetaLoader<MetaData>
 where
     MetaData: DeserializeOwned,
 {
-    pub fn new(ipfs_loader_config: &IpfsLoaderConfig) -> anyhow::Result<MetaLoader<MetaData>> {
+    pub fn new(
+        ipfs_loader_config: &IpfsLoaderConfig,
+    ) -> Result<MetaLoader<MetaData>, MetaLoaderError> {
         let http_client = reqwest::Client::builder().build()?;
         let ipfs_loader = IpfsLoader::new(ipfs_loader_config)?; // Replace with actual initialization
         Ok(MetaLoader {
@@ -87,7 +92,7 @@ where
         })
     }
 
-    pub fn default() -> anyhow::Result<MetaLoader<MetaData>> {
+    pub fn default() -> Result<MetaLoader<MetaData>, MetaLoaderError> {
         let http_client = reqwest::Client::builder().build()?;
         let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?; // Replace with actual initialization
         Ok(MetaLoader {
@@ -97,7 +102,7 @@ where
         })
     }
 
-    pub async fn load_meta_from_uri(&self, uri: &str) -> anyhow::Result<MetaData> {
+    pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
         log::trace!("Downloading metadata from {}", uri);
         let meta_str: String = if uri.starts_with("ipfs://") {
             let path: String = uri.chars().into_iter().skip(7).collect();
@@ -107,11 +112,10 @@ where
             if resp.status().is_success() {
                 resp.text().await?
             } else {
-                anyhow::bail!(
-                    "Failed to load jetton metadata from {}. Resp status: {}",
-                    uri,
-                    resp.status()
-                );
+                return Err(MetaLoaderError::LoadMetaDataFailed {
+                    uri: uri.to_string(),
+                    status: resp.status(),
+                });
             }
         };
 
@@ -127,5 +131,5 @@ pub trait LoadMeta<T>
 where
     T: DeserializeOwned,
 {
-    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<T>;
+    async fn load(&self, content: &MetaDataContent) -> Result<T, MetaLoaderError>;
 }

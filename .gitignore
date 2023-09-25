@@ -3,6 +3,8 @@
 /var
 /Cargo.lock
 /.cargo
+/doc
+
 
 # Editors
 .DS_Store

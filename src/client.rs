@@ -1,24 +1,25 @@
+mod builder;
+mod connection;
+mod error;
+mod types;
+
+pub use builder::*;
+pub use connection::*;
+pub use error::*;
+pub use types::*;
+
 use std::fs;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use rand::Rng;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 
-pub use builder::*;
-pub use connection::*;
-pub use types::*;
-
 use crate::tl::{TlTonClient, TonFunction, TonResult};
-
-mod builder;
-mod connection;
-mod types;
 
 pub struct TonClient {
     inner: Arc<Inner>,
@@ -31,7 +32,7 @@ impl TonClient {
         params: &TonConnectionParams,
         retry_strategy: &RetryStrategy,
         callback: Arc<dyn TonConnectionCallback + Send + Sync>,
-    ) -> anyhow::Result<TonClient> {
+    ) -> Result<TonClient, TonClientError> {
         let mut connections = Vec::with_capacity(pool_size);
         for i in 0..pool_size {
             let mut p = params.clone();
@@ -39,9 +40,10 @@ impl TonClient {
                 let keystore_prefix = Path::new(dir.as_str());
                 let keystore_dir = keystore_prefix.join(format!("{}", i));
                 fs::create_dir_all(&keystore_dir)?;
-                let path_str = keystore_dir.into_os_string().into_string().map_err(|_| {
-                    anyhow!("Got an invalid unicode string by joining {} & {}", dir, i)
-                })?;
+                let path_str = keystore_dir
+                    .into_os_string()
+                    .into_string()
+                    .map_err(|_| TonClientError::InternalError)?;
                 p.keystore_dir = Some(path_str)
             };
             let entry = PoolConnection {
@@ -64,14 +66,14 @@ impl TonClient {
         TonClientBuilder::new()
     }
 
-    pub async fn default() -> anyhow::Result<TonClient> {
+    pub async fn default() -> Result<TonClient, TonClientError> {
         Self::builder().build().await
     }
 
     async fn retrying_invoke(
         &self,
         function: &TonFunction,
-    ) -> anyhow::Result<(TonConnection, TonResult)> {
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
         let fi = FixedInterval::from_millis(self.inner.retry_strategy.interval_ms);
         let strategy = fi.take(self.inner.retry_strategy.max_retries);
         let item = self.random_item();
@@ -90,7 +92,7 @@ impl TonClient {
         &self,
         function: &TonFunction,
         item: &PoolConnection,
-    ) -> anyhow::Result<(TonConnection, TonResult)> {
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
         let conn = item.get_connection().await?;
         let res = conn.invoke(function).await;
         match res {
@@ -115,7 +117,7 @@ impl TonClient {
 
 #[async_trait]
 impl TonFunctions for TonClient {
-    async fn get_connection(&self) -> anyhow::Result<TonConnection> {
+    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         let item = self.random_item();
         let conn = item.get_connection().await?;
         Ok(conn)
@@ -124,20 +126,20 @@ impl TonFunctions for TonClient {
     async fn invoke_on_connection(
         &self,
         function: &TonFunction,
-    ) -> anyhow::Result<(TonConnection, TonResult)> {
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
         self.retrying_invoke(function).await
     }
 }
 
-fn maybe_error_code(error: &anyhow::Error) -> Option<i32> {
-    if let Some(e) = error.downcast_ref::<TonError>() {
-        Some(e.code)
+fn maybe_error_code(error: &TonClientError) -> Option<i32> {
+    if let TonClientError::TonlibError { code, .. } = error {
+        Some(*code)
     } else {
         None
     }
 }
 
-fn retry_condition(error: &anyhow::Error) -> bool {
+fn retry_condition(error: &TonClientError) -> bool {
     if let Some(code) = maybe_error_code(error) {
         code == 500
     } else {
@@ -165,7 +167,7 @@ struct PoolConnection {
 }
 
 impl PoolConnection {
-    async fn get_connection(&self) -> anyhow::Result<TonConnection> {
+    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         let mut guard = self.conn.lock().await;
         match guard.deref() {
             Some(conn) => Ok(conn.clone()),

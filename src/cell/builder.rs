@@ -1,10 +1,11 @@
 use crate::address::TonAddress;
 use crate::cell::{Cell, CellParser};
-use anyhow::{anyhow, bail};
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use std::sync::Arc;
+
+use crate::cell::error::{MapTonCellError, TonCellError};
 
 const MAX_CELL_BITS: usize = 1023;
 const MAX_CELL_REFERENCES: usize = 4;
@@ -23,29 +24,38 @@ impl CellBuilder {
         }
     }
 
-    pub fn store_bit(&mut self, val: bool) -> anyhow::Result<&mut Self> {
-        self.bit_writer.write_bit(val)?;
+    pub fn store_bit(&mut self, val: bool) -> Result<&mut Self, TonCellError> {
+        self.bit_writer.write_bit(val).map_cell_builder_error()?;
         Ok(self)
     }
 
-    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> anyhow::Result<&mut Self> {
-        self.bit_writer.write(bit_len as u32, val)?;
+    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
         Ok(self)
     }
 
-    pub fn store_u32(&mut self, bit_len: usize, val: u32) -> anyhow::Result<&mut Self> {
-        self.bit_writer.write(bit_len as u32, val)?;
+    pub fn store_u32(&mut self, bit_len: usize, val: u32) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
         Ok(self)
     }
 
-    pub fn store_u64(&mut self, bit_len: usize, val: u64) -> anyhow::Result<&mut Self> {
-        self.bit_writer.write(bit_len as u32, val)?;
+    pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
         Ok(self)
     }
 
-    pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> anyhow::Result<&mut Self> {
+    pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
         if val.bits() as usize > bit_len {
-            return Err(anyhow!("Value {} doesn't fit in {} bits", val, bit_len));
+            return Err(TonCellError::cell_builder_error(format!(
+                "Value {} doesn't fit in {} bits",
+                val, bit_len
+            )));
         }
         let bytes = val.to_bytes_be();
         let num_full_bytes = bit_len / 8;
@@ -71,27 +81,29 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_i8(&mut self, bit_len: usize, val: i8) -> anyhow::Result<&mut Self> {
-        self.bit_writer.write(bit_len as u32, val)?;
+    pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
         Ok(self)
     }
 
-    pub fn store_byte(&mut self, val: u8) -> anyhow::Result<&mut Self> {
+    pub fn store_byte(&mut self, val: u8) -> Result<&mut Self, TonCellError> {
         self.store_u8(8, val)
     }
 
-    pub fn store_slice(&mut self, slice: &[u8]) -> anyhow::Result<&mut Self> {
+    pub fn store_slice(&mut self, slice: &[u8]) -> Result<&mut Self, TonCellError> {
         for val in slice {
             self.store_byte(*val)?;
         }
         Ok(self)
     }
 
-    pub fn store_string(&mut self, val: &str) -> anyhow::Result<&mut Self> {
+    pub fn store_string(&mut self, val: &str) -> Result<&mut Self, TonCellError> {
         self.store_slice(val.as_bytes())
     }
 
-    pub fn store_coins(&mut self, val: &BigUint) -> anyhow::Result<&mut Self> {
+    pub fn store_coins(&mut self, val: &BigUint) -> Result<&mut Self, TonCellError> {
         if val.is_zero() {
             self.store_u8(4, 0)
         } else {
@@ -102,7 +114,7 @@ impl CellBuilder {
     }
 
     /// Stores address without optimizing hole address
-    pub fn store_raw_address(&mut self, val: &TonAddress) -> anyhow::Result<&mut Self> {
+    pub fn store_raw_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
         self.store_u8(2, 0b10u8)?;
         self.store_bit(false)?;
         let wc = (val.workchain & 0xff) as u8;
@@ -112,7 +124,7 @@ impl CellBuilder {
     }
 
     /// Stores address optimizing hole address two to bits
-    pub fn store_address(&mut self, val: &TonAddress) -> anyhow::Result<&mut Self> {
+    pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
         if val == &TonAddress::NULL {
             self.store_u8(2, 0)?;
         } else {
@@ -124,18 +136,19 @@ impl CellBuilder {
     /// Adds reference to an existing `Cell`.
     ///
     /// The reference is passed as `Arc<Cell>` so it might be references from other cells.
-    pub fn store_reference(&mut self, cell: &Arc<Cell>) -> anyhow::Result<&mut Self> {
-        if self.references.len() > 3 {
-            bail!(
-                "A Cell must contain at most 4 references, there would be {} after adding",
-                self.references.len() + 1
-            )
+    pub fn store_reference(&mut self, cell: &Arc<Cell>) -> Result<&mut Self, TonCellError> {
+        let ref_count = self.references.len() + 1;
+        if ref_count > 4 {
+            return Err(TonCellError::cell_builder_error(format!(
+                "Cell must contain at most 4 references, got {}",
+                ref_count
+            )));
         }
         self.references.push(cell.clone());
         Ok(self)
     }
 
-    pub fn store_references(&mut self, refs: &[Arc<Cell>]) -> anyhow::Result<&mut Self> {
+    pub fn store_references(&mut self, refs: &[Arc<Cell>]) -> Result<&mut Self, TonCellError> {
         for r in refs {
             self.store_reference(r)?;
         }
@@ -145,11 +158,14 @@ impl CellBuilder {
     /// Adds a reference to a newly constructed `Cell`.
     ///
     /// The cell is wrapped it the `Arc`.
-    pub fn store_child(&mut self, cell: Cell) -> anyhow::Result<&mut Self> {
+    pub fn store_child(&mut self, cell: Cell) -> Result<&mut Self, TonCellError> {
         self.store_reference(&Arc::new(cell))
     }
 
-    pub fn store_remaining_bits(&mut self, parser: &mut CellParser) -> anyhow::Result<&mut Self> {
+    pub fn store_remaining_bits(
+        &mut self,
+        parser: &mut CellParser,
+    ) -> Result<&mut Self, TonCellError> {
         let num_full_bytes = parser.remaining_bits() / 8;
         let bytes = parser.load_bytes(num_full_bytes)?;
         self.store_slice(bytes.as_slice())?;
@@ -159,40 +175,39 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_cell_data(&mut self, cell: &Cell) -> anyhow::Result<&mut Self> {
+    pub fn store_cell_data(&mut self, cell: &Cell) -> Result<&mut Self, TonCellError> {
         let mut parser = cell.parser();
         self.store_remaining_bits(&mut parser)?;
         Ok(self)
     }
 
-    pub fn store_cell(&mut self, cell: &Cell) -> anyhow::Result<&mut Self> {
+    pub fn store_cell(&mut self, cell: &Cell) -> Result<&mut Self, TonCellError> {
         self.store_cell_data(cell)?;
         self.store_references(cell.references.as_slice())?;
         Ok(self)
     }
 
-    pub fn build(&mut self) -> anyhow::Result<Cell> {
+    pub fn build(&mut self) -> Result<Cell, TonCellError> {
         let mut trailing_zeros = 0;
         while !self.bit_writer.byte_aligned() {
-            self.bit_writer.write_bit(false)?;
+            self.bit_writer.write_bit(false).map_cell_builder_error()?;
             trailing_zeros += 1;
         }
 
         if let Some(vec) = self.bit_writer.writer() {
             let bit_len = vec.len() * 8 - trailing_zeros;
             if bit_len > MAX_CELL_BITS {
-                return Err(anyhow!(
+                return Err(TonCellError::cell_builder_error(format!(
                     "Cell must contain at most {} bits, got {}",
-                    MAX_CELL_BITS,
-                    bit_len
-                ));
+                    MAX_CELL_BITS, bit_len
+                )));
             }
-            if self.references.len() > MAX_CELL_REFERENCES {
-                return Err(anyhow!(
-                    "Cell must contain at most {} references, got {}",
-                    MAX_CELL_REFERENCES,
-                    self.references.len()
-                ));
+            let ref_count = self.references.len();
+            if ref_count > MAX_CELL_REFERENCES {
+                return Err(TonCellError::cell_builder_error(format!(
+                    "Cell must contain at most 4 references, got {}",
+                    ref_count
+                )));
             }
             Ok(Cell {
                 data: vec.clone(),
@@ -200,7 +215,9 @@ impl CellBuilder {
                 references: self.references.clone(),
             })
         } else {
-            Err(anyhow!("Internal error: stream is not byte-aligned"))
+            Err(TonCellError::CellBuilderError {
+                msg: "Stream is not byte-aligned".to_string(),
+            })
         }
     }
 }

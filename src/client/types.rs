@@ -1,7 +1,6 @@
-use crate::tl::TonFunction;
-use crate::{client::connection::TonConnection, tl::stack::TvmCell};
-use crate::{config::MAINNET_CONFIG, tl::types::LiteServerInfo};
-use anyhow::anyhow;
+use crate::tl::{TlError, TonFunction, TonResultDiscriminants};
+use crate::{client::connection::TonConnection, tl::TvmCell};
+use crate::{config::MAINNET_CONFIG, tl::LiteServerInfo};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -11,13 +10,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
-use crate::tl::types::{
+use crate::tl::TonNotification;
+use crate::tl::TonResult;
+use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,
     InternalTransactionId, RawFullAccountState, RawTransactions,
 };
-use crate::tl::TonNotification;
-use crate::tl::TonResult;
+
+use super::error::TonClientError;
 
 #[derive(Debug, Clone)]
 pub struct TonError {
@@ -87,20 +88,20 @@ pub trait TonConnectionCallback {
         id: u32,
         method: &str,
         duration: &Duration,
-        res: &anyhow::Result<TonResult>,
+        res: &Result<TonResult, TonClientError>,
     ) {
     }
     fn on_invoke_result_send_error(
         &self,
         id: u32,
         duration: &Duration,
-        res: &anyhow::Result<TonResult>,
+        res: &Result<TonResult, TonClientError>,
     ) {
     }
     fn on_notification(&self, notification: &TonNotification) {}
-    fn on_invoke_error(&self, id: u32, error: &anyhow::Error) {}
+    fn on_tl_error(&self, error: &TlError) {}
     fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {}
-    fn on_notification_parse_error(&self, error: &anyhow::Error) {}
+    fn on_ton_result_parse_error(&self, result: &TonResult) {}
 }
 
 pub struct DefaultConnectionCallback {}
@@ -108,21 +109,21 @@ impl TonConnectionCallback for DefaultConnectionCallback {}
 
 #[async_trait]
 pub trait TonFunctions {
-    async fn get_connection(&self) -> anyhow::Result<TonConnection>;
+    async fn get_connection(&self) -> Result<TonConnection, TonClientError>;
 
     async fn invoke_on_connection(
         &self,
         function: &TonFunction,
-    ) -> anyhow::Result<(TonConnection, TonResult)>;
+    ) -> Result<(TonConnection, TonResult), TonClientError>;
 
-    async fn invoke(&self, function: &TonFunction) -> anyhow::Result<TonResult> {
+    async fn invoke(&self, function: &TonFunction) -> Result<TonResult, TonClientError> {
         self.invoke_on_connection(function).await.map(|(_, r)| r)
     }
 
     async fn get_raw_account_state(
         &self,
         account_address: &str,
-    ) -> anyhow::Result<RawFullAccountState> {
+    ) -> Result<RawFullAccountState, TonClientError> {
         let func = TonFunction::RawGetAccountState {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -131,7 +132,10 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::RawFullAccountState(state) => Ok(state),
-            r => Err(anyhow!("Expected RawFullAccountState, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawFullAccountState,
+                r,
+            )),
         }
     }
 
@@ -139,7 +143,7 @@ pub trait TonFunctions {
         &self,
         account_address: &str,
         from_transaction_id: &InternalTransactionId,
-    ) -> anyhow::Result<RawTransactions> {
+    ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactions {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -149,7 +153,10 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::RawTransactions(state) => Ok(state),
-            r => Err(anyhow!("Expected RawTransactions, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawTransactions,
+                r,
+            )),
         }
     }
 
@@ -159,7 +166,7 @@ pub trait TonFunctions {
         from_transaction_id: &InternalTransactionId,
         count: usize,
         try_decode_messages: bool,
-    ) -> anyhow::Result<RawTransactions> {
+    ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactionsV2 {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -171,42 +178,50 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::RawTransactions(state) => Ok(state),
-            r => Err(anyhow!("Expected RawTransactions, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawTransactions,
+                r,
+            )),
         }
     }
 
-    async fn send_raw_message(&self, body: &[u8]) -> anyhow::Result<()> {
+    async fn send_raw_message(&self, body: &[u8]) -> Result<(), TonClientError> {
         let func = TonFunction::RawSendMessage {
             body: body.to_vec(),
         };
-        let result = self.invoke(&func).await?;
-        match result {
-            TonResult::Ok {} => Ok(()),
-            r => Err(anyhow!("Expected Ok, got: {:?}", r)),
-        }
+        self.invoke(&func).await?.expect_ok()
     }
 
-    async fn send_raw_message_return_hash(&self, body: &[u8]) -> anyhow::Result<Vec<u8>> {
+    async fn send_raw_message_return_hash(&self, body: &[u8]) -> Result<Vec<u8>, TonClientError> {
         let func = TonFunction::RawSendMessageReturnHash {
             body: body.to_vec(),
         };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::RawExtMessageInfo(info) => Ok(info.hash),
-            r => Err(anyhow!("Expected RawExtMessageInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawExtMessageInfo,
+                r,
+            )),
         }
     }
 
-    async fn sync(&self) -> anyhow::Result<(TonConnection, BlockIdExt)> {
+    async fn sync(&self) -> Result<(TonConnection, BlockIdExt), TonClientError> {
         let func = TonFunction::Sync {};
         let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
             TonResult::BlockIdExt(result) => Ok((conn, result)),
-            r => Err(anyhow!("Expected BlockIdExt, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlockIdExt,
+                r,
+            )),
         }
     }
 
-    async fn get_account_state(&self, account_address: &str) -> anyhow::Result<FullAccountState> {
+    async fn get_account_state(
+        &self,
+        account_address: &str,
+    ) -> Result<FullAccountState, TonClientError> {
         let func = TonFunction::GetAccountState {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -215,11 +230,17 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::FullAccountState(state) => Ok(state),
-            r => Err(anyhow!("Expected FullAccountState, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::FullAccountState,
+                r,
+            )),
         }
     }
 
-    async fn smc_load(&self, account_address: &str) -> anyhow::Result<(TonConnection, i64)> {
+    async fn smc_load(
+        &self,
+        account_address: &str,
+    ) -> Result<(TonConnection, i64), TonClientError> {
         let func = TonFunction::SmcLoad {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -228,7 +249,10 @@ pub trait TonFunctions {
         let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
             TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
-            r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::SmcInfo,
+                r,
+            )),
         }
     }
 
@@ -236,7 +260,7 @@ pub trait TonFunctions {
         &self,
         account_address: &str,
         transaction_id: &InternalTransactionId,
-    ) -> anyhow::Result<(TonConnection, i64)> {
+    ) -> Result<(TonConnection, i64), TonClientError> {
         let func = TonFunction::SmcLoadByTransaction {
             account_address: AccountAddress {
                 account_address: String::from(account_address),
@@ -246,60 +270,81 @@ pub trait TonFunctions {
         let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
             TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
-            r => Err(anyhow!("Expected SmcInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::SmcInfo,
+                r,
+            )),
         }
     }
 
-    async fn smc_forget(&self, id: i64) -> anyhow::Result<TonResult> {
+    async fn smc_forget(&self, id: i64) -> Result<TonResult, TonClientError> {
         let func = TonFunction::SmcForget { id };
         let result = self.invoke(&func).await?;
         Ok(result)
     }
 
-    async fn smc_get_code(&self, id: i64) -> anyhow::Result<TvmCell> {
+    async fn smc_get_code(&self, id: i64) -> Result<TvmCell, TonClientError> {
         let func = TonFunction::SmcGetCode { id: id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
-            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::TvmCell,
+                r,
+            )),
         }
     }
 
-    async fn smc_get_data(&self, id: i64) -> anyhow::Result<TvmCell> {
+    async fn smc_get_data(&self, id: i64) -> Result<TvmCell, TonClientError> {
         let func = TonFunction::SmcGetData { id: id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
-            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::TvmCell,
+                r,
+            )),
         }
     }
 
-    async fn smc_get_state(&self, id: i64) -> anyhow::Result<TvmCell> {
+    async fn smc_get_state(&self, id: i64) -> Result<TvmCell, TonClientError> {
         let func = TonFunction::SmcGetState { id: id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
-            r => Err(anyhow!("Expected TvmCell, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::TvmCell,
+                r,
+            )),
         }
     }
 
-    async fn get_masterchain_info(&self) -> anyhow::Result<BlocksMasterchainInfo> {
+    async fn get_masterchain_info(&self) -> Result<BlocksMasterchainInfo, TonClientError> {
         let func = TonFunction::BlocksGetMasterchainInfo {};
         let result = self.invoke(&func).await?;
         match result {
             TonResult::BlocksMasterchainInfo(result) => Ok(result),
-            r => Err(anyhow!("Expected BlocksMasterchainInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlocksMasterchainInfo,
+                r,
+            )),
         }
     }
 
-    async fn get_block_shards(&self, block_id: &BlockIdExt) -> anyhow::Result<BlocksShards> {
+    async fn get_block_shards(
+        &self,
+        block_id: &BlockIdExt,
+    ) -> Result<BlocksShards, TonClientError> {
         let func = TonFunction::BlocksGetShards {
             id: block_id.clone(),
         };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::BlocksShards(result) => Ok(result),
-            r => Err(anyhow!("Expected BlocksShards, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlocksShards,
+                r,
+            )),
         }
     }
 
@@ -312,7 +357,7 @@ pub trait TonFunctions {
         block_id: &BlockId,
         lt: i64,
         utime: i32,
-    ) -> anyhow::Result<BlockIdExt> {
+    ) -> Result<BlockIdExt, TonClientError> {
         let func = TonFunction::BlocksLookupBlock {
             mode,
             id: block_id.clone(),
@@ -322,7 +367,10 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::BlockIdExt(result) => Ok(result),
-            r => Err(anyhow!("Expected BlockIdExt, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlockIdExt,
+                r,
+            )),
         }
     }
 
@@ -340,7 +388,7 @@ pub trait TonFunctions {
         mode: u32,
         count: u32,
         after: &BlocksAccountTransactionId,
-    ) -> anyhow::Result<BlocksTransactions> {
+    ) -> Result<BlocksTransactions, TonClientError> {
         let func = TonFunction::BlocksGetTransactions {
             id: block_id.clone(),
             mode,
@@ -350,47 +398,65 @@ pub trait TonFunctions {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::BlocksTransactions(result) => Ok(result),
-            r => Err(anyhow!("Expected BlocksTransactions, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlocksTransactions,
+                r,
+            )),
         }
     }
 
-    async fn lite_server_get_info(&self) -> anyhow::Result<LiteServerInfo> {
+    async fn lite_server_get_info(&self) -> Result<LiteServerInfo, TonClientError> {
         let func = TonFunction::LiteServerGetInfo {};
         let result = self.invoke(&func).await?;
         match result {
             TonResult::LiteServerInfo(result) => Ok(result),
-            r => Err(anyhow!("Expected LiteServerInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::LiteServerInfo,
+                r,
+            )),
         }
     }
 
-    async fn get_block_header(&self, block_id: &BlockIdExt) -> anyhow::Result<BlocksHeader> {
+    async fn get_block_header(
+        &self,
+        block_id: &BlockIdExt,
+    ) -> Result<BlocksHeader, TonClientError> {
         let func = TonFunction::GetBlockHeader {
             id: block_id.clone(),
         };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::BlocksHeader(header) => Ok(header),
-            r => Err(anyhow!("Expected BlocksHeader, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlocksHeader,
+                r,
+            )),
         }
     }
 
-    async fn get_config_param(&self, mode: u32, param: u32) -> anyhow::Result<ConfigInfo> {
+    async fn get_config_param(&self, mode: u32, param: u32) -> Result<ConfigInfo, TonClientError> {
         let func = TonFunction::GetConfigParam { mode, param };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::ConfigInfo(result) => Ok(result),
-            r => Err(anyhow!("Expected ConfigInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::ConfigInfo,
+                r,
+            )),
         }
     }
 
-    async fn get_log_verbosity_level(&self) -> anyhow::Result<u32> {
+    async fn get_log_verbosity_level(&self) -> Result<u32, TonClientError> {
         let func = TonFunction::GetLogVerbosityLevel {};
         let result = self.invoke(&func).await?;
         match result {
             TonResult::LogVerbosityLevel(log_verbosity_level) => {
                 Ok(log_verbosity_level.verbosity_level)
             }
-            r => Err(anyhow!("Expected options.info, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::OptionsInfo,
+                r,
+            )),
         }
     }
 }

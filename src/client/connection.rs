@@ -3,25 +3,26 @@ use std::sync::{Arc, Weak};
 use std::thread;
 use std::time::Instant;
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
 use crate::client::{
-    TonConnectionCallback, TonConnectionParams, TonError, TonFunctions, TonNotificationReceiver,
+    TonConnectionCallback, TonConnectionParams, TonFunctions, TonNotificationReceiver,
 };
-use crate::tl::stack::TvmStackEntry;
-use crate::tl::types::{Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult};
-use crate::tl::TlTonClient;
 use crate::tl::TonFunction;
 use crate::tl::TonNotification;
 use crate::tl::TonResult;
+use crate::tl::TvmStackEntry;
+use crate::tl::{Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult};
+use crate::tl::{TlTonClient, TonResultDiscriminants};
+
+use super::error::TonClientError;
 
 struct RequestData {
     method: &'static str,
     send_time: Instant,
-    sender: oneshot::Sender<anyhow::Result<TonResult>>,
+    sender: oneshot::Sender<Result<TonResult, TonClientError>>,
 }
 
 type RequestMap = DashMap<u32, RequestData>;
@@ -50,7 +51,7 @@ impl TonConnection {
     /// Returns error to capture any failure to create thread at system level
     pub fn new(
         callback: Arc<dyn TonConnectionCallback + Send + Sync>,
-    ) -> anyhow::Result<TonConnection> {
+    ) -> Result<TonConnection, TonClientError> {
         let tag = format!(
             "ton-conn-{}",
             CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
@@ -77,7 +78,7 @@ impl TonConnection {
     pub async fn connect(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback + Send + Sync>,
-    ) -> anyhow::Result<TonConnection> {
+    ) -> Result<TonConnection, TonClientError> {
         let conn = Self::new(callback)?;
         let keystore_type = if let Some(directory) = &params.keystore_dir {
             KeyStoreType::Directory {
@@ -106,7 +107,7 @@ impl TonConnection {
         use_callbacks_for_network: bool,
         ignore_cache: bool,
         keystore_type: KeyStoreType,
-    ) -> anyhow::Result<OptionsInfo> {
+    ) -> Result<OptionsInfo, TonClientError> {
         let func = TonFunction::Init {
             options: Options {
                 config: Config {
@@ -121,7 +122,10 @@ impl TonConnection {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
-            r => Err(anyhow!("Expected OptionsInfo, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::OptionsInfo.into(),
+                r,
+            )),
         }
     }
 
@@ -134,7 +138,7 @@ impl TonConnection {
         id: i64,
         method: &SmcMethodId,
         stack: &Vec<TvmStackEntry>,
-    ) -> anyhow::Result<SmcRunResult> {
+    ) -> Result<SmcRunResult, TonClientError> {
         let func = TonFunction::SmcRunGetMethod {
             id: id,
             method: method.clone(),
@@ -143,24 +147,27 @@ impl TonConnection {
         let result = self.invoke(&func).await?;
         match result {
             TonResult::SmcRunResult(result) => Ok(result),
-            r => Err(anyhow!("Expected SmcRunResult, got: {:?}", r)),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::SmcRunResult,
+                r,
+            )),
         }
     }
 }
 
 #[async_trait]
 impl TonFunctions for TonConnection {
-    async fn get_connection(&self) -> anyhow::Result<TonConnection> {
+    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         Ok(self.clone())
     }
 
     async fn invoke_on_connection(
         &self,
         function: &TonFunction,
-    ) -> anyhow::Result<(TonConnection, TonResult)> {
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
         let cnt = self.inner.counter.fetch_add(1, Ordering::SeqCst);
         let extra = cnt.to_string();
-        let (tx, rx) = oneshot::channel::<anyhow::Result<TonResult>>();
+        let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();
         let data = RequestData {
             method: function.into(),
             send_time: Instant::now(),
@@ -171,10 +178,15 @@ impl TonFunctions for TonConnection {
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
             let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
-            self.inner.callback.on_invoke_error(cnt, &e);
-            data.sender.send(Err(e)).unwrap(); // Send should always succeed, so something went terribly wrong
+            self.inner.callback.on_tl_error(&e);
+            let err = TonClientError::TlError(e);
+            data.sender.send(Err(err)).unwrap(); // Send should always succeed, so something went terribly wrong
         }
-        let result = rx.await?;
+        let maybe_result = rx.await;
+        let result = match maybe_result {
+            Ok(result) => result,
+            Err(_) => return Err(TonClientError::InternalError),
+        };
         result.map(|r| (self.clone(), r))
     }
 }
@@ -187,7 +199,7 @@ impl Clone for TonConnection {
 }
 
 /// Client run loop
-fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
+fn run_loop(tag: String, weak_inner: Weak<Inner>) {
     log::info!("[{}] Starting event loop", tag);
     loop {
         if let Some(inner) = weak_inner.upgrade() {
@@ -195,16 +207,20 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
             if let Some((ton_result, maybe_extra)) = recv {
                 let maybe_request_id = maybe_extra.and_then(|s| s.parse::<u32>().ok());
                 let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));
-                let result: anyhow::Result<TonResult> =
-                    if let Ok(TonResult::Error { code, message }) = ton_result {
+                let result: Result<TonResult, TonClientError> = match ton_result {
+                    Ok(TonResult::Error { code, message }) => {
                         inner
                             .callback
                             .on_tonlib_error(&maybe_request_id, code, &message);
-                        let ton_error = TonError { code, message };
-                        Err(anyhow::Error::from(ton_error))
-                    } else {
-                        ton_result
-                    };
+                        Err(TonClientError::TonlibError { code, message })
+                    }
+                    Err(e) => {
+                        log::warn!("[{}] Tonlib error: {}", tag, e,);
+                        inner.callback.on_tl_error(&e);
+                        Err(e.into())
+                    }
+                    Ok(r) => Ok(r),
+                };
 
                 match maybe_data {
                     Some((_, data)) => {
@@ -238,29 +254,24 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) -> anyhow::Result<()> {
                         }
                     }
                     None => {
-                        let maybe_notification =
-                            result.and_then(|r| TonNotification::from_result(&r));
-                        match maybe_notification {
-                            Ok(notification) => {
-                                inner.callback.on_notification(&notification);
-                                if let Err(e) =
-                                    inner.notification_sender.send(Arc::new(notification))
-                                {
+                        if let Ok(r) = result {
+                            // Errors are ignored
+                            let maybe_notification = TonNotification::from_result(&r);
+                            if let Some(n) = maybe_notification {
+                                inner.callback.on_notification(&n);
+                                if let Err(e) = inner.notification_sender.send(Arc::new(n)) {
                                     log::warn!("[{}] Error sending notification: {}", tag, e);
                                 }
-                            }
-                            Err(e) => {
-                                inner.callback.on_notification_parse_error(&e);
-                                log::warn!("[{}] Error parsing notification: {}", tag, e);
+                            } else {
+                                inner.callback.on_ton_result_parse_error(&r);
+                                log::warn!("[{}] Error parsing result: {}", tag, r);
                             }
                         }
                     }
                 }
-                ()
             }
         } else {
             log::info!("[{}] Exiting event loop", tag);
-            return Ok(());
         }
     }
 }

@@ -1,15 +1,14 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
-use std::str::FromStr;
-use std::sync::Arc;
+mod error;
 
-use anyhow::anyhow;
+pub use error::*;
+
 use crc::Crc;
 use lazy_static::lazy_static;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-use crate::cell::{Cell, CellBuilder};
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
+use std::str::FromStr;
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -38,37 +37,54 @@ impl TonAddress {
         TonAddress::NULL.clone()
     }
 
-    pub fn derive(
-        workchain: i32,
-        code: &Arc<Cell>,
-        data: &Arc<Cell>,
-    ) -> anyhow::Result<TonAddress> {
-        let state_init = CellBuilder::new()
-            .store_bit(false)? //Split depth
-            .store_bit(false)? //Ticktock
-            .store_bit(true)? //Code
-            .store_bit(true)? //Data
-            .store_bit(false)? //Library
-            .store_reference(code)?
-            .store_reference(data)?
-            .build()?;
-        let state_init_hash = state_init.cell_hash()?;
-        let hash_part: [u8; 32] = state_init_hash.as_slice().try_into()?;
-        Ok(TonAddress::new(workchain, &hash_part))
-    }
-
-    pub fn from_hex_str(s: &str) -> anyhow::Result<TonAddress> {
+    pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
         let parts: Vec<&str> = s.split(":").collect();
+
         if parts.len() != 2 {
-            return Err(anyhow!("Not a valid hex address: {}", s));
+            return Err(TonAddressParseError::new(
+                s,
+                "Invalid hex address string: wrong address format",
+            ));
         }
-        let wc = i32::from_str_radix(parts[0], 10)?;
-        let hash_part: [u8; 32] = hex::decode(parts[1])?.as_slice().try_into()?;
+
+        let maybe_wc = i32::from_str_radix(parts[0], 10);
+        let wc = match maybe_wc {
+            Ok(wc) => wc,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid hex address string: parse int error",
+                ))
+            }
+        };
+
+        let maybe_decoded_hash_part = hex::decode(parts[1]);
+        let decoded_hash_part = match maybe_decoded_hash_part {
+            Ok(decoded_hash_part) => decoded_hash_part,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid hex address string: base64 decode error",
+                ))
+            }
+        };
+
+        let maybe_hash_part = decoded_hash_part.as_slice().try_into();
+        let hash_part = match maybe_hash_part {
+            Ok(hash_part) => hash_part,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid hex address string: unexpected error",
+                ))
+            }
+        };
+
         let addr = TonAddress::new(wc, &hash_part);
         Ok(addr)
     }
 
-    pub fn from_base64_url(s: &str) -> anyhow::Result<TonAddress> {
+    pub fn from_base64_url(s: &str) -> Result<TonAddress, TonAddressParseError> {
         Ok(Self::from_base64_url_flags(s)?.0)
     }
 
@@ -76,15 +92,40 @@ impl TonAddress {
     ///
     /// # Returns
     /// the address, non-bounceable flag, non-production flag.
-    pub fn from_base64_url_flags(s: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+    pub fn from_base64_url_flags(
+        s: &str,
+    ) -> Result<(TonAddress, bool, bool), TonAddressParseError> {
         if s.len() != 48 {
-            return Err(anyhow!("Not a valid base64 address: {}", s));
+            return Err(TonAddressParseError::new(
+                s,
+                "Invalid base64url address: Wrong length",
+            ));
         }
-        let bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD)?;
-        Self::from_base64_src(bytes.as_slice().try_into()?, s)
+        let maybe_bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD);
+        let bytes = match maybe_bytes {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid base64url address: Base64 decode error",
+                ))
+            }
+        };
+        let maybe_slice = bytes.as_slice().try_into();
+        let slice = match maybe_slice {
+            Ok(slice) => slice,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid base64url address: Unexpected error",
+                ))
+            }
+        };
+
+        Self::from_base64_src(slice, s)
     }
 
-    pub fn from_base64_std(s: &str) -> anyhow::Result<TonAddress> {
+    pub fn from_base64_std(s: &str) -> Result<TonAddress, TonAddressParseError> {
         Ok(Self::from_base64_std_flags(s)?.0)
     }
 
@@ -92,31 +133,67 @@ impl TonAddress {
     ///
     /// # Returns
     /// the address, non-bounceable flag, non-production flag.
-    pub fn from_base64_std_flags(s: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+    pub fn from_base64_std_flags(
+        s: &str,
+    ) -> Result<(TonAddress, bool, bool), TonAddressParseError> {
         if s.len() != 48 {
-            return Err(anyhow!("Not a valid base64 address: {}", s));
+            return Err(TonAddressParseError::new(
+                s,
+                "Invalid base64std address: Invalid length",
+            ));
         }
-        let bytes = base64::decode_config(s, base64::STANDARD_NO_PAD)?;
-        Self::from_base64_src(bytes.as_slice().try_into()?, s)
+        let maybe_vec = base64::decode_config(s, base64::STANDARD_NO_PAD);
+        let vec = match maybe_vec {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid base64std address: Base64 decode error",
+                ))
+            }
+        };
+        let maybe_bytes = vec.as_slice().try_into();
+        let bytes = match maybe_bytes {
+            Ok(b) => b,
+            Err(_) => {
+                return Err(TonAddressParseError::new(
+                    s,
+                    "Invalid base64std: Unexpected error",
+                ))
+            }
+        };
+
+        Self::from_base64_src(bytes, s)
     }
 
     /// Parses decoded base64 representation of an address
     ///
     /// # Returns
     /// the address, non-bounceable flag, non-production flag.
-    fn from_base64_src(bytes: &[u8; 36], src: &str) -> anyhow::Result<(TonAddress, bool, bool)> {
+    fn from_base64_src(
+        bytes: &[u8; 36],
+        src: &str,
+    ) -> Result<(TonAddress, bool, bool), TonAddressParseError> {
         let (non_production, non_bounceable) = match bytes[0] {
             0x11 => (false, false),
             0x51 => (false, true),
             0x91 => (true, false),
             0xD1 => (true, true),
-            v => return Err(anyhow!("Invalid tag byte: {:#x} in address {}", v, src)),
+            _ => {
+                return Err(TonAddressParseError::new(
+                    src,
+                    "Invalid base64src address: Wrong tag byte",
+                ))
+            }
         };
         let workchain = bytes[1] as i8 as i32;
         let calc_crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
         let addr_crc = ((bytes[34] as u16) << 8) | bytes[35] as u16;
         if calc_crc != addr_crc {
-            return Err(anyhow!("CRC mismatch in address {}", src));
+            return Err(TonAddressParseError::new(
+                src,
+                "Invalid base64src address: CRC mismatch",
+            ));
         }
         let mut hash_part = [0 as u8; 32];
         hash_part.clone_from_slice(&bytes[2..34]);
@@ -180,10 +257,10 @@ impl Debug for TonAddress {
 }
 
 impl FromStr for TonAddress {
-    type Err = anyhow::Error;
+    type Err = TonAddressParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let res = if s.len() == 48 {
+        if s.len() == 48 {
             // Some form of base64 address, check which one
             if s.contains('-') || s.contains('_') {
                 TonAddress::from_base64_url(s)
@@ -192,13 +269,12 @@ impl FromStr for TonAddress {
             }
         } else {
             TonAddress::from_hex_str(s)
-        };
-        res.map_err(|_| anyhow!("Unrecognized address format: {}", s))
+        }
     }
 }
 
 impl TryFrom<String> for TonAddress {
-    type Error = anyhow::Error;
+    type Error = TonAddressParseError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(value.as_str())

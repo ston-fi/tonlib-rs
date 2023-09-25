@@ -78,14 +78,14 @@ async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
     let client = common::new_test_client().await?;
     let contract = TonContract::new(
         &client,
-        &"EQDgtFFfrucNaxXuDpWh6LF8Y5AwL7My9OUbo2OQ75TfxK-H".parse()?,
+        &"EQDhR36C8pSVtyhOFtE9nh2DFq4WYUbTZFmvjfnShlrXq2cz".parse()?,
     );
     let res = contract.get_nft_data().await?;
     let meta_loader = NftItemMetaLoader::default()?;
     let content_res = meta_loader.load(&res.individual_content).await?;
     assert_eq!(
         content_res.image.unwrap(),
-        "https://static.ston.fi/stake-nft/i1.jpg"
+        "https://static.ston.fi/stake-nft/i4.jpg"
     );
     assert_eq!(content_res.name.unwrap(), "ARKENSTON NFT");
     Ok(())
@@ -149,7 +149,7 @@ async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
     let client = common::new_test_client().await?;
     let contract = TonContract::new(
         &client,
-        &"EQBhTa1iD9ZU-e-tOuEpbUAUrkUUSw9tQnhdfXOkEE75AdWk".parse()?,
+        &"EQCshJXbbcn7cvSkaM0Z8NyI-2pNCJC5RTGZB-cRF-Pax1lY".parse()?,
     );
     let res = contract.get_collection_data().await?;
     let meta_loader = NftColletionMetaLoader::default()?;

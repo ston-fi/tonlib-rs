@@ -1,11 +1,12 @@
-use crate::contract::TonContractError;
-use crate::tl::stack::TvmStackEntry;
-use crate::tl::types::{SmcMethodId, SmcRunResult};
-use crate::{address::TonAddress, tl::types::InternalTransactionId};
+use crate::tl::TvmStackEntry;
+use crate::tl::{SmcMethodId, SmcRunResult};
+use crate::{address::TonAddress, tl::InternalTransactionId};
 use crate::{
     client::{TonConnection, TonFunctions},
-    tl::stack::TvmCell,
+    tl::TvmCell,
 };
+
+use super::TonContractError;
 
 pub struct TonContractState {
     connection: TonConnection,
@@ -16,8 +17,11 @@ impl TonContractState {
     pub async fn load<C: TonFunctions + Send + Sync>(
         client: &C,
         address: &TonAddress,
-    ) -> anyhow::Result<TonContractState> {
-        let (conn, state_id) = client.smc_load(&address.to_hex()).await?;
+    ) -> Result<TonContractState, TonContractError> {
+        let (conn, state_id) = client
+            .smc_load(&address.to_hex())
+            .await
+            .map_err(|e| TonContractError::client_method_error("smc_load", Some(&address), e))?;
         Ok(TonContractState {
             connection: conn,
             state_id,
@@ -27,10 +31,17 @@ impl TonContractState {
         client: &C,
         address: &TonAddress,
         transaction_id: &InternalTransactionId,
-    ) -> anyhow::Result<TonContractState> {
+    ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
             .smc_load_by_transaction(&address.to_hex(), transaction_id)
-            .await?;
+            .await
+            .map_err(|error| {
+                TonContractError::client_method_error(
+                    "smc_load_by_transaction",
+                    Some(&address),
+                    error,
+                )
+            })?;
         Ok(TonContractState {
             connection: conn,
             state_id,
@@ -40,29 +51,33 @@ impl TonContractState {
         &self,
         method: &str,
         stack: &Vec<TvmStackEntry>,
-    ) -> anyhow::Result<SmcRunResult> {
-        let method = SmcMethodId::Name {
+    ) -> Result<SmcRunResult, TonContractError> {
+        let method_id = SmcMethodId::Name {
             name: String::from(method),
         };
         let result = self
             .connection
-            .smc_run_get_method(self.state_id, &method, stack)
-            .await?;
+            .smc_run_get_method(self.state_id, &method_id, stack)
+            .await
+            .map_err(|error| TonContractError::client_method_error(method, None, error))?;
         if result.exit_code == 0 || result.exit_code == 1 {
             Ok(result)
         } else {
-            let err = TonContractError {
+            Err(TonContractError::TvmRunError {
                 gas_used: result.gas_used,
                 stack: result.stack.elements,
                 exit_code: result.exit_code,
-            };
-            Err(anyhow::Error::from(err))
+            })
         }
     }
 
-    pub async fn get_code(&self) -> anyhow::Result<TvmCell> {
-        let result = self.connection.smc_get_code(self.state_id).await?;
-        Ok(result)
+    pub async fn get_code(&self) -> Result<TvmCell, TonContractError> {
+        let result = self
+            .connection
+            .smc_get_code(self.state_id)
+            .await
+            .map_err(|error| TonContractError::client_method_error("smc_get_code", None, error));
+        result
     }
 }
 

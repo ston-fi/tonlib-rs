@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
@@ -32,7 +31,7 @@ pub struct JettonMetaData {
 
 #[async_trait]
 impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
-    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<JettonMetaData> {
+    async fn load(&self, content: &MetaDataContent) -> Result<JettonMetaData, MetaLoaderError> {
         match content {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
@@ -68,7 +67,10 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
                     })
                 }
             }
-            other => Err(anyhow!("Unsupported content layout {:?}", other)),
+
+            content => Err(MetaLoaderError::ContentLayoutUnsupported {
+                content: content.clone(),
+            }),
         }
     }
 }

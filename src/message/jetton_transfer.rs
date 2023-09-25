@@ -1,10 +1,11 @@
-use crate::address::TonAddress;
-use crate::cell::{Cell, CellBuilder};
+use crate::cell::Cell;
 use crate::message::ZERO_COINS;
-use anyhow::bail;
+use crate::{address::TonAddress, cell::CellBuilder};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use std::sync::Arc;
+
+use super::TonMessageError;
 
 const OP_REQUEST_TRANSFER: u32 = 0xf8a7ea5;
 
@@ -76,10 +77,14 @@ impl JettonTransferBuilder {
         self
     }
 
-    pub fn build(&self) -> anyhow::Result<Cell> {
+    pub fn build(&self) -> Result<Cell, TonMessageError> {
         if self.forward_ton_amount.is_zero() && self.forward_payload.is_some() {
-            bail!("forward_ton_amount must be positive when specifying forward_payload");
+            return Err(TonMessageError::ForwardTonAmountIsNegative);
         }
+        self.build_request_transfer_message()
+    }
+
+    fn build_request_transfer_message(&self) -> Result<Cell, TonMessageError> {
         let mut message = CellBuilder::new();
         message.store_u32(32, OP_REQUEST_TRANSFER)?;
         message.store_u64(64, self.query_id.unwrap_or_default())?;
@@ -103,6 +108,6 @@ impl JettonTransferBuilder {
         } else {
             message.store_bit(false)?;
         }
-        message.build()
+        Ok(message.build()?)
     }
 }
