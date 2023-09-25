@@ -34,7 +34,7 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib = "0.5"
+tonlib = "0.7"
 ```
 
 Then, in your Rust code, you can import the library with:
@@ -172,10 +172,10 @@ let wallet_contract = TonContract::new(
 let wallet_data = wallet_contract.get_wallet_data().await?;
 ```
 
-To load the metadata of the token, there is `JettonContentLoader`:
+To load the metadata of the token, one may use generic `MetaLoader` and it type aliases: `JettonMetaLoader, NftItemMetaLoader NftColletionMetaLoader`:
 
 ```rust
-let loader = JettonContentLoader::default()?;
+    let loader = JettonMetaLoader::default()?;
 let content_res = loader.load(&jetton_data.content).await?;
 ```
 

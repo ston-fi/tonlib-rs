@@ -1,8 +1,7 @@
-use std::str::FromStr;
-
-use anyhow::anyhow;
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use crate::{address::TonAddress, tl::error::TvmStackError};
 
 use crate::cell::BagOfCells;
 
@@ -41,7 +40,7 @@ pub struct TvmList {
 }
 
 // tonlib_api.tl, line 170
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, strum::Display, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type")]
 pub enum TvmStackEntry {
     // tonlib_api.tl, line 170
@@ -100,100 +99,148 @@ impl TvmStack {
         }
     }
 
-    pub fn get_string(&self, index: usize) -> anyhow::Result<String> {
+    pub fn get_string(&self, index: usize) -> Result<String, TvmStackError> {
         self.get(index, TvmStack::extract_string)
     }
 
-    pub fn get_i32(&self, index: usize) -> anyhow::Result<i32> {
+    pub fn get_i32(&self, index: usize) -> Result<i32, TvmStackError> {
         self.get(index, TvmStack::extract_i32)
     }
 
-    pub fn get_i64(&self, index: usize) -> anyhow::Result<i64> {
+    pub fn get_i64(&self, index: usize) -> Result<i64, TvmStackError> {
         self.get(index, TvmStack::extract_i64)
     }
 
-    pub fn get_biguint(&self, index: usize) -> anyhow::Result<BigUint> {
+    pub fn get_biguint(&self, index: usize) -> Result<BigUint, TvmStackError> {
         self.get(index, TvmStack::extract_biguint)
     }
 
-    pub fn get_bigint(&self, index: usize) -> anyhow::Result<BigInt> {
+    pub fn get_bigint(&self, index: usize) -> Result<BigInt, TvmStackError> {
         self.get(index, TvmStack::extract_bigint)
     }
 
-    pub fn get_boc(&self, index: usize) -> anyhow::Result<BagOfCells> {
+    pub fn get_boc(&self, index: usize) -> Result<BagOfCells, TvmStackError> {
         self.get(index, TvmStack::extract_boc)
+    }
+
+    pub fn get_address(&self, index: usize) -> Result<TonAddress, TvmStackError> {
+        self.get_boc(index)?
+            .single_root()?
+            .parse_fully(|r| Ok(r.load_address()?))
+            .map_err(|e| TvmStackError::TonCellError(e))
     }
 
     fn get<T>(
         &self,
         index: usize,
-        extract: fn(&TvmStackEntry) -> anyhow::Result<T>,
-    ) -> anyhow::Result<T> {
+        extract: fn(&TvmStackEntry, usize) -> Result<T, TvmStackError>,
+    ) -> Result<T, TvmStackError> {
         let maybe_elem = self.elements.get(index);
         match maybe_elem {
-            None => Err(anyhow!(
-                "Invalid index: {}, total length: {}",
+            None => Err(TvmStackError::InvalidTvmStackIndex {
                 index,
-                self.elements.len()
-            )),
-            Some(e) => extract(e),
+                len: self.elements.len(),
+            }),
+            Some(e) => extract(e, index),
         }
     }
 
-    fn extract_string(e: &TvmStackEntry) -> anyhow::Result<String> {
-        match e {
-            TvmStackEntry::Number { number } => Ok(number.number.clone()),
-            _ => Err(anyhow!("Unsupported conversion to string from {:?}", e)),
+    fn extract_string(e: &TvmStackEntry, index: usize) -> Result<String, TvmStackError> {
+        if let TvmStackEntry::Number { number } = e {
+            number
+                .number
+                .parse()
+                .map_err(|_| TvmStackError::StringConversion {
+                    e: e.clone(),
+                    index,
+                })
+        } else {
+            Err(TvmStackError::StringConversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 
-    fn extract_i32(e: &TvmStackEntry) -> anyhow::Result<i32> {
-        match e {
-            TvmStackEntry::Number { number } => {
-                let n = number.number.parse::<i32>()?;
-                Ok(n)
-            }
-            _ => Err(anyhow!("Unsupported conversion to i32 from {:?}", e)),
+    fn extract_i32(e: &TvmStackEntry, index: usize) -> Result<i32, TvmStackError> {
+        if let TvmStackEntry::Number { number } = e {
+            number
+                .number
+                .parse()
+                .map_err(|_| TvmStackError::I32Conversion {
+                    e: e.clone(),
+                    index,
+                })
+        } else {
+            Err(TvmStackError::I32Conversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 
-    fn extract_i64(e: &TvmStackEntry) -> anyhow::Result<i64> {
-        match e {
-            TvmStackEntry::Number { number } => {
-                let n = number.number.parse::<i64>()?;
-                Ok(n)
-            }
-            _ => Err(anyhow!("Unsupported conversion to i64 from {:?}", e)),
+    fn extract_i64(e: &TvmStackEntry, index: usize) -> Result<i64, TvmStackError> {
+        if let TvmStackEntry::Number { number } = e {
+            number
+                .number
+                .parse()
+                .map_err(|_| TvmStackError::I64Conversion {
+                    e: e.clone(),
+                    index,
+                })
+        } else {
+            Err(TvmStackError::I64Conversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 
-    fn extract_biguint(e: &TvmStackEntry) -> anyhow::Result<BigUint> {
-        match e {
-            TvmStackEntry::Number { number } => {
-                let n: BigUint = BigUint::from_str(number.number.as_str())?;
-                Ok(n)
-            }
-            _ => Err(anyhow!("Unsupported conversion to i64 from {:?}", e)),
+    fn extract_biguint(e: &TvmStackEntry, index: usize) -> Result<BigUint, TvmStackError> {
+        if let TvmStackEntry::Number { number } = e {
+            number
+                .number
+                .parse()
+                .map_err(|_| TvmStackError::BigUintConversion {
+                    e: e.clone(),
+                    index,
+                })
+        } else {
+            Err(TvmStackError::BigUintConversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 
-    fn extract_bigint(e: &TvmStackEntry) -> anyhow::Result<BigInt> {
-        match e {
-            TvmStackEntry::Number { number } => {
-                let n: BigInt = BigInt::from_str(number.number.as_str())?;
-                Ok(n)
-            }
-            _ => Err(anyhow!("Unsupported conversion to i64 from {:?}", e)),
+    fn extract_bigint(e: &TvmStackEntry, index: usize) -> Result<BigInt, TvmStackError> {
+        if let TvmStackEntry::Number { number } = e {
+            number
+                .number
+                .parse()
+                .map_err(|_| TvmStackError::BigIntConversion {
+                    e: e.clone(),
+                    index,
+                })
+        } else {
+            Err(TvmStackError::BigIntConversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 
-    fn extract_boc(e: &TvmStackEntry) -> anyhow::Result<BagOfCells> {
-        match e {
-            TvmStackEntry::Cell { cell } => {
-                let boc = BagOfCells::parse(&cell.bytes)?;
-                Ok(boc)
-            }
-            _ => Err(anyhow!("Unsupported conversion to BagOfCells from {:?}", e)),
+    fn extract_boc(e: &TvmStackEntry, index: usize) -> Result<BagOfCells, TvmStackError> {
+        if let TvmStackEntry::Cell { cell } = e {
+            BagOfCells::parse(&cell.bytes).map_err(|_| TvmStackError::BoCConversion {
+                e: e.clone(),
+                index,
+            })
+        } else {
+            Err(TvmStackError::BoCConversion {
+                e: e.clone(),
+                index,
+            })
         }
     }
 }

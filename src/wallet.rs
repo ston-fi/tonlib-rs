@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use lazy_static::lazy_static;
 use nacl::sign::signature;
 use num_bigint::BigUint;
@@ -6,9 +5,12 @@ use num_traits::Zero;
 
 pub use contract::TonWalletContract;
 
-use crate::address::TonAddress;
-use crate::cell::{BagOfCells, Cell, CellBuilder};
 use crate::crypto::KeyPair;
+use crate::{address::TonAddress, cell::TonCellError};
+use crate::{
+    cell::{BagOfCells, Cell, CellBuilder, StateInit},
+    message::TonMessageError,
+};
 
 mod contract;
 
@@ -44,14 +46,21 @@ impl WalletVersion {
         code
     }
 
-    pub fn initial_data(&self, workchain: i32, key_pair: &KeyPair) -> anyhow::Result<BagOfCells> {
+    pub fn initial_data(
+        &self,
+        workchain: i32,
+        key_pair: &KeyPair,
+    ) -> Result<BagOfCells, TonCellError> {
         let mut data_builder = CellBuilder::new();
         data_builder
-            .store_u32(32, 0)? // seqno
-            .store_u32(32, 698983191 + workchain as u32)? //wallet_id
+            .store_u32(32, 0)?
+            // seqno
+            .store_u32(32, 698983191 + workchain as u32)?
+            //wallet_id
             .store_slice(key_pair.public_key.as_slice())?; // public key
         if *self == WalletVersion::V4R2 {
-            data_builder.store_bit(false)?; // empty plugin dict
+            data_builder.store_bit(false)?;
+            // empty plugin dict
         }
         let data_cell = data_builder.build()?;
         Ok(BagOfCells::from_root(data_cell))
@@ -81,10 +90,20 @@ impl TonWallet {
         workchain: i32,
         version: WalletVersion,
         key_pair: &KeyPair,
-    ) -> anyhow::Result<TonWallet> {
+    ) -> Result<TonWallet, TonCellError> {
         let data = version.initial_data(workchain, key_pair)?;
         let code = version.code();
-        let addr = TonAddress::derive(workchain, code.single_root()?, data.single_root()?)?;
+        let state_init_hash =
+            StateInit::create_account_id(code.single_root()?, data.single_root()?)?;
+        let hash_part = match state_init_hash.as_slice().try_into() {
+            Ok(hash_part) => hash_part,
+            Err(_) => {
+                return Err(TonCellError::InternalError {
+                    msg: "StateInit returned hash pof wrong size".to_string(),
+                })
+            }
+        };
+        let addr = TonAddress::new(workchain, &hash_part);
         Ok(TonWallet {
             key_pair: key_pair.clone(),
             version,
@@ -97,7 +116,7 @@ impl TonWallet {
         expire_at: u32,
         seqno: u32,
         internal_message: Cell,
-    ) -> anyhow::Result<Cell> {
+    ) -> Result<Cell, TonMessageError> {
         let body = self.create_external_body(expire_at, seqno, internal_message)?;
         let signed = self.sign_external_body(&body)?;
         let wrapped = self.wrap_signed_body(signed)?;
@@ -109,7 +128,7 @@ impl TonWallet {
         expire_at: u32,
         seqno: u32,
         internal_message: Cell,
-    ) -> anyhow::Result<Cell> {
+    ) -> Result<Cell, TonCellError> {
         let mut builder = CellBuilder::new();
         builder
             .store_u32(32, self.version.wallet_id())?
@@ -123,25 +142,31 @@ impl TonWallet {
         builder.build()
     }
 
-    pub fn sign_external_body(&self, external_body: &Cell) -> anyhow::Result<Cell> {
+    pub fn sign_external_body(&self, external_body: &Cell) -> Result<Cell, TonMessageError> {
         let message_hash = external_body.cell_hash()?;
         let sig = signature(message_hash.as_slice(), self.key_pair.secret_key.as_slice())
-            .map_err(|e| anyhow!("nacl error: {:?} ({})", e.condition, e.message))?;
+            .map_err(|e| TonMessageError::NaclCryptographicError { message: e.message })?;
         let mut body_builder = CellBuilder::new();
         body_builder.store_slice(sig.as_slice())?;
         body_builder.store_cell(&external_body)?;
-        body_builder.build()
+        Ok(body_builder.build()?)
     }
 
-    pub fn wrap_signed_body(&self, signed_body: Cell) -> anyhow::Result<Cell> {
+    pub fn wrap_signed_body(&self, signed_body: Cell) -> Result<Cell, TonCellError> {
         let mut wrap_builder = CellBuilder::new();
         wrap_builder
-            .store_u8(2, 2)? // No idea
-            .store_address(&TonAddress::NULL)? // src
-            .store_address(&self.address)? // dest
-            .store_coins(&BigUint::zero())? // import fee
-            .store_bit(false)? // TODO: add state_init support
-            .store_bit(true)? // signed_body is always defined
+            .store_u8(2, 2)?
+            // No idea
+            .store_address(&TonAddress::NULL)?
+            // src
+            .store_address(&self.address)?
+            // dest
+            .store_coins(&BigUint::zero())?
+            // import fee
+            .store_bit(false)?
+            // TODO: add state_init support
+            .store_bit(true)?
+            // signed_body is always defined
             .store_child(signed_body)?;
         wrap_builder.build()
     }

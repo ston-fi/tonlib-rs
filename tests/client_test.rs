@@ -6,11 +6,11 @@ use tokio::time::timeout;
 
 use tonlib::cell::BagOfCells;
 use tonlib::client::TonFunctions;
-use tonlib::tl::types::{
+use tonlib::tl::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
-use tonlib::{address::TonAddress, tl::types::LiteServerInfo};
+use tonlib::{address::TonAddress, tl::LiteServerInfo};
 
 mod common;
 

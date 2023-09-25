@@ -46,18 +46,18 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_get_jetton_content_internal_uri_tgr() -> anyhow::Result<()> {
+async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let contract = TonContract::new(
         &client,
-        &"EQAvDfWFG0oYX19jwNDNBBL1rKNT9XfaGP9HyTb5nb2Eml6y".parse()?,
+        &"EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA".parse()?,
     ); //FunZee jetton
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
     let content_res = meta_loader.load(&res.content).await?;
-    assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TGR"));
-    assert_eq!(content_res.decimals, None);
+    assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("jUSDT"));
+    assert_eq!(content_res.decimals, Some(6));
 
     Ok(())
 }

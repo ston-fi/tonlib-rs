@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.7.2"
+version = "0.8.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -14,7 +14,6 @@ include = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
 async-trait = "0.1"
 base64 = "0.13"
 base64-serde = "0.6"
@@ -37,10 +36,12 @@ sha2 = "0.10"
 strum = { version = "0.24", features = ["derive"] }
 pbkdf2 = "0.11"
 reqwest = "0.11"
+thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tokio-retry = "0.3"
 tonlib-sys = "2023.6"
 
 [dev-dependencies]
-tokio-test = "0.4"
+anyhow = "1"
 log4rs = "1"
+tokio-test = "0.4"

@@ -1,6 +1,8 @@
 use crate::client::{
     DefaultConnectionCallback, RetryStrategy, TonClient, TonConnectionCallback, TonConnectionParams,
 };
+
+use crate::client::error;
 use std::sync::Arc;
 
 pub struct TonClientBuilder {
@@ -58,7 +60,7 @@ impl TonClientBuilder {
         self
     }
 
-    pub async fn build(&self) -> anyhow::Result<TonClient> {
+    pub async fn build(&self) -> Result<TonClient, error::TonClientError> {
         TonClient::new(
             self.pool_size,
             &self.connection_params,
