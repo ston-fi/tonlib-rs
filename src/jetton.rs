@@ -1,14 +1,17 @@
-use anyhow::anyhow;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 use num_bigint::BigUint;
 
-use crate::contract::TonContract;
+use crate::{
+    cell::TonCellError,
+    contract::{MapCellError, MapStackError, TonContract, TonContractError},
+    tl::TvmStackEntry,
+};
 
 use crate::cell::{BagOfCells, CellBuilder};
-use crate::tl::stack::TvmSlice;
-use crate::tl::stack::TvmStackEntry::Slice;
+use crate::tl::TvmSlice;
+use crate::tl::TvmStackEntry::Slice;
 use crate::{address::TonAddress, meta::MetaDataContent};
 
 // Constants from jetton reference implementation:
@@ -38,66 +41,101 @@ pub enum JettonContent {
 
 #[async_trait]
 pub trait JettonMasterContract {
-    async fn get_jetton_data(&self) -> anyhow::Result<JettonData>;
-    async fn get_wallet_address(&self, owner_address: &TonAddress) -> anyhow::Result<TonAddress>;
+    async fn get_jetton_data(&self) -> Result<JettonData, TonContractError>;
+    async fn get_wallet_address(
+        &self,
+        owner_address: &TonAddress,
+    ) -> Result<TonAddress, TonContractError>;
 }
 
 #[async_trait]
 impl JettonMasterContract for TonContract {
-    async fn get_jetton_data(&self) -> anyhow::Result<JettonData> {
-        let res = self.run_get_method("get_jetton_data", &Vec::new()).await?;
+    async fn get_jetton_data(&self) -> Result<JettonData, TonContractError> {
+        const JETTON_DATA_STACK_ELEMENTS: usize = 5;
+        let method_name = "get_jetton_data";
+        let address = self.address().clone();
+
+        let res = self.run_get_method(method_name, &Vec::new()).await?;
+
         let stack = res.stack;
-        if stack.elements.len() != 5 {
-            Err(anyhow!(
-                "Invalid get_jetton_data result from {}, expected 5 elements, got {}",
-                self.address(),
-                stack.elements.len()
-            ))
+        if stack.elements.len() == JETTON_DATA_STACK_ELEMENTS {
+            let total_supply = stack
+                .get_biguint(0)
+                .map_stack_error(method_name, &address)?;
+            let mintable = stack.get_i32(1).map_stack_error(method_name, &address)? != 0;
+            let admin_address = stack
+                .get_address(2)
+                .map_stack_error(method_name, &address)?;
+            let boc = stack.get_boc(3).map_stack_error(method_name, &address)?;
+            let content =
+                read_jetton_metadata_content(&boc).map_cell_error(method_name, &address)?;
+            let wallet_code = stack.get_boc(4).map_stack_error(method_name, &address)?;
+
+            Ok(JettonData {
+                total_supply,
+                mintable,
+                admin_address,
+                content,
+                wallet_code,
+            })
         } else {
-            let result = JettonData {
-                total_supply: stack.get_biguint(0)?,
-                mintable: stack.get_i32(1)? != 0,
-                admin_address: stack
-                    .get_boc(2)?
-                    .single_root()?
-                    .parse_fully(|r: &mut crate::cell::CellParser<'_>| r.load_address())?,
-                content: read_jetton_metadata_content(&stack.get_boc(3)?)?,
-                wallet_code: stack.get_boc(4)?,
-            };
-            Ok(result)
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: method_name.to_string(),
+                address: self.address().clone(),
+
+                actual: stack.elements.len(),
+                expected: JETTON_DATA_STACK_ELEMENTS,
+            })
         }
     }
 
-    async fn get_wallet_address(&self, owner_address: &TonAddress) -> anyhow::Result<TonAddress> {
-        let cell = CellBuilder::new().store_address(owner_address)?.build()?;
-        let boc = BagOfCells::from_root(cell);
-        let slice = Slice {
-            slice: TvmSlice {
-                bytes: boc.serialize(true)?,
-            },
-        };
+    async fn get_wallet_address(
+        &self,
+        owner_address: &TonAddress,
+    ) -> Result<TonAddress, TonContractError> {
+        let method_name = "get_wallet_address";
+        let address = self.address().clone();
 
-        let res = self
-            .run_get_method("get_wallet_address", &vec![slice])
-            .await?;
+        let slice = match build_get_wallet_address_payload(owner_address) {
+            Ok(slice) => Ok(slice),
+            Err(e) => Err(TonContractError::CellError {
+                method: method_name.to_string(),
+                address: self.address().clone(),
+                error: e,
+            }),
+        }?;
+
+        let res = self.run_get_method(method_name, &vec![slice]).await?;
+
         let stack = res.stack;
-        if stack.elements.len() != 1 {
-            Err(anyhow!(
-                "Invalid get_wallet_address result from {}, expected 1 element, got {}",
-                self.address(),
-                stack.elements.len()
-            ))
+        if stack.elements.len() == 1 {
+            stack.get_address(0).map_stack_error(method_name, &address)
         } else {
-            let result = stack
-                .get_boc(0)?
-                .single_root()?
-                .parse_fully(|r| r.load_address())?;
-            Ok(result)
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: method_name.to_string(),
+                address: self.address().clone(),
+
+                actual: stack.elements.len(),
+                expected: 1,
+            })
         }
     }
 }
 
-fn read_jetton_metadata_content(boc: &BagOfCells) -> anyhow::Result<MetaDataContent> {
+fn build_get_wallet_address_payload(
+    owner_address: &TonAddress,
+) -> Result<TvmStackEntry, TonCellError> {
+    let cell = CellBuilder::new().store_address(owner_address)?.build()?;
+    let boc = BagOfCells::from_root(cell);
+    let slice = Slice {
+        slice: TvmSlice {
+            bytes: boc.serialize(true)?,
+        },
+    };
+    Ok(slice)
+}
+
+fn read_jetton_metadata_content(boc: &BagOfCells) -> Result<MetaDataContent, TonCellError> {
     if let Ok(root) = boc.single_root() {
         let mut reader = root.parser();
         let content_representation = reader.load_byte()?;
@@ -127,34 +165,45 @@ pub struct WalletData {
 
 #[async_trait]
 pub trait JettonWalletContract {
-    async fn get_wallet_data(&self) -> anyhow::Result<WalletData>;
+    async fn get_wallet_data(&self) -> Result<WalletData, TonContractError>;
 }
 
 #[async_trait]
 impl JettonWalletContract for TonContract {
-    async fn get_wallet_data(&self) -> anyhow::Result<WalletData> {
-        let res = self.run_get_method("get_wallet_data", &Vec::new()).await?;
+    async fn get_wallet_data(&self) -> Result<WalletData, TonContractError> {
+        const WALLET_DATA_STACK_ELEMENTS: usize = 4;
+        let method_name = "get_wallet_data";
+        let address = self.address().clone();
+
+        let res = self.run_get_method(method_name, &Vec::new()).await?;
+
         let stack = res.stack;
-        if stack.elements.len() != 4 {
-            Err(anyhow!(
-                "Invalid get_wallet_data result from {}, expected 4 elements, got {}",
-                self.address(),
-                stack.elements.len()
-            ))
+        if stack.elements.len() == WALLET_DATA_STACK_ELEMENTS {
+            let balance = stack
+                .get_biguint(0)
+                .map_stack_error(method_name, &address)?;
+            let owner_address = stack
+                .get_address(1)
+                .map_stack_error(method_name, &address)?;
+            let master_address = stack
+                .get_address(2)
+                .map_stack_error(method_name, &address)?;
+            let wallet_code = stack.get_boc(3).map_stack_error(method_name, &address)?;
+
+            Ok(WalletData {
+                balance,
+                owner_address,
+                master_address,
+                wallet_code,
+            })
         } else {
-            let result = WalletData {
-                balance: stack.get_biguint(0)?,
-                owner_address: stack
-                    .get_boc(1)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                master_address: stack
-                    .get_boc(2)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                wallet_code: stack.get_boc(3)?,
-            };
-            Ok(result)
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: "get_wallet_data".to_string(),
+                address: self.address().clone(),
+
+                actual: stack.elements.len(),
+                expected: WALLET_DATA_STACK_ELEMENTS,
+            })
         }
     }
 }

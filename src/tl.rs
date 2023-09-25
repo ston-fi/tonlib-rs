@@ -1,7 +1,21 @@
+mod error;
+mod function;
+mod notification;
+mod result;
+mod serial;
+mod stack;
+mod types;
+
+pub use error::*;
+pub use function::*;
+pub use notification::*;
+pub use result::*;
+pub use stack::*;
+pub use types::*;
+
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-use anyhow::Result;
 use base64_serde::base64_serde_type;
 
 use crate::tl::serial::{
@@ -11,17 +25,6 @@ use tonlib_sys::{
     tonlib_client_json_create, tonlib_client_json_destroy, tonlib_client_json_execute,
     tonlib_client_json_receive, tonlib_client_json_send,
 };
-
-mod function;
-mod notification;
-mod result;
-mod serial;
-pub mod stack;
-pub mod types;
-
-pub use function::TonFunction;
-pub use notification::TonNotification;
-pub use result::TonResult;
 
 base64_serde_type!(Base64Standard, base64::STANDARD);
 
@@ -43,7 +46,7 @@ impl TlTonClient {
         client
     }
 
-    pub fn execute(&self, function: &TonFunction) -> Result<TonResult> {
+    pub fn execute(&self, function: &TonFunction) -> Result<TonResult, TlError> {
         let f_str = serialize_function(function)?;
         log::trace!(
             "[{}] execute: {}",
@@ -64,7 +67,7 @@ impl TlTonClient {
         result
     }
 
-    pub fn send(&self, function: &TonFunction, extra: &str) -> Result<()> {
+    pub fn send(&self, function: &TonFunction, extra: &str) -> Result<(), TlError> {
         let f_str = serialize_function_extra(function, extra)?;
         log::trace!(
             "[{}] send: {}",
@@ -75,7 +78,7 @@ impl TlTonClient {
         Ok(())
     }
 
-    pub fn receive(&self, timeout: f64) -> Option<(Result<TonResult>, Option<String>)> {
+    pub fn receive(&self, timeout: f64) -> Option<(Result<TonResult, TlError>, Option<String>)> {
         let c_str = unsafe { tonlib_client_json_receive(self.ptr, timeout) };
         if c_str.is_null() {
             None

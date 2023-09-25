@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::meta::*;
-use anyhow::anyhow;
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
 pub struct NftCollectionMetaData {
@@ -21,7 +20,10 @@ pub struct NftCollectionMetaData {
 
 #[async_trait]
 impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
-    async fn load(&self, content: &MetaDataContent) -> anyhow::Result<NftCollectionMetaData> {
+    async fn load(
+        &self,
+        content: &MetaDataContent,
+    ) -> Result<NftCollectionMetaData, MetaLoaderError> {
         match content {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
@@ -65,7 +67,9 @@ impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
                     })
                 }
             }
-            other => Err(anyhow!("Unsupported content layout {:?}", other)),
+            content => Err(MetaLoaderError::ContentLayoutUnsupported {
+                content: content.clone(),
+            }),
         }
     }
 }

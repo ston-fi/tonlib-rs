@@ -1,3 +1,5 @@
+mod error;
 mod mnemonic;
 
-pub use mnemonic::{KeyPair, Mnemonic};
+pub use error::*;
+pub use mnemonic::*;

@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use base64::CharacterSet;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -9,6 +8,8 @@ use std::str::FromStr;
 use crate::tl::stack::TvmCell;
 use crate::tl::stack::TvmStack;
 use crate::tl::Base64Standard;
+
+use super::InternalTransactionIdParseError;
 
 // tonlib_api.tl, line 23
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -73,9 +74,20 @@ lazy_static! {
 }
 
 impl InternalTransactionId {
-    pub fn from_lt_hash(lt: i64, hash_str: &str) -> anyhow::Result<InternalTransactionId> {
+    pub fn from_lt_hash(
+        lt: i64,
+        hash_str: &str,
+    ) -> Result<InternalTransactionId, InternalTransactionIdParseError> {
         let hash = if hash_str.len() == 64 {
-            hex::decode(hash_str)?
+            match hex::decode(hash_str) {
+                Ok(hash) => hash,
+                Err(_) => {
+                    return Err(InternalTransactionIdParseError::new(
+                        format!("{}, {}", lt, hash_str),
+                        "Invalid transaction hash: base64 decode error",
+                    ))
+                }
+            }
         } else {
             let char_set = if hash_str.contains('-') || hash_str.contains('_') {
                 CharacterSet::UrlSafe
@@ -84,11 +96,23 @@ impl InternalTransactionId {
             };
             let pad = hash_str.len() == 44;
             let config = base64::Config::new(char_set, pad);
-            base64::decode_config(hash_str, config)?
+            match base64::decode_config(hash_str, config) {
+                Ok(hash) => hash,
+                Err(_) => {
+                    return Err(InternalTransactionIdParseError::new(
+                        format!("{}, {}", lt, hash_str),
+                        "Invalid transaction hash: base64 decode error",
+                    ))
+                }
+            }
         };
         if hash.len() != 32 {
-            return Err(anyhow!("Invalid hash: {}", hash_str));
+            return Err(InternalTransactionIdParseError::new(
+                format!("{}, {}", lt, hash_str),
+                "Invalid transaction hash: length is not equal to 32",
+            ));
         }
+
         Ok(InternalTransactionId { lt, hash })
     }
 
@@ -114,20 +138,27 @@ impl Debug for InternalTransactionId {
 }
 
 impl FromStr for InternalTransactionId {
-    type Err = anyhow::Error;
+    type Err = InternalTransactionIdParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<_> = s.split(":").collect();
         if parts.len() != 2 {
-            return Err(anyhow!(
-                "Not a valid transaction id: {}, expected <LT>:<HASH> format",
-                s
+            return Err(InternalTransactionIdParseError::new(
+                s,
+                "Invalid transaction hash: wrong format",
             ));
         }
-        let lt: i64 = parts[0].parse()?;
+        let lt: i64 = match parts[0].parse() {
+            Ok(lt) => lt,
+            Err(_) => {
+                return Err(InternalTransactionIdParseError::new(
+                    s,
+                    "Invalid transaction hash: wrong format",
+                ))
+            }
+        };
         let hash_str = parts[1];
-        let r = InternalTransactionId::from_lt_hash(lt, hash_str);
-        r.map_err(|e| anyhow!("Not a valid transaction id: {} ({})", s, e.to_string()))
+        InternalTransactionId::from_lt_hash(lt, hash_str)
     }
 }
 
@@ -549,7 +580,7 @@ pub struct ConfigInfo {
 
 #[cfg(test)]
 mod tests {
-    use crate::tl::types::InternalTransactionId;
+    use crate::tl::{types::InternalTransactionId, InternalTransactionIdParseError};
     use tokio_test::assert_err;
 
     #[test]
@@ -593,32 +624,32 @@ mod tests {
 
     #[test]
     fn internal_transaction_id_parse_err_works() -> anyhow::Result<()> {
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFa".parse(); // 1 symbol less
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003::uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // extra ':'
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // no ':'
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaMZ".parse(); // extra 'Z'
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM ".parse(); // extra space
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "z33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // invalid number
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3B4" // extra byte
                 .parse();
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615".parse(); // 1 byte less
         assert_err!(r);
-        let r: anyhow::Result<InternalTransactionId> =
+        let r: Result<InternalTransactionId, InternalTransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3 " // space
                 .parse();
         assert_err!(r);

@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -9,9 +8,9 @@ use crate::{
     address::TonAddress,
     cell::BagOfCells,
     client::TonClient,
-    contract::TonContract,
+    contract::{MapCellError, MapStackError, TonContract, TonContractError},
     meta::MetaDataContent,
-    tl::stack::{TvmCell, TvmNumber, TvmStackEntry},
+    tl::{TvmCell, TvmNumber, TvmStackEntry},
 };
 
 /// Data returned by get_static_data according to TEP-62
@@ -49,60 +48,69 @@ pub struct NftCollectionData {
 #[async_trait]
 pub trait NftItemContract {
     /// Gets nft item data.
-    async fn get_nft_data(&self) -> anyhow::Result<NftItemData>;
+    async fn get_nft_data(&self) -> Result<NftItemData, TonContractError>;
     async fn get_nft_content(
         &self,
         index: &BigUint,
         individual_content: BagOfCells,
-    ) -> anyhow::Result<BagOfCells>;
+    ) -> Result<BagOfCells, TonContractError>;
 }
 #[async_trait]
 pub trait NftCollectionContract {
     /// Returns nft collection data.
-    async fn get_collection_data(&self) -> anyhow::Result<NftCollectionData>;
+    async fn get_collection_data(&self) -> Result<NftCollectionData, TonContractError>;
     ///Gets the serial number of the NFT item of this collection and
     ///returns the address (TonAddress) of this NFT item smart contract.
-    async fn get_nft_address_by_index(&self, index: i64) -> anyhow::Result<TonAddress>;
+    async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError>;
 }
 
 #[async_trait]
 impl NftItemContract for TonContract {
-    async fn get_nft_data(&self) -> anyhow::Result<NftItemData> {
+    async fn get_nft_data(&self) -> Result<NftItemData, TonContractError> {
         const NFT_DATA_STACK_ELEMENTS: usize = 5;
+        let address = self.address().clone();
 
         let stack = self
             .run_get_method("get_nft_data", &Vec::new())
             .await?
             .stack;
         if stack.elements.len() == NFT_DATA_STACK_ELEMENTS {
-            let index = stack.get_biguint(1)?;
+            let method_name = "get_nft_data";
+
+            let init = stack.get_i32(0).map_stack_error(method_name, &address)? == -1;
+            let index = stack
+                .get_biguint(1)
+                .map_stack_error(method_name, &address)?;
             let collection_address = stack
-                .get_boc(2)?
-                .single_root()?
-                .parse_fully(|r| r.load_address())?;
-            let result: NftItemData = NftItemData {
-                init: stack.get_i32(0)? == -1,
-                index: index.clone(),
-                collection_address: collection_address.clone(),
-                owner_address: stack
-                    .get_boc(3)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                individual_content: read_item_metadata_content(
-                    self.client(),
-                    &index.clone(),
-                    &collection_address.clone(),
-                    &stack.get_boc(4)?,
-                )
-                .await?,
-            };
-            Ok(result)
+                .get_address(2)
+                .map_stack_error(method_name, &address)?;
+            let owner_address = stack
+                .get_address(3)
+                .map_stack_error(method_name, &address)?;
+            let boc = stack.get_boc(4).map_stack_error(method_name, &address)?;
+            let individual_content = read_item_metadata_content(
+                &self.client(),
+                &index.clone(),
+                &collection_address.clone(),
+                &address,
+                &boc,
+            )
+            .await?;
+
+            Ok(NftItemData {
+                init,
+                index,
+                collection_address,
+                owner_address,
+                individual_content,
+            })
         } else {
-            Err(anyhow!(
-                "Invalid result size: {}, expected {}",
-                stack.elements.len(),
-                NFT_DATA_STACK_ELEMENTS
-            ))
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: "get_nft_data".to_string(),
+                address: self.address().clone(),
+                actual: stack.elements.len(),
+                expected: NFT_DATA_STACK_ELEMENTS,
+            })
         }
     }
 
@@ -114,7 +122,8 @@ impl NftItemContract for TonContract {
         &self,
         index: &BigUint,
         individual_content: BagOfCells,
-    ) -> anyhow::Result<BagOfCells> {
+    ) -> Result<BagOfCells, TonContractError> {
+        let method_name = "get_nft_content";
         let input_stack = vec![
             (TvmStackEntry::Number {
                 number: TvmNumber {
@@ -123,24 +132,29 @@ impl NftItemContract for TonContract {
             }),
             (TvmStackEntry::Cell {
                 cell: TvmCell {
-                    bytes: individual_content.serialize(false)?, // todo support crc32c
+                    bytes: individual_content.serialize(false).map_err(|e| {
+                        TonContractError::InternalError {
+                            message: format!("Serialization error: {}", e),
+                        }
+                    })?, // todo support crc32c
                 },
             }),
         ];
-        let stack = self
-            .run_get_method("get_nft_content", &input_stack)
-            .await?
-            .stack;
+        let stack = self.run_get_method(method_name, &input_stack).await?.stack;
 
         if stack.elements.len() == 1 {
-            let boc = stack.get_boc(0)?;
+            let boc = stack
+                .get_boc(0)
+                .map_stack_error(method_name, &self.address())?;
             log::trace!("Got Boc: {:?}", boc);
             Ok(boc)
         } else {
-            Err(anyhow!(
-                "Invalid result size: {}, expected 1",
-                stack.elements.len()
-            ))
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: method_name.to_string(),
+                address: self.address().clone(),
+                actual: stack.elements.len(),
+                expected: 1,
+            })?
         }
     }
 }
@@ -149,25 +163,35 @@ async fn read_item_metadata_content(
     client: &TonClient,
     index: &BigUint,
     collection_address: &TonAddress,
+    item_address: &TonAddress,
     boc: &BagOfCells,
-) -> anyhow::Result<MetaDataContent> {
+) -> Result<MetaDataContent, TonContractError> {
     if let Ok(root) = boc.single_root() {
         let mut reader = root.parser();
-        let content_representation = reader.load_byte()?;
+        let content_representation = reader
+            .load_byte()
+            .map_cell_error("get_nft_data", item_address)?;
         match content_representation {
             // Off-chain content layout
             // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.
             // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
             //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
             0 => {
-                let dict = root.reference(0)?.load_snake_formatted_dict()?;
+                let reference = root
+                    .reference(0)
+                    .map_cell_error("get_nft_data", item_address)?;
+                let dict = reference
+                    .load_snake_formatted_dict()
+                    .map_cell_error("get_nft_data", item_address)?;
                 Ok(MetaDataContent::Internal { dict })
             }
             // On-chain content layout
             // The first byte is 0x00 and the rest is key/value dictionary.
             // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
             1 => {
-                let uri = reader.load_string(reader.remaining_bytes())?;
+                let uri = reader
+                    .load_string(reader.remaining_bytes())
+                    .map_cell_error("get_nft_data", item_address)?;
                 Ok(MetaDataContent::External { uri })
             }
 
@@ -177,12 +201,16 @@ async fn read_item_metadata_content(
             // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
             _ => {
                 let collection_contract = TonContract::new(client, collection_address);
-                let cell = collection_contract
+                let nft_content = collection_contract
                     .get_nft_content(index, boc.clone())
-                    .await?
-                    .single_root()?
+                    .await?;
+                let cell = nft_content
+                    .single_root()
+                    .map_cell_error("get_nft_content", item_address)?
                     .clone();
-                let uri = cell.load_snake_formatted_string()?;
+                let uri = cell
+                    .load_snake_formatted_string()
+                    .map_cell_error("get_nft_content", item_address)?;
                 Ok(MetaDataContent::External {
                     uri: uri.to_string(),
                 })
@@ -195,39 +223,37 @@ async fn read_item_metadata_content(
 
 #[async_trait]
 impl NftCollectionContract for TonContract {
-    async fn get_collection_data(&self) -> anyhow::Result<NftCollectionData> {
+    async fn get_collection_data(&self) -> Result<NftCollectionData, TonContractError> {
         const NFT_COLLECTION_STACK_ELEMENTS: usize = 3;
+        let method_name = "get_collection_data";
+        let address = self.address().clone();
 
-        let stack = self
-            .run_get_method("get_collection_data", &Vec::new())
-            .await?
-            .stack;
+        let stack = self.run_get_method(method_name, &Vec::new()).await?.stack;
         if stack.elements.len() == NFT_COLLECTION_STACK_ELEMENTS {
-            let result: NftCollectionData = NftCollectionData {
-                next_item_index: stack.get_i64(0)?,
+            let next_item_index = stack.get_i64(0).map_stack_error(method_name, &address)?;
+            let boc = &stack.get_boc(1).map_stack_error(method_name, &address)?;
+            let collection_content =
+                read_collection_metadata_content(self.client(), &address, boc).await?;
+            let owner_address = stack
+                .get_address(2)
+                .map_stack_error(method_name, &address)?;
 
-                collection_content: read_collection_metadata_content(
-                    self.client(),
-                    self.address(),
-                    &stack.get_boc(1)?,
-                )
-                .await?,
-                owner_address: stack
-                    .get_boc(2)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-            };
-            Ok(result)
+            Ok(NftCollectionData {
+                next_item_index,
+                collection_content,
+                owner_address,
+            })
         } else {
-            Err(anyhow!(
-                "Invalid result size: {}, expected {}",
-                stack.elements.len(),
-                NFT_COLLECTION_STACK_ELEMENTS
-            ))
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: method_name.to_string(),
+                address: self.address().clone(),
+                actual: stack.elements.len(),
+                expected: NFT_COLLECTION_STACK_ELEMENTS,
+            })
         }
     }
 
-    async fn get_nft_address_by_index(&self, index: i64) -> anyhow::Result<TonAddress> {
+    async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError> {
         let input_stack = vec![
             (TvmStackEntry::Number {
                 number: TvmNumber {
@@ -242,39 +268,50 @@ impl NftCollectionContract for TonContract {
 
         if stack.elements.len() == 1 {
             stack
-                .get_boc(0)?
-                .single_root()?
-                .parse_fully(|r| r.load_address())
+                .get_address(0)
+                .map_stack_error("get_nft_address_by_index".to_string(), self.address())
         } else {
-            Err(anyhow!(
-                "Invalid result size: {}, expected 1",
-                stack.elements.len()
-            ))
+            Err(TonContractError::InvalidMethodResultStackSize {
+                method: "get_nft_address_by_index".to_string(),
+                address: self.address().clone(),
+                actual: stack.elements.len(),
+                expected: 1,
+            })
         }
     }
 }
+
 async fn read_collection_metadata_content(
     client: &TonClient,
     collection_address: &TonAddress,
     boc: &BagOfCells,
-) -> anyhow::Result<MetaDataContent> {
+) -> Result<MetaDataContent, TonContractError> {
     if let Ok(root) = boc.single_root() {
         let mut reader = root.parser();
-        let content_representation = reader.load_byte()?;
+        let content_representation = reader
+            .load_byte()
+            .map_cell_error("get_colletion_data", collection_address)?;
         match content_representation {
             // Off-chain content layout
             // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.
             // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
             //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
             0 => {
-                let dict = root.reference(0)?.load_snake_formatted_dict()?;
+                let reference = root
+                    .reference(0)
+                    .map_cell_error("get_colletion_data", collection_address)?;
+                let dict = reference
+                    .load_snake_formatted_dict()
+                    .map_cell_error("get_colletion_data", collection_address)?;
                 Ok(MetaDataContent::Internal { dict })
             }
             // On-chain content layout
             // The first byte is 0x00 and the rest is key/value dictionary.
             // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
             1 => {
-                let uri = reader.load_string(reader.remaining_bytes())?;
+                let uri = reader
+                    .load_string(reader.remaining_bytes())
+                    .map_cell_error("get_colletion_data", collection_address)?;
                 Ok(MetaDataContent::External { uri })
             }
 
@@ -284,12 +321,16 @@ async fn read_collection_metadata_content(
             // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
             _ => {
                 let collection_contract = TonContract::new(client, collection_address);
-                let cell = collection_contract
+                let nft_content = collection_contract
                     .get_nft_content(&BigUint::zero(), boc.clone())
-                    .await?
-                    .single_root()?
+                    .await?;
+                let cell = nft_content
+                    .single_root()
+                    .map_cell_error("get_nft_content", collection_address)?
                     .clone();
-                let uri = cell.load_snake_formatted_string()?;
+                let uri = cell
+                    .load_snake_formatted_string()
+                    .map_cell_error("get_nft_content", collection_address)?;
                 Ok(MetaDataContent::External {
                     uri: uri.to_string(),
                 })

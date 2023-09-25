@@ -1,20 +1,24 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use anyhow::Result;
 use serde_json::Value;
 
 use crate::tl::function::TonFunction;
 use crate::tl::result::TonResult;
 
-pub(crate) fn serialize_function(function: &TonFunction) -> Result<CString> {
+use super::error::TlError;
+
+pub(crate) fn serialize_function(function: &TonFunction) -> Result<CString, TlError> {
     // TODO: Optimize to avoid copying
     let str = serde_json::to_string(function)?;
     let cstr = CString::new(str)?;
     Ok(cstr)
 }
 
-pub(crate) fn serialize_function_extra(function: &TonFunction, extra: &str) -> Result<CString> {
+pub(crate) fn serialize_function_extra(
+    function: &TonFunction,
+    extra: &str,
+) -> Result<CString, TlError> {
     let mut value = serde_json::to_value(function)?;
     let obj = value.as_object_mut().unwrap();
     obj.insert(String::from("@extra"), serde_json::Value::from(extra));
@@ -24,7 +28,7 @@ pub(crate) fn serialize_function_extra(function: &TonFunction, extra: &str) -> R
     Ok(cstr)
 }
 
-pub(crate) unsafe fn deserialize_result(c_str: *const c_char) -> Result<TonResult> {
+pub(crate) unsafe fn deserialize_result(c_str: *const c_char) -> Result<TonResult, TlError> {
     let cstr = CStr::from_ptr(c_str);
     // TODO: Optimize to avoid copying
     let str = cstr.to_str()?;
@@ -34,17 +38,17 @@ pub(crate) unsafe fn deserialize_result(c_str: *const c_char) -> Result<TonResul
 
 pub(crate) unsafe fn deserialize_result_extra(
     c_str: *const c_char,
-) -> (Result<TonResult>, Option<String>) {
+) -> (Result<TonResult, TlError>, Option<String>) {
     let cstr = CStr::from_ptr(c_str);
     // TODO: Optimize to avoid copying
     let str_result = cstr.to_str();
     if let Err(err) = str_result {
-        return (Err(anyhow::Error::from(err)), None);
+        return (Err(TlError::Utf8Error(err)), None);
     }
     let str = str_result.unwrap();
     let value_result: Result<Value, serde_json::Error> = serde_json::from_str(str);
     if let Err(err) = value_result {
-        return (Err(anyhow::Error::from(err)), None);
+        return (Err(TlError::SerdeJsonError(err)), None);
     }
     let value = value_result.unwrap();
     let extra: Option<String> = value
@@ -52,8 +56,8 @@ pub(crate) unsafe fn deserialize_result_extra(
         .and_then(|m| m.get("@extra"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let result: Result<TonResult> =
-        serde_json::from_value(value).map_err(|e| anyhow::Error::from(e));
+    let result: Result<TonResult, TlError> =
+        serde_json::from_value(value).map_err(|e| TlError::SerdeJsonError(e));
     (result, extra)
 }
 

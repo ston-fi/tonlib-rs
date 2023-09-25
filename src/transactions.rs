@@ -1,14 +1,16 @@
+mod error;
+
+pub use error::*;
+
 use std::collections::LinkedList;
 use std::ops::DerefMut;
 use std::sync::Arc;
-
-use anyhow::anyhow;
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
 use crate::client::TonClient;
 use crate::contract::TonContract;
-use crate::tl::types::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
+use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
 
 pub struct LatestContractTransactions {
     capacity: usize,
@@ -38,13 +40,12 @@ impl LatestContractTransactions {
     /// Returns up to `limit` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get(&self, limit: usize) -> anyhow::Result<Vec<Arc<RawTransaction>>> {
+    pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TransactionError> {
         if limit > self.capacity {
-            return Err(anyhow!(
-                "Limit ({}) must not exceed capacity ({})",
-                limit,
-                self.capacity
-            ));
+            return Err(TransactionError::LimitExceeded {
+                limit: limit,
+                capacity: self.capacity,
+            });
         }
         let mut lock = self.inner.lock().await;
         self.sync(lock.deref_mut()).await?;
@@ -59,11 +60,11 @@ impl LatestContractTransactions {
     /// Returns up to `capacity` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get_all(&self) -> anyhow::Result<Vec<Arc<RawTransaction>>> {
+    pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TransactionError> {
         self.get(self.capacity).await
     }
 
-    async fn sync(&self, inner: &mut Inner) -> anyhow::Result<()> {
+    async fn sync(&self, inner: &mut Inner) -> Result<(), TransactionError> {
         // Find out what to sync
         let state = self.contract.get_account_state().await?;
         let last_tx_id = &state.last_transaction_id;

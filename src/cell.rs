@@ -1,23 +1,26 @@
+mod builder;
+mod error;
+mod parser;
+mod raw;
+mod state_init;
+
+pub use builder::*;
+pub use error::*;
+pub use parser::*;
+pub use raw::*;
+pub use state_init::*;
+
+use std::ops::Deref;
 use std::sync::Arc;
 use std::{
     collections::{HashMap, HashSet},
     io::Cursor,
 };
 
-use anyhow::anyhow;
 use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 use num_bigint::BigInt;
 use num_traits::{Num, ToPrimitive};
 use sha2::{Digest, Sha256};
-
-pub use builder::*;
-pub use parser::*;
-
-use crate::cell::raw::{RawBagOfCells, RawCell};
-
-mod builder;
-mod parser;
-mod raw;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct Cell {
@@ -39,9 +42,9 @@ impl Cell {
         }
     }
 
-    pub fn parse_fully<F, T>(&self, parse: F) -> anyhow::Result<T>
+    pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
-        F: FnOnce(&mut CellParser) -> anyhow::Result<T>,
+        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
     {
         let mut reader = self.parser();
         let res = parse(&mut reader);
@@ -49,21 +52,20 @@ impl Cell {
         res
     }
 
-    pub fn parse<F, T>(&self, parse: F) -> anyhow::Result<T>
+    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
-        F: FnOnce(&mut CellParser) -> anyhow::Result<T>,
+        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
     {
         let mut reader = self.parser();
         let res = parse(&mut reader);
         res
     }
 
-    pub fn reference(&self, idx: usize) -> anyhow::Result<&Arc<Cell>> {
-        self.references.get(idx).ok_or(anyhow!(
-            "Invalid index: {}, Cell contains {} references",
+    pub fn reference(&self, idx: usize) -> Result<&Arc<Cell>, TonCellError> {
+        self.references.get(idx).ok_or(TonCellError::InvalidIndex {
             idx,
-            self.references.len()
-        ))
+            ref_count: self.references.len(),
+        })
     }
 
     fn get_max_level(&self) -> u8 {
@@ -102,42 +104,56 @@ impl Cell {
         self.data.len() as u8 * 2 - if full_bytes { 0 } else { 1 } //subtract 1 if the last byte is not full
     }
 
-    pub fn get_repr(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn get_repr(&self) -> Result<Vec<u8>, TonCellError> {
         let data_len = self.data.len();
         let rest_bits = self.bit_len % 8;
         let full_bytes = rest_bits == 0;
         let mut writer = BitWriter::endian(Vec::new(), BigEndian);
-        writer.write(8, self.get_refs_descriptor())?;
-        writer.write(8, self.get_bits_descriptor())?;
+        let val = self.get_refs_descriptor();
+        writer.write(8, val).map_boc_serialization_error()?;
+        writer
+            .write(8, self.get_bits_descriptor())
+            .map_boc_serialization_error()?;
         if !full_bytes {
-            writer.write_bytes(&self.data[..data_len - 1])?;
+            writer
+                .write_bytes(&self.data[..data_len - 1])
+                .map_boc_serialization_error()?;
             let last_byte = self.data[data_len - 1];
             let l = last_byte | (1 << 8 - rest_bits - 1);
-            writer.write(8, l)?;
+            writer.write(8, l).map_boc_serialization_error()?;
         } else {
-            writer.write_bytes(&self.data)?;
+            writer
+                .write_bytes(&self.data)
+                .map_boc_serialization_error()?;
         }
 
         for r in &self.references {
-            writer.write(8, (r.get_max_depth() / 256) as u8)?;
-            writer.write(8, (r.get_max_depth() % 256) as u8)?;
+            writer
+                .write(8, (r.get_max_depth() / 256) as u8)
+                .map_boc_serialization_error()?;
+            writer
+                .write(8, (r.get_max_depth() % 256) as u8)
+                .map_boc_serialization_error()?;
         }
         for r in &self.references {
-            writer.write_bytes(&r.cell_hash()?)?;
+            writer
+                .write_bytes(&r.cell_hash()?)
+                .map_boc_serialization_error()?;
         }
-        writer
+        let result = writer
             .writer()
-            .ok_or(anyhow!("Stream is not byte-aligned"))
-            .map(|b| b.to_vec())
+            .ok_or_else(|| TonCellError::cell_builder_error("Stream is not byte-aligned"))
+            .map(|b| b.to_vec());
+        Ok(result?)
     }
 
-    pub fn cell_hash(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn cell_hash(&self) -> Result<Vec<u8>, TonCellError> {
         let mut hasher: Sha256 = Sha256::new();
         hasher.update(self.get_repr()?.as_slice());
         Ok(hasher.finalize()[..].to_vec())
     }
 
-    pub fn cell_hash_base64(&self) -> anyhow::Result<String> {
+    pub fn cell_hash_base64(&self) -> Result<String, TonCellError> {
         Ok(base64::encode(self.cell_hash()?))
     }
 
@@ -149,7 +165,7 @@ impl Cell {
     /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
-    pub fn load_snake_formatted_dict(&self) -> anyhow::Result<HashMap<String, String>> {
+    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<String, String>, TonCellError> {
         let map = self.load_dict(|cell| {
             let mut buffer = Vec::new();
             if cell.references.is_empty() {
@@ -162,38 +178,43 @@ impl Cell {
         Ok(map)
     }
 
-    pub fn load_snake_formatted_string(&self) -> anyhow::Result<String> {
-        let mut current_ref = Some(Arc::new(self.clone()));
+    pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
+        let mut cell: &Cell = self;
         let mut first_cell = true;
         let mut uri = String::new();
-        while let Some(cell) = current_ref {
+        loop {
             let parsed_cell = if first_cell {
-                std::str::from_utf8(&cell.data[1..])?.to_string()
+                std::str::from_utf8(&cell.data[1..])
+                    .map_boc_deserialization_error()?
+                    .to_string()
             } else {
-                std::str::from_utf8(&cell.data)?.to_string()
+                std::str::from_utf8(&cell.data)
+                    .map_boc_deserialization_error()?
+                    .to_string()
             };
             uri.push_str(&parsed_cell);
-            if cell.references.len() == 1 {
-                let next = cell.references[0].clone();
-                current_ref = Some(next);
-                first_cell = false;
-            } else {
-                if cell.references.len() == 0 {
-                    current_ref = None;
-                } else {
-                    return Err(anyhow!(
-                        "Not valid snake formatted sting: More than one reference found."
-                    ));
+            match cell.references.len() {
+                0 => return Ok(uri),
+                1 => {
+                    cell = cell.references[0].deref();
+                    first_cell = false;
+                }
+                n => {
+                    return Err(TonCellError::boc_deserialization_error(format!(
+                        "Invalid snake format string: found cell with {} references",
+                        n
+                    )))
                 }
             }
         }
-        Ok(uri)
     }
 
-    fn parse_snake_data(&self, buffer: &mut Vec<u8>, is_first: bool) -> anyhow::Result<()> {
+    fn parse_snake_data(&self, buffer: &mut Vec<u8>, is_first: bool) -> Result<(), TonCellError> {
         let mut reader = self.parser();
         if is_first && reader.load_uint(8)?.to_u32().unwrap() != 0 {
-            return Err(anyhow!("Only snake format is supported"));
+            return Err(TonCellError::boc_deserialization_error(
+                "Invalid snake format",
+            ));
         }
 
         let mut data = reader.load_bytes(reader.remaining_bytes())?;
@@ -206,9 +227,9 @@ impl Cell {
         Ok(())
     }
 
-    pub fn load_dict<F>(&self, extractor: F) -> anyhow::Result<HashMap<String, String>>
+    pub fn load_dict<F>(&self, extractor: F) -> Result<HashMap<String, String>, TonCellError>
     where
-        F: Fn(&Cell) -> anyhow::Result<Vec<u8>>,
+        F: Fn(&Cell) -> Result<Vec<u8>, TonCellError>,
     {
         let mut map: HashMap<String, String> = HashMap::new();
         self.parse_dict("".to_string(), 256, &mut map, &extractor)?;
@@ -222,9 +243,9 @@ impl Cell {
         n: usize,
         map: &mut HashMap<String, String>,
         extractor: &F,
-    ) -> anyhow::Result<()>
+    ) -> Result<(), TonCellError>
     where
-        F: Fn(&Cell) -> anyhow::Result<Vec<u8>>,
+        F: Fn(&Cell) -> Result<Vec<u8>, TonCellError>,
     {
         let mut reader = self.parser();
 
@@ -264,9 +285,11 @@ impl Cell {
 
         if n - prefix_length == 0 {
             let r = extractor(&self)?;
-            let data = String::from_utf8(r)?;
+            let data = String::from_utf8(r).map_cell_parser_error()?;
             map.insert(
-                BigInt::from_str_radix(pp.as_str(), 2)?.to_str_radix(10),
+                BigInt::from_str_radix(pp.as_str(), 2)
+                    .map_cell_parser_error()?
+                    .to_str_radix(10),
                 data,
             );
         } else {
@@ -317,23 +340,28 @@ impl BagOfCells {
         self.roots.len()
     }
 
-    pub fn root(&self, idx: usize) -> anyhow::Result<&Arc<Cell>> {
-        self.roots.get(idx).ok_or(anyhow!(
-            "Invalid index: {}, BoC contains {} roots",
-            idx,
-            self.roots.len()
-        ))
+    pub fn root(&self, idx: usize) -> Result<&Arc<Cell>, TonCellError> {
+        self.roots.get(idx).ok_or_else(|| {
+            TonCellError::boc_deserialization_error(format!(
+                "Invalid root index: {}, BoC contains {} roots",
+                idx,
+                self.roots.len()
+            ))
+        })
     }
 
-    pub fn single_root(&self) -> anyhow::Result<&Arc<Cell>> {
-        if self.roots.len() == 1 {
+    pub fn single_root(&self) -> Result<&Arc<Cell>, TonCellError> {
+        let root_count = self.roots.len();
+        if root_count == 1 {
             Ok(&self.roots[0])
         } else {
-            Err(anyhow!("Single root expected, got {}", self.roots.len()))
+            Err(TonCellError::CellParserError {
+                msg: format!("Single root expected, got {}", root_count),
+            })
         }
     }
 
-    pub fn parse(serial: &[u8]) -> anyhow::Result<BagOfCells> {
+    pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
         let mut cells: Vec<Arc<Cell>> = Vec::new();
@@ -346,7 +374,9 @@ impl BagOfCells {
             };
             for r in &raw_cell.references {
                 if *r <= i {
-                    return Err(anyhow!("References to previous cells are not supported"));
+                    return Err(TonCellError::boc_deserialization_error(
+                        "References to previous cells are not supported".to_string(),
+                    ));
                 }
                 cell.references.push(cells[num_cells - 1 - r].clone());
             }
@@ -360,13 +390,13 @@ impl BagOfCells {
         Ok(BagOfCells { roots })
     }
 
-    pub fn parse_hex(hex: &str) -> anyhow::Result<BagOfCells> {
+    pub fn parse_hex(hex: &str) -> Result<BagOfCells, TonCellError> {
         let str: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
-        let bin = hex::decode(str.as_str())?;
+        let bin = hex::decode(str.as_str()).map_boc_deserialization_error()?;
         Self::parse(&bin)
     }
 
-    pub fn serialize(&self, has_crc32: bool) -> anyhow::Result<Vec<u8>> {
+    pub fn serialize(&self, has_crc32: bool) -> Result<Vec<u8>, TonCellError> {
         let raw = self.to_raw()?;
         raw.serialize(has_crc32)
     }
@@ -376,12 +406,14 @@ impl BagOfCells {
         cell: &Arc<Cell>,
         all_cells: &mut HashSet<Arc<Cell>>,
         in_refs: &mut HashMap<Arc<Cell>, HashSet<Arc<Cell>>>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), TonCellError> {
         if !all_cells.contains(cell) {
             all_cells.insert(cell.clone());
             for r in &cell.references {
                 if r == cell {
-                    return Err(anyhow!("Cell must not reference itself"));
+                    return Err(TonCellError::BagOfCellsDeserializationError {
+                        msg: "Cell must not reference itself".to_string(),
+                    });
                 }
                 let maybe_refs = in_refs.get_mut(&r.clone());
                 match maybe_refs {
@@ -401,7 +433,7 @@ impl BagOfCells {
     }
 
     /// Constructs raw representation of BagOfCells
-    fn to_raw(&self) -> anyhow::Result<RawBagOfCells> {
+    fn to_raw(&self) -> Result<RawBagOfCells, TonCellError> {
         let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
         let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
         for r in &self.roots {
@@ -431,9 +463,9 @@ impl BagOfCells {
             no_in_refs.remove(&cell);
         }
         if !in_refs.is_empty() {
-            return Err(anyhow!(
-                "Can't construct topological ordering: cycle detected"
-            ));
+            return Err(TonCellError::CellBuilderError {
+                msg: "Can't construct topological ordering: cycle detected".to_string(),
+            });
         }
         let mut cells: Vec<RawCell> = Vec::new();
         for cell in &ordered_cells {
@@ -466,7 +498,9 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::Zero;
 
-    use crate::cell::{BagOfCells, CellBuilder};
+    use crate::cell::{BagOfCells, CellBuilder, MapTonCellError};
+
+    use super::TonCellError;
 
     #[test]
     fn it_constructs_raw() -> anyhow::Result<()> {
@@ -624,23 +658,23 @@ mod tests {
 
     #[ignore]
     #[test]
-    fn check_code_hash() -> anyhow::Result<()> {
+    fn check_code_hash() -> Result<(), TonCellError> {
         let raw = include_str!("wallet/wallet_v3_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
         println!(
             "wallet_v3_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?
         );
 
         let raw = include_str!("wallet/wallet_v3r2_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
         println!(
             "wallet_v3r2_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?
         );
 
         let raw = include_str!("wallet/wallet_v4r2_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw)?)?;
+        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
         println!(
             "wallet_v4r2_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?

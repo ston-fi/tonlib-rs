@@ -6,7 +6,7 @@ use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
-use tonlib::client::{TonClient, TonConnectionCallback};
+use tonlib::client::{TonClient, TonClientError, TonConnectionCallback};
 use tonlib::tl::{TonNotification, TonResult};
 
 static LOG: Once = Once::new();
@@ -19,7 +19,12 @@ lazy_static! {
 pub fn init_logging() {
     LOG.call_once(|| {
         TonClient::set_log_verbosity_level(2);
-        let stderr = ConsoleAppender::builder().target(Target::Stderr).build();
+        let stderr = ConsoleAppender::builder()
+            .target(Target::Stderr)
+            .encoder(Box::new(log4rs::encode::pattern::PatternEncoder::new(
+                "{d(%Y-%m-%d %H:%M:%S%.6f)} {T} {h({l:>5.5} {t})} [{f}:{L}]- {m}{n}",
+            )))
+            .build();
 
         let config = Config::builder()
             .appender(Appender::builder().build("stderr", Box::new(stderr)))
@@ -53,7 +58,7 @@ impl TonConnectionCallback for TestTonConnectionCallback {
         id: u32,
         method: &str,
         duration: &Duration,
-        res: &anyhow::Result<TonResult>,
+        res: &Result<TonResult, TonClientError>,
     ) {
         log::trace!(
             "on_invoke_result: {:?} {} {} {:?}",

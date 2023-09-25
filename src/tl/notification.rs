@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 use crate::tl::result::TonResult;
@@ -11,12 +10,12 @@ pub enum TonNotification {
 }
 
 impl TonNotification {
-    pub fn from_result(r: &TonResult) -> anyhow::Result<TonNotification> {
+    pub fn from_result(r: &TonResult) -> Option<TonNotification> {
         match r {
             TonResult::UpdateSyncState(sync_state) => {
-                Ok(TonNotification::UpdateSyncState(sync_state.clone()))
+                Some(TonNotification::UpdateSyncState(sync_state.clone()))
             }
-            _ => Err(anyhow!("Not a valid notification: {:?}", r)),
+            _ => None,
         }
     }
 }

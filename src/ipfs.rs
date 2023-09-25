@@ -1,6 +1,9 @@
-use std::fmt::Debug;
+mod error;
+
+pub use error::*;
 
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -49,7 +52,7 @@ pub struct IpfsLoader {
 }
 
 impl IpfsLoader {
-    pub fn new(config: &IpfsLoaderConfig) -> anyhow::Result<Self> {
+    pub fn new(config: &IpfsLoaderConfig) -> Result<Self, IpfsLoaderError> {
         Ok(Self {
             connection_type: config.connection_type.clone(),
             base_url: config.base_url.clone(),
@@ -57,11 +60,11 @@ impl IpfsLoader {
         })
     }
 
-    pub fn default() -> anyhow::Result<Self> {
+    pub fn default() -> Result<Self, IpfsLoaderError> {
         Self::new(&IpfsLoaderConfig::default())
     }
 
-    pub async fn load(&self, path: &str) -> anyhow::Result<Vec<u8>> {
+    pub async fn load(&self, path: &str) -> Result<Vec<u8>, IpfsLoaderError> {
         let response = match self.connection_type {
             IpfsConnectionType::HttpGateway => {
                 let full_url = format!("{}/{}", self.base_url, path);
@@ -84,16 +87,16 @@ impl IpfsLoader {
             } else {
                 body.clone()
             };
-            anyhow::bail!(
-                "Failed to load IPFS object {}, status: {}, message: {}",
-                path,
+
+            Err(IpfsLoaderError::IpfsLoadObjectFailed {
+                path: path.to_string(),
                 status,
-                message
-            );
+                message,
+            })
         }
     }
 
-    pub async fn load_utf8(&self, path: &str) -> anyhow::Result<String> {
+    pub async fn load_utf8(&self, path: &str) -> Result<String, IpfsLoaderError> {
         let bytes = self.load(path).await?;
         let str = String::from_utf8(bytes)?;
         Ok(str)

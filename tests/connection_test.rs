@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use tonlib::client::{TonConnection, TonFunctions, DEFAULT_CONNECTION_PARAMS};
-use tonlib::tl::types::{KeyStoreType, SyncState, UpdateSyncState};
 use tonlib::tl::TonNotification;
+use tonlib::tl::{KeyStoreType, SyncState, UpdateSyncState};
 
 use crate::common::TEST_TON_CONNECTION_CALLBACK;
 
