@@ -272,6 +272,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
             }
         } else {
             log::info!("[{}] Exiting event loop", tag);
+            break;
         }
     }
 }
