@@ -1,0 +1,86 @@
+image: ${CI_REGISTRY}/ston-fi/docker/rust-build:ubuntu-as-base-20.10.17_1.70.0-dd70231c
+
+# Prevent duplicate pipelines, branch pipeline and merge_request pipeline
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
+
+stages:
+  - test
+  - release
+
+variables:
+  FF_USE_FASTZIP: 1
+  CACHE_COMPRESSION_LEVEL: "fastest"
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+  RUSTFLAGS: "-D warnings"
+
+cache:
+  key: shared-cache
+  paths:
+    - target/
+    - .cargo/
+
+test-branch:
+  stage: test
+  script:
+    - cargo fmt --check
+    - cargo rustc -- -D warnings
+    - cargo test --lib
+  tags:
+    - ston
+  rules:
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
+
+test-mr:
+  tags:
+    - ston
+  stage: test
+  script:
+    - cargo fmt --check
+    - cargo rustc -- -D warnings
+    - cargo test --lib -- --test-threads=1
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+
+test-master:
+  tags:
+    - ston
+  stage: test
+  script:
+    - cargo fmt --check
+    - cargo rustc -- -D warnings
+    - cargo test --lib -- --test-threads=1
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+release-master:
+  tags:
+    - ston
+  stage: release
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - 'git remote set-url origin https://$CI_REPOSITORY_USER:$CI_REPOSITORY_TOKEN@git.stonfi.net/$CI_PROJECT_PATH.git'
+    - 'git config --global user.name "ci"'
+    - 'git config --global user.email "ci@stonfi.net"'
+    - 'git config push.pushOption "ci.skip"'
+  script:
+    - git checkout $CI_BUILD_REF_NAME
+    - cargo fmt --check
+    - cargo rustc -- -D warnings
+    - cargo test --lib -- --test-threads=1
+    - cargo release release --execute --no-publish --no-confirm
+    - export VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0]["version"]')
+    - echo "Released version $VERSION"
+    - export MAJOR_MINOR=$(echo $VERSION | cut -d "." -f1,2)
+    - export PATCH=$(echo $VERSION | cut -d "." -f3)
+    - export NEW_VERSION="$MAJOR_MINOR.$((PATCH+1))-dev"
+    - echo "Starting next development iteration $NEW_VERSION"
+    - cargo release $NEW_VERSION --execute --no-publish --no-confirm --no-tag
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual
