@@ -168,11 +168,7 @@ impl Cell {
     pub fn load_snake_formatted_dict(&self) -> Result<HashMap<String, String>, TonCellError> {
         let map = self.load_dict(|cell| {
             let mut buffer = Vec::new();
-            if cell.references.is_empty() {
-                cell.parse_snake_data(&mut buffer, true)?;
-            } else {
-                cell.reference(0)?.parse_snake_data(&mut buffer, true)?;
-            }
+            cell.reference(0)?.parse_snake_data(&mut buffer)?;
             Ok(buffer.to_vec())
         })?;
         Ok(map)
@@ -209,22 +205,34 @@ impl Cell {
         }
     }
 
-    fn parse_snake_data(&self, buffer: &mut Vec<u8>, is_first: bool) -> Result<(), TonCellError> {
-        let mut reader = self.parser();
-        if is_first && reader.load_uint(8)?.to_u32().unwrap() != 0 {
-            return Err(TonCellError::boc_deserialization_error(
-                "Invalid snake format",
-            ));
+    fn parse_snake_data(&self, buffer: &mut Vec<u8>) -> Result<(), TonCellError> {
+        let mut cell: &Cell = self;
+        let mut first_cell = true;
+        loop {
+            let mut reader = cell.parser();
+            let first_byte = reader.load_uint(8)?.to_u32().unwrap();
+
+            if first_cell && first_byte != 0 {
+                return Err(TonCellError::boc_deserialization_error(
+                    "Invalid snake format",
+                ));
+            }
+            let mut data = reader.load_bytes(reader.remaining_bytes())?;
+            buffer.append(&mut data);
+            match cell.references.len() {
+                0 => return Ok(()),
+                1 => {
+                    cell = cell.references[0].deref();
+                    first_cell = false;
+                }
+                n => {
+                    return Err(TonCellError::boc_deserialization_error(format!(
+                        "Invalid snake format string: found cell with {} references",
+                        n
+                    )))
+                }
+            }
         }
-
-        let mut data = reader.load_bytes(reader.remaining_bytes())?;
-        buffer.append(&mut data);
-
-        if self.references.len() == 1 {
-            self.reference(0)?.parse_snake_data(buffer, false)?;
-        }
-
-        Ok(())
     }
 
     pub fn load_dict<F>(&self, extractor: F) -> Result<HashMap<String, String>, TonCellError>
