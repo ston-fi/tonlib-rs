@@ -1,18 +1,14 @@
-mod error;
-
-pub use error::*;
-
 use std::collections::LinkedList;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::address::TonAddress;
 use crate::client::TonClient;
 use crate::contract::TonContract;
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
+use crate::{address::TonAddress, contract::TransactionError};
 
-pub struct LatestContractTransactions {
+pub struct LatestContractTransactionsCache {
     capacity: usize,
     contract: TonContract,
     inner: Mutex<Inner>,
@@ -22,13 +18,13 @@ struct Inner {
     transactions: LinkedList<Arc<RawTransaction>>,
 }
 
-impl LatestContractTransactions {
+impl LatestContractTransactionsCache {
     pub fn new(
         client: &TonClient,
         contract_address: &TonAddress,
         capacity: usize,
-    ) -> LatestContractTransactions {
-        LatestContractTransactions {
+    ) -> LatestContractTransactionsCache {
+        LatestContractTransactionsCache {
             capacity,
             contract: TonContract::new(client, &contract_address.clone()),
             inner: Mutex::new(Inner {

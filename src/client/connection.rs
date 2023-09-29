@@ -17,7 +17,7 @@ use crate::tl::TvmStackEntry;
 use crate::tl::{Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult};
 use crate::tl::{TlTonClient, TonResultDiscriminants};
 
-use super::error::TonClientError;
+use crate::client::TonClientError;
 
 struct RequestData {
     method: &'static str,

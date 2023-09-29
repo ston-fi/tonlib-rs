@@ -27,7 +27,7 @@ pub enum TonCellError {
     NonEmptyReader { remaining_bits: usize },
 }
 
-pub(crate) trait MapTonCellError<R, E>
+pub trait MapTonCellError<R, E>
 where
     E: std::error::Error,
 {
@@ -62,7 +62,7 @@ where
 }
 
 impl TonCellError {
-    pub(crate) fn boc_serialization_error<T>(e: T) -> TonCellError
+    pub fn boc_serialization_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
@@ -71,7 +71,7 @@ impl TonCellError {
         }
     }
 
-    pub(crate) fn boc_deserialization_error<T>(e: T) -> TonCellError
+    pub fn boc_deserialization_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
@@ -80,7 +80,7 @@ impl TonCellError {
         }
     }
 
-    pub(crate) fn cell_builder_error<T>(e: T) -> TonCellError
+    pub fn cell_builder_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
@@ -89,7 +89,7 @@ impl TonCellError {
         }
     }
 
-    pub(crate) fn cell_parser_error<T>(e: T) -> TonCellError
+    pub fn cell_parser_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {

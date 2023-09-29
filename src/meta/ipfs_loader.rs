@@ -1,5 +1,4 @@
 mod error;
-
 pub use error::*;
 
 use serde::{Deserialize, Serialize};
@@ -105,7 +104,7 @@ impl IpfsLoader {
 
 #[cfg(test)]
 mod tests {
-    use crate::ipfs::{IpfsConnectionType, IpfsLoaderConfig};
+    use crate::meta::{IpfsConnectionType, IpfsLoaderConfig};
 
     static CONFIG_JSON: &str = r#"
     {

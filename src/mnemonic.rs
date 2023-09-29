@@ -1,3 +1,7 @@
+mod error;
+
+pub use error::*;
+
 use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
@@ -7,9 +11,7 @@ use sha2::Sha512;
 use std::cmp;
 use std::collections::HashMap;
 
-use super::MnemonicError;
-
-const WORDLIST_EN: &str = include_str!("wordlist.EN");
+const WORDLIST_EN: &str = include_str!("mnemonic/wordlist.EN");
 const PBKDF_ITERATIONS: u32 = 100000;
 
 lazy_static! {
@@ -145,7 +147,7 @@ fn pbkdf2_sha512(
 ///Based on https://github.com/tonwhales/ton-crypto/blob/master/src/mnemonic/mnemonic.spec.ts
 #[cfg(test)]
 mod tests {
-    use crate::crypto::mnemonic::Mnemonic;
+    use crate::mnemonic::Mnemonic;
 
     #[test]
     fn mnemonic_parse_works() -> anyhow::Result<()> {

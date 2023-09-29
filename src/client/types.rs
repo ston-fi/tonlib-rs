@@ -18,7 +18,7 @@ use crate::tl::{
     InternalTransactionId, RawFullAccountState, RawTransactions,
 };
 
-use super::error::TonClientError;
+use crate::client::TonClientError;
 
 #[derive(Debug, Clone)]
 pub struct TonError {

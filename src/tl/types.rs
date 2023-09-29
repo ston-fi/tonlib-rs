@@ -9,7 +9,7 @@ use crate::tl::stack::TvmCell;
 use crate::tl::stack::TvmStack;
 use crate::tl::Base64Standard;
 
-use super::InternalTransactionIdParseError;
+use crate::tl::InternalTransactionIdParseError;
 
 // tonlib_api.tl, line 23
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

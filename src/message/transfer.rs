@@ -4,20 +4,19 @@ use num_bigint::BigUint;
 
 use crate::address::TonAddress;
 use crate::cell::{Cell, CellBuilder};
-use crate::message::ZERO_COINS;
 
-use super::TonMessageError;
+use crate::message::{TonMessageError, ZERO_COINS};
 
-pub struct TransferBuilder {
-    dest: TonAddress,
-    value: BigUint,
-    state_init: Option<Arc<Cell>>,
-    data: Option<Arc<Cell>>,
+pub struct TransferMessage {
+    pub dest: TonAddress,
+    pub value: BigUint,
+    pub state_init: Option<Arc<Cell>>,
+    pub data: Option<Arc<Cell>>,
 }
 
-impl TransferBuilder {
+impl TransferMessage {
     pub fn new(dest: &TonAddress, value: &BigUint) -> Self {
-        TransferBuilder {
+        TransferMessage {
             dest: dest.clone(),
             value: value.clone(),
             state_init: None,

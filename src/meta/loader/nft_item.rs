@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::meta::*;
-use serde_json::{self, Value};
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
 pub struct NftItemMetaData {

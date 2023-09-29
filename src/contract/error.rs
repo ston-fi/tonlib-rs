@@ -49,20 +49,20 @@ pub enum TonContractError {
     InternalError { message: String },
 }
 
-pub(crate) trait MapStackError<R> {
+pub trait MapStackError<R> {
     fn map_stack_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
     where
         T: ToString;
 }
 
-pub(crate) trait MapCellError<R> {
+pub trait MapCellError<R> {
     fn map_cell_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
     where
         T: ToString;
 }
 
 impl TonContractError {
-    pub(crate) fn client_method_error<T>(
+    pub fn client_method_error<T>(
         method: T,
         address: Option<&TonAddress>,
         error: TonClientError,
@@ -105,4 +105,16 @@ impl<R> MapCellError<R> for Result<R, TonCellError> {
             error: e.into(),
         })
     }
+}
+
+#[derive(Error, Debug)]
+pub enum TransactionError {
+    #[error("Limit ({limit}) must not exceed capacity ({capacity})")]
+    LimitExceeded { limit: usize, capacity: usize },
+
+    #[error("ContractError: {contract_error}")]
+    ContractError {
+        #[from]
+        contract_error: TonContractError,
+    },
 }

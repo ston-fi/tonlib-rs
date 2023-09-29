@@ -4,7 +4,7 @@ use bitstream_io::{BigEndian, BitWrite, BitWriter, ByteRead, ByteReader};
 use crc::Crc;
 use lazy_static::lazy_static;
 
-use super::{MapTonCellError, TonCellError};
+use crate::cell::{MapTonCellError, TonCellError};
 
 lazy_static! {
     pub static ref CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
