@@ -2,8 +2,8 @@ use anyhow::anyhow;
 use std::sync::Arc;
 use std::{thread, time};
 use tonlib::address::TonAddress;
+use tonlib::contract::LatestContractTransactionsCache;
 use tonlib::tl::RawTransaction;
-use tonlib::transactions::LatestContractTransactions;
 
 mod common;
 
@@ -13,7 +13,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
     let validator: &TonAddress = &"Ef9VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVbxn".parse()?;
 
     let client = common::new_test_client().await?;
-    let trans = LatestContractTransactions::new(&client, validator, 100);
+    let trans = LatestContractTransactionsCache::new(&client, validator, 100);
     let trs = trans.get(4).await?;
     println!(
         "Got {} transactions, first {}, last {}",
@@ -67,7 +67,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
     let addr: &TonAddress = &"EQC9kYAEZS0ePT8KCnwk6Fo69HO0t_FEqIRmIY7rW6fh3lK7".parse()?;
 
     let client = common::new_test_client().await?;
-    let trans = LatestContractTransactions::new(&client, addr, 100);
+    let trans = LatestContractTransactionsCache::new(&client, addr, 100);
     let trs = trans.get(4).await?;
     println!(
         "Got {} transactions, first {}, last {}",
@@ -96,7 +96,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
     let mut missing_hash = addr.hash_part.clone();
     missing_hash[31] += 1;
     let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
-    let missing_trans = LatestContractTransactions::new(&client, &missing_addr, 100);
+    let missing_trans = LatestContractTransactionsCache::new(&client, &missing_addr, 100);
     let missing_trs = missing_trans.get(30).await?;
 
     assert_eq!(missing_trs.len(), 0);
@@ -109,7 +109,7 @@ async fn get_txs_for_empty_works() -> anyhow::Result<()> {
     let addr: &TonAddress = &"EQAjJIyYzKc4bww1zo3_fAqHWZdYCJHwhs84wtU8smO_Hr3i".parse()?;
 
     let client = common::new_test_client().await?;
-    let trans = LatestContractTransactions::new(&client, addr, 100);
+    let trans = LatestContractTransactionsCache::new(&client, addr, 100);
     let trs = trans.get(4).await?;
     println!(
         "Got {} transactions, first {:?}, last {:?}",

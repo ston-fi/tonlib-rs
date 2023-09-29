@@ -8,21 +8,23 @@ pub use connection::*;
 pub use error::*;
 pub use types::*;
 
-use std::fs;
-use std::ops::Deref;
-use std::path::Path;
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use rand::Rng;
 use tokio::sync::Mutex;
-use tokio_retry::strategy::FixedInterval;
-use tokio_retry::RetryIf;
+
+use std::{fs, ops::Deref, path::Path, sync::Arc};
+
+use tokio_retry::{strategy::FixedInterval, RetryIf};
 
 use crate::tl::{TlTonClient, TonFunction, TonResult};
 
 pub struct TonClient {
     inner: Arc<Inner>,
+}
+
+struct Inner {
+    retry_strategy: RetryStrategy,
+    connections: Vec<PoolConnection>,
 }
 
 impl TonClient {
@@ -131,6 +133,14 @@ impl TonFunctions for TonClient {
     }
 }
 
+impl Clone for TonClient {
+    fn clone(&self) -> Self {
+        TonClient {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
 fn maybe_error_code(error: &TonClientError) -> Option<i32> {
     if let TonClientError::TonlibError { code, .. } = error {
         Some(*code)
@@ -145,19 +155,6 @@ fn retry_condition(error: &TonClientError) -> bool {
     } else {
         false
     }
-}
-
-impl Clone for TonClient {
-    fn clone(&self) -> Self {
-        TonClient {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-struct Inner {
-    retry_strategy: RetryStrategy,
-    connections: Vec<PoolConnection>,
 }
 
 struct PoolConnection {

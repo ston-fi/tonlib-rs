@@ -1,30 +1,24 @@
 use lazy_static::lazy_static;
 use nacl::sign::signature;
-use num_bigint::BigUint;
-use num_traits::Zero;
 
-pub use contract::TonWalletContract;
-
-use crate::crypto::KeyPair;
-use crate::{address::TonAddress, cell::TonCellError};
+use crate::message::ZERO_COINS;
+use crate::{address::TonAddress, cell::TonCellError, mnemonic::KeyPair};
 use crate::{
     cell::{BagOfCells, Cell, CellBuilder, StateInit},
     message::TonMessageError,
 };
 
-mod contract;
-
 lazy_static! {
     pub static ref WALLET_V3_CODE: BagOfCells = {
-        let code = include_str!("wallet/wallet_v3_code.hex");
+        let code = include_str!("../resources/wallet/wallet_v3_code.hex");
         BagOfCells::parse_hex(code).unwrap()
     };
     pub static ref WALLET_V3R2_CODE: BagOfCells = {
-        let code = include_str!("wallet/wallet_v3r2_code.hex");
+        let code = include_str!("../resources/wallet/wallet_v3r2_code.hex");
         BagOfCells::parse_hex(code).unwrap()
     };
     pub static ref WALLET_V4R2_CODE: BagOfCells = {
-        let code = include_str!("wallet/wallet_v4r2_code.hex");
+        let code = include_str!("../resources/wallet/wallet_v4r2_code.hex");
         BagOfCells::parse_hex(code).unwrap()
     };
 }
@@ -161,7 +155,7 @@ impl TonWallet {
             // src
             .store_address(&self.address)?
             // dest
-            .store_coins(&BigUint::zero())?
+            .store_coins(&ZERO_COINS)?
             // import fee
             .store_bit(false)?
             // TODO: add state_init support
@@ -174,9 +168,11 @@ impl TonWallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::address::TonAddress;
-    use crate::crypto::Mnemonic;
-    use crate::wallet::{TonWallet, WalletVersion};
+    use crate::mnemonic::Mnemonic;
+    use crate::{
+        address::TonAddress,
+        wallet::{TonWallet, WalletVersion},
+    };
 
     #[test]
     fn derive_wallet_works() -> anyhow::Result<()> {

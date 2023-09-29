@@ -1,7 +1,7 @@
-use tonlib::meta::*;
+use tonlib::contract::TonContract;
 use tonlib::{
-    contract::TonContract,
-    nft::{NftCollectionContract, NftItemContract},
+    contract::{NftCollectionContract, NftItemContract},
+    meta::*,
 };
 
 mod common;

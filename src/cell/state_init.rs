@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{Cell, CellBuilder, TonCellError};
+use crate::cell::{Cell, CellBuilder, TonCellError};
 
 pub struct StateInit {
     pub code: Option<Arc<Cell>>,

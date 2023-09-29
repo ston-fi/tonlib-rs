@@ -225,7 +225,7 @@ impl CellBuilder {
 #[cfg(test)]
 mod tests {
     use crate::address::TonAddress;
-    use crate::cell::builder::CellBuilder;
+    use crate::cell::CellBuilder;
 
     #[test]
     fn write_bit() -> anyhow::Result<()> {

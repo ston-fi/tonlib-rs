@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::tl::function::TonFunction;
 use crate::tl::result::TonResult;
 
-use super::error::TlError;
+use crate::tl::TlError;
 
 pub(crate) fn serialize_function(function: &TonFunction) -> Result<CString, TlError> {
     // TODO: Optimize to avoid copying

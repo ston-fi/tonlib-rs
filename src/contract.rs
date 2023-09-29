@@ -1,19 +1,23 @@
 mod error;
-mod state;
+mod jetton;
+mod nft;
+mod ton;
+mod wallet;
 
 pub use error::*;
-pub use state::*;
+pub use jetton::*;
+pub use nft::*;
+pub use ton::*;
+pub use wallet::*;
 
-use crate::{address::TonAddress, tl::TvmCell};
-
-use crate::client::{TonClient, TonFunctions};
-use crate::tl::TvmStackEntry;
-use crate::tl::{
-    FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction, RawTransactions,
-    SmcRunResult,
+use crate::{
+    address::TonAddress,
+    client::{TonClient, TonFunctions},
+    tl::{
+        FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction,
+        RawTransactions, SmcRunResult, TvmCell, TvmStackEntry,
+    },
 };
-
-pub use state::TonContractState;
 
 pub struct TonContract {
     client: TonClient,
@@ -141,5 +145,12 @@ impl TonContract {
                 message: format!("expected one transaction for {} got {}", transaction_id, n),
             }),
         }
+    }
+
+    pub async fn create_contract_transactions_cache(
+        &self,
+        capacity: usize,
+    ) -> LatestContractTransactionsCache {
+        LatestContractTransactionsCache::new(&self.client, &self.address, capacity)
     }
 }

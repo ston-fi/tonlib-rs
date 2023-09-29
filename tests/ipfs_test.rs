@@ -1,4 +1,4 @@
-use tonlib::ipfs::{IpfsLoader, IpfsLoaderConfig};
+use tonlib::meta::{IpfsLoader, IpfsLoaderConfig};
 
 mod common;
 

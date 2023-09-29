@@ -1,9 +1,7 @@
 use reqwest::StatusCode;
 use thiserror::Error;
 
-use crate::ipfs::IpfsLoaderError;
-
-use super::MetaDataContent;
+use crate::meta::{IpfsLoaderError, MetaDataContent};
 
 #[derive(Debug, Error)]
 pub enum MetaLoaderError {

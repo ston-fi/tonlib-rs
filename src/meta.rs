@@ -1,10 +1,14 @@
+pub use error::*;
+pub use ipfs_loader::*;
+pub use loader::*;
+
+mod error;
+mod ipfs_loader;
+mod loader;
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use crate::{
-    cell::BagOfCells,
-    ipfs::{IpfsLoader, IpfsLoaderConfig},
-};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use num_bigint::BigInt;
@@ -12,37 +16,8 @@ use num_traits::Num;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
-pub use jetton::*;
-pub use nft_collection::*;
-pub use nft_item::*;
+use crate::cell::BagOfCells;
 
-use self::error::MetaLoaderError;
-
-pub mod error;
-mod jetton;
-mod nft_collection;
-mod nft_item;
-
-lazy_static! {
-    static ref META_NAME: MetaDataField = MetaDataField::new("name");
-    static ref META_DESCRIPTION: MetaDataField = MetaDataField::new("description");
-    static ref META_IMAGE: MetaDataField = MetaDataField::new("image");
-    static ref META_SYMBOL: MetaDataField = MetaDataField::new("symbol");
-    static ref META_IMAGE_DATA: MetaDataField = MetaDataField::new("image_data");
-    static ref META_DECIMALS: MetaDataField = MetaDataField::new("decimals");
-    static ref META_URI: MetaDataField = MetaDataField::new("uri");
-    static ref META_CONTENT_URL: MetaDataField = MetaDataField::new("content_url");
-    static ref META_ATTRIBUTES: MetaDataField = MetaDataField::new("attributes");
-    static ref META_SOCIAL_LINKS: MetaDataField = MetaDataField::new("social_links");
-    static ref META_MARKETPLACE: MetaDataField = MetaDataField::new("marketplace");
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum MetaDataContent {
-    External { uri: String },
-    Internal { dict: HashMap<String, String> },
-    Unsupported { boc: BagOfCells },
-}
 struct MetaDataField {
     pub(crate) key: String,
 }
@@ -64,6 +39,26 @@ impl MetaDataField {
     }
 }
 
+lazy_static! {
+    static ref META_NAME: MetaDataField = MetaDataField::new("name");
+    static ref META_DESCRIPTION: MetaDataField = MetaDataField::new("description");
+    static ref META_IMAGE: MetaDataField = MetaDataField::new("image");
+    static ref META_SYMBOL: MetaDataField = MetaDataField::new("symbol");
+    static ref META_IMAGE_DATA: MetaDataField = MetaDataField::new("image_data");
+    static ref META_DECIMALS: MetaDataField = MetaDataField::new("decimals");
+    static ref META_URI: MetaDataField = MetaDataField::new("uri");
+    static ref META_CONTENT_URL: MetaDataField = MetaDataField::new("content_url");
+    static ref META_ATTRIBUTES: MetaDataField = MetaDataField::new("attributes");
+    static ref META_SOCIAL_LINKS: MetaDataField = MetaDataField::new("social_links");
+    static ref META_MARKETPLACE: MetaDataField = MetaDataField::new("marketplace");
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaDataContent {
+    External { uri: String },
+    Internal { dict: HashMap<String, String> },
+    Unsupported { boc: BagOfCells },
+}
 pub struct MetaLoader<MetaData>
 where
     MetaData: DeserializeOwned,
