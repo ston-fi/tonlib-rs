@@ -1,12 +1,9 @@
-use crate::tl::TvmStackEntry;
 use crate::tl::{SmcMethodId, SmcRunResult};
 use crate::{address::TonAddress, tl::InternalTransactionId};
-use crate::{
-    client::{TonConnection, TonFunctions},
-    tl::TvmCell,
-};
+use crate::{client::TonConnection, tl::TvmStackEntry};
+use crate::{client::TonFunctions, tl::TvmCell};
 
-use super::TonContractError;
+use crate::contract::TonContractError;
 
 pub struct TonContractState {
     connection: TonConnection,

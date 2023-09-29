@@ -1,27 +1,13 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
-
 use num_bigint::BigUint;
 
 use crate::{
-    cell::TonCellError,
+    address::TonAddress,
+    cell::{BagOfCells, CellBuilder, TonCellError},
     contract::{MapCellError, MapStackError, TonContract, TonContractError},
-    tl::TvmStackEntry,
+    meta::MetaDataContent,
+    tl::{TvmSlice, TvmStackEntry},
 };
-
-use crate::cell::{BagOfCells, CellBuilder};
-use crate::tl::TvmSlice;
-use crate::tl::TvmStackEntry::Slice;
-use crate::{address::TonAddress, meta::MetaDataContent};
-
-// Constants from jetton reference implementation:
-// https://github.com/ton-blockchain/token-contract/blob/main/ft/op-codes.fc
-pub const JETTON_TRANSFER: u32 = 0xf8a7ea5;
-pub const JETTON_TRANSFER_NOTIFICATION: u32 = 0x7362d09c;
-pub const JETTON_INTERNAL_TRANSFER: u32 = 0x178d4519;
-pub const JETTON_EXCESSES: u32 = 0xd53276db;
-pub const JETTON_BURN: u32 = 0x595f07bc;
-pub const JETTON_BURN_NOTIFICATION: u32 = 0x7bdd97de;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct JettonData {
@@ -30,13 +16,6 @@ pub struct JettonData {
     pub admin_address: TonAddress,
     pub content: MetaDataContent,
     pub wallet_code: BagOfCells,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum JettonContent {
-    External { uri: String },
-    Internal { dict: HashMap<String, String> },
-    Unsupported { boc: BagOfCells },
 }
 
 #[async_trait]
@@ -127,7 +106,7 @@ fn build_get_wallet_address_payload(
 ) -> Result<TvmStackEntry, TonCellError> {
     let cell = CellBuilder::new().store_address(owner_address)?.build()?;
     let boc = BagOfCells::from_root(cell);
-    let slice = Slice {
+    let slice = TvmStackEntry::Slice {
         slice: TvmSlice {
             bytes: boc.serialize(true)?,
         },
@@ -152,58 +131,5 @@ fn read_jetton_metadata_content(boc: &BagOfCells) -> Result<MetaDataContent, Ton
         }
     } else {
         Ok(MetaDataContent::Unsupported { boc: boc.clone() })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct WalletData {
-    pub balance: BigUint,
-    pub owner_address: TonAddress,
-    pub master_address: TonAddress,
-    pub wallet_code: BagOfCells,
-}
-
-#[async_trait]
-pub trait JettonWalletContract {
-    async fn get_wallet_data(&self) -> Result<WalletData, TonContractError>;
-}
-
-#[async_trait]
-impl JettonWalletContract for TonContract {
-    async fn get_wallet_data(&self) -> Result<WalletData, TonContractError> {
-        const WALLET_DATA_STACK_ELEMENTS: usize = 4;
-        let method_name = "get_wallet_data";
-        let address = self.address().clone();
-
-        let res = self.run_get_method(method_name, &Vec::new()).await?;
-
-        let stack = res.stack;
-        if stack.elements.len() == WALLET_DATA_STACK_ELEMENTS {
-            let balance = stack
-                .get_biguint(0)
-                .map_stack_error(method_name, &address)?;
-            let owner_address = stack
-                .get_address(1)
-                .map_stack_error(method_name, &address)?;
-            let master_address = stack
-                .get_address(2)
-                .map_stack_error(method_name, &address)?;
-            let wallet_code = stack.get_boc(3).map_stack_error(method_name, &address)?;
-
-            Ok(WalletData {
-                balance,
-                owner_address,
-                master_address,
-                wallet_code,
-            })
-        } else {
-            Err(TonContractError::InvalidMethodResultStackSize {
-                method: "get_wallet_data".to_string(),
-                address: self.address().clone(),
-
-                actual: stack.elements.len(),
-                expected: WALLET_DATA_STACK_ELEMENTS,
-            })
-        }
     }
 }

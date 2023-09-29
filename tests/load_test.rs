@@ -3,7 +3,7 @@ use rand::Rng;
 use tonlib::address::TonAddress;
 use tonlib::client::TonClient;
 use tonlib::contract::TonContract;
-use tonlib::jetton::{JettonMasterContract, JettonWalletContract};
+use tonlib::contract::{JettonMasterContract, JettonWalletContract};
 
 mod common;
 

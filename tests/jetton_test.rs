@@ -1,6 +1,6 @@
 use tonlib::address::TonAddress;
+use tonlib::contract::JettonMasterContract;
 use tonlib::contract::TonContract;
-use tonlib::jetton::JettonMasterContract;
 use tonlib::meta::*;
 
 mod common;

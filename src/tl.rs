@@ -13,22 +13,18 @@ pub use result::*;
 pub use stack::*;
 pub use types::*;
 
-use std::ffi::CStr;
-use std::os::raw::c_char;
-
 use base64_serde::base64_serde_type;
 
-use crate::tl::serial::{
-    deserialize_result, deserialize_result_extra, serialize_function, serialize_function_extra,
-};
-use tonlib_sys::{
-    tonlib_client_json_create, tonlib_client_json_destroy, tonlib_client_json_execute,
-    tonlib_client_json_receive, tonlib_client_json_send,
-};
+use std::ffi::{c_char, CStr};
+
+use tonlib_sys::*;
+
+use self::serial::*;
 
 base64_serde_type!(Base64Standard, base64::STANDARD);
 
 // Wrapper around ton client with support for TL data types
+
 pub struct TlTonClient {
     ptr: *mut ::std::os::raw::c_void,
     tag: String,
