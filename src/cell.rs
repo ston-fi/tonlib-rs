@@ -26,6 +26,12 @@ pub struct Cell {
     pub references: Vec<Arc<Cell>>,
 }
 
+impl Into<Vec<Cell>> for Cell {
+    fn into(self) -> Vec<Cell> {
+        vec![self]
+    }
+}
+
 impl Cell {
     pub fn parser(&self) -> CellParser {
         let bit_len = self.bit_len;
