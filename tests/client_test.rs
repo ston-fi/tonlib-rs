@@ -1,16 +1,17 @@
 use std::time::Duration;
 use std::{str::FromStr, thread};
 
+use futures::future::try_join_all;
 use tokio;
 use tokio::time::timeout;
 
-use tonlib::cell::BagOfCells;
 use tonlib::client::TonFunctions;
 use tonlib::tl::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib::{address::TonAddress, tl::LiteServerInfo};
+use tonlib::{cell::BagOfCells, client::TxData};
 
 mod common;
 
@@ -251,5 +252,65 @@ async fn test_config_works() -> anyhow::Result<()> {
     let mut parser = config_cell.parser();
     let n = parser.load_u8(8)?;
     assert!(n == 0x12u8);
+    Ok(())
+}
+
+#[tokio::test]
+pub async fn get_block_header_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let seqno = client.get_masterchain_info().await?.last;
+    let headers = client.get_block_header(&seqno).await?;
+    println!("{:?}", headers);
+    Ok(())
+}
+
+#[tokio::test]
+async fn get_shard_transactions_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    let mut shards_ext = shards.shards;
+    shards_ext.push(info.last);
+    let futures: Vec<_> = shards_ext
+        .iter()
+        .map(|s| client.get_shard_transactions(s))
+        .collect();
+    let shard_txs: Vec<Vec<TxData>> = try_join_all(futures).await?;
+    for s in shard_txs {
+        //will fail at many txs
+        println!("{:?}", s)
+    }
+    Ok(())
+}
+
+//uncomment when in need of specific block tx
+// #[tokio::test]
+#[allow(dead_code)]
+async fn get_specific_block_tx() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    //example block with many txs, for checking seq of txs
+    let block_id = BlockId {
+        workchain: -1,
+        shard: i64::MIN,
+        seqno: 27162613,
+    };
+    let info = client.lookup_block(1, &block_id, 0, 0).await?;
+    let shards = client.get_block_shards(&info).await?;
+    let futures: Vec<_> = shards
+        .shards
+        .iter()
+        .map(|s| client.get_shard_transactions(s))
+        .collect();
+    let shards_txs: Vec<Vec<TxData>> = try_join_all(futures).await?;
+
+    for shard_txs in shards_txs {
+        //will fail at many txs
+        for tx in shard_txs {
+            println!("{:?}", tx.internal_transaction_id);
+        }
+    }
     Ok(())
 }
