@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
 
+use crate::contract::TonContractInterface;
 use crate::{
     address::TonAddress,
     cell::{BagOfCells, CellBuilder, TonCellError},
-    contract::{MapCellError, MapStackError, TonContract, TonContractError},
+    contract::{MapCellError, MapStackError, TonContractError},
     meta::MetaDataContent,
     tl::{TvmSlice, TvmStackEntry},
 };
@@ -19,16 +20,7 @@ pub struct JettonData {
 }
 
 #[async_trait]
-pub trait JettonMasterContract {
-    async fn get_jetton_data(&self) -> Result<JettonData, TonContractError>;
-    async fn get_wallet_address(
-        &self,
-        owner_address: &TonAddress,
-    ) -> Result<TonAddress, TonContractError>;
-}
-
-#[async_trait]
-impl JettonMasterContract for TonContract {
+pub trait JettonMasterContract: TonContractInterface {
     async fn get_jetton_data(&self) -> Result<JettonData, TonContractError> {
         const JETTON_DATA_STACK_ELEMENTS: usize = 5;
         let method_name = "get_jetton_data";
@@ -67,7 +59,6 @@ impl JettonMasterContract for TonContract {
             })
         }
     }
-
     async fn get_wallet_address(
         &self,
         owner_address: &TonAddress,
@@ -100,6 +91,8 @@ impl JettonMasterContract for TonContract {
         }
     }
 }
+
+impl<T> JettonMasterContract for T where T: TonContractInterface {}
 
 fn build_get_wallet_address_payload(
     owner_address: &TonAddress,

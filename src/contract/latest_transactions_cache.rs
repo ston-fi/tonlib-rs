@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 
 use crate::client::TonClient;
 use crate::contract::TonContract;
+use crate::contract::TonContractInterface;
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
 use crate::{address::TonAddress, contract::TransactionError};
 
