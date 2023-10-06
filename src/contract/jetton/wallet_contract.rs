@@ -2,10 +2,11 @@ use async_trait::async_trait;
 
 use num_bigint::BigUint;
 
+use crate::contract::TonContractInterface;
 use crate::{
     address::TonAddress,
     cell::BagOfCells,
-    contract::{MapStackError, TonContract, TonContractError},
+    contract::{MapStackError, TonContractError},
 };
 
 #[derive(Debug, Clone)]
@@ -17,12 +18,7 @@ pub struct WalletData {
 }
 
 #[async_trait]
-pub trait JettonWalletContract {
-    async fn get_wallet_data(&self) -> Result<WalletData, TonContractError>;
-}
-
-#[async_trait]
-impl JettonWalletContract for TonContract {
+pub trait JettonWalletContract: TonContractInterface {
     async fn get_wallet_data(&self) -> Result<WalletData, TonContractError> {
         const WALLET_DATA_STACK_ELEMENTS: usize = 4;
         let method_name = "get_wallet_data";
@@ -60,3 +56,5 @@ impl JettonWalletContract for TonContract {
         }
     }
 }
+
+impl<T> JettonWalletContract for T where T: TonContractInterface {}

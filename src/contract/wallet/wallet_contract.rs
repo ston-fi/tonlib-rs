@@ -1,15 +1,9 @@
 use async_trait::async_trait;
 
-use crate::contract::{MapStackError, TonContract, TonContractError};
+use crate::contract::{MapStackError, TonContractError, TonContractInterface};
 
 #[async_trait]
-pub trait TonWalletContract {
-    async fn seqno(&self) -> Result<u32, TonContractError>;
-    async fn get_public_key(&self) -> Result<Vec<u8>, TonContractError>;
-}
-
-#[async_trait]
-impl TonWalletContract for TonContract {
+pub trait TonWalletContract: TonContractInterface {
     async fn seqno(&self) -> Result<u32, TonContractError> {
         let res = self.run_get_method("seqno", &Vec::new()).await?;
         let stack = res.stack;
@@ -44,3 +38,5 @@ impl TonWalletContract for TonContract {
         }
     }
 }
+
+impl<T> TonWalletContract for T where T: TonContractInterface {}

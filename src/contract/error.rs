@@ -61,6 +61,12 @@ pub trait MapCellError<R> {
         T: ToString;
 }
 
+pub trait MapClientError<R> {
+    fn map_client_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
+    where
+        T: ToString;
+}
+
 impl TonContractError {
     pub fn client_method_error<T>(
         method: T,
@@ -94,6 +100,7 @@ impl<R> MapStackError<R> for Result<R, TvmStackError> {
         })
     }
 }
+
 impl<R> MapCellError<R> for Result<R, TonCellError> {
     fn map_cell_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
     where
@@ -102,6 +109,19 @@ impl<R> MapCellError<R> for Result<R, TonCellError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
             method: method.to_string(),
             address: address.clone(),
+            error: e.into(),
+        })
+    }
+}
+
+impl<R> MapClientError<R> for Result<R, TonClientError> {
+    fn map_client_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
+    where
+        T: ToString,
+    {
+        self.map_err(|e| TonContractError::ClientMethodError {
+            method: method.to_string(),
+            address: address.clone().to_string(),
             error: e.into(),
         })
     }
