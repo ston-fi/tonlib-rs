@@ -42,6 +42,10 @@ impl TlTonClient {
         client
     }
 
+    pub fn get_tag(&self) -> &String {
+        &self.tag
+    }
+
     pub fn execute(&self, function: &TonFunction) -> Result<TonResult, TlError> {
         let f_str = serialize_function(function)?;
         log::trace!(
