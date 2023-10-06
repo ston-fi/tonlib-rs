@@ -92,14 +92,20 @@ pub trait TonConnectionCallbackLogger {
         id: u32,
         method: &str,
         duration: &Duration,
-        res: &Result<TonResult, TonClientError>, //Todo: Parse and log tonresult correctly
+        result: &Result<TonResult, TonClientError>,
     ) {
+        let error_string = match result {
+            Ok(r) => r.to_string(),
+            Err(e) => e.to_string(),
+        };
+
         log::debug!(
-            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}",
+            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}: {}",
             tag,
             id,
             method,
-            &duration
+            &duration,
+            error_string
         );
     }
 
@@ -109,15 +115,20 @@ pub trait TonConnectionCallbackLogger {
         request_id: u32,
         method: &str,
         duration: &Duration,
-        e: &Result<TonResult, TonClientError>,
+        result: &Result<TonResult, TonClientError>,
     ) {
+        let error_string = match result {
+            Ok(r) => r.to_string(),
+            Err(e) => e.to_string(),
+        };
+
         log::warn!(
             "[{}] Error sending invoke result, method: {} request_id: {}, elapsed: {:?}: {:?}",
             tag,
             method,
             request_id,
             &duration,
-            e
+            error_string
         );
     }
 
