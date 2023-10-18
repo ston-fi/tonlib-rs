@@ -1,8 +1,10 @@
-mod error;
-pub use error::*;
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+
+pub use error::*;
+
+mod error;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -80,7 +82,7 @@ impl IpfsLoader {
             Ok(bytes)
         } else {
             const MAX_MESSAGE_SIZE: usize = 200;
-            let body = String::from_utf8(response.bytes().await?.to_vec())?;
+            let body = String::from_utf8_lossy(&response.bytes().await?.to_vec()).to_string();
             let message = if body.len() > MAX_MESSAGE_SIZE {
                 format!("{}...", &body[0..MAX_MESSAGE_SIZE - 3])
             } else {
@@ -95,9 +97,9 @@ impl IpfsLoader {
         }
     }
 
-    pub async fn load_utf8(&self, path: &str) -> Result<String, IpfsLoaderError> {
+    pub async fn load_utf8_lossy(&self, path: &str) -> Result<String, IpfsLoaderError> {
         let bytes = self.load(path).await?;
-        let str = String::from_utf8(bytes)?;
+        let str = String::from_utf8_lossy(&bytes).to_string();
         Ok(str)
     }
 }

@@ -105,7 +105,7 @@ async fn read_collection_metadata_content(
         let mut reader = root.parser();
         let content_representation = reader
             .load_byte()
-            .map_cell_error("get_colletion_data", collection_address)?;
+            .map_cell_error("get_collection_data", collection_address)?;
         match content_representation {
             // Off-chain content layout
             // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.
@@ -114,10 +114,10 @@ async fn read_collection_metadata_content(
             0 => {
                 let reference = root
                     .reference(0)
-                    .map_cell_error("get_colletion_data", collection_address)?;
+                    .map_cell_error("get_collection_data", collection_address)?;
                 let dict = reference
                     .load_snake_formatted_dict()
-                    .map_cell_error("get_colletion_data", collection_address)?;
+                    .map_cell_error("get_collection_data", collection_address)?;
                 Ok(MetaDataContent::Internal { dict })
             }
             // On-chain content layout
@@ -126,7 +126,7 @@ async fn read_collection_metadata_content(
             1 => {
                 let uri = reader
                     .load_string(reader.remaining_bytes())
-                    .map_cell_error("get_colletion_data", collection_address)?;
+                    .map_cell_error("get_collection_data", collection_address)?;
                 Ok(MetaDataContent::External { uri })
             }
 
