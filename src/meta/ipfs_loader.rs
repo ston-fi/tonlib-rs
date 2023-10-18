@@ -97,7 +97,7 @@ impl IpfsLoader {
         }
     }
 
-    pub async fn load_utf8(&self, path: &str) -> Result<String, IpfsLoaderError> {
+    pub async fn load_utf8_lossy(&self, path: &str) -> Result<String, IpfsLoaderError> {
         let bytes = self.load(path).await?;
         let str = String::from_utf8_lossy(&bytes).to_string();
         Ok(str)
