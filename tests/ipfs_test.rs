@@ -8,7 +8,7 @@ async fn test_ipfs_http_gateway() -> anyhow::Result<()> {
     let config = IpfsLoaderConfig::http_gateway("https://cloudflare-ipfs.com/ipfs/");
     let loader = IpfsLoader::new(&config)?;
     let result = loader
-        .load_utf8("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
+        .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
         .await?;
     println!("{}", result);
     assert!(result.contains("BOLT"));
@@ -26,7 +26,7 @@ async fn test_ipfs_node() -> anyhow::Result<()> {
     let loader = IpfsLoader::new(&config)?;
     let result = tokio::spawn(async move {
         let r = loader
-            .load_utf8("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
+            .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
             .await;
         r
     })

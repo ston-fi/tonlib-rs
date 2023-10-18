@@ -1,9 +1,10 @@
-use crate::address::TonAddress;
+use std::io::{Cursor, SeekFrom};
+
 use bitstream_io::{BigEndian, BitRead, BitReader};
 use num_bigint::BigUint;
 use num_traits::identities::Zero;
-use std::io::{Cursor, SeekFrom};
 
+use crate::address::TonAddress;
 use crate::cell::{MapTonCellError, TonCellError};
 
 pub struct CellParser<'a> {
@@ -84,6 +85,11 @@ impl CellParser<'_> {
     pub fn load_string(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
         let bytes = self.load_bytes(num_bytes)?;
         String::from_utf8(bytes).map_cell_parser_error()
+    }
+
+    pub fn load_utf8_lossy(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
+        let bytes = self.load_bytes(num_bytes)?;
+        Ok(String::from_utf8_lossy(&bytes).to_string())
     }
 
     pub fn load_coins(&mut self) -> Result<BigUint, TonCellError> {

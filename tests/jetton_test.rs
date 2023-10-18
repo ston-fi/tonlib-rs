@@ -118,3 +118,35 @@ async fn test_get_wallet_address() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn test_get_jetton_data_invalid_utf8_sequence() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let contract = TonContract::new(
+        &client,
+        &"EQDX__KZ7A--poP3Newpo_zx4tQ-yl9yzRwlmg_vifxMEA8m".parse()?,
+    );
+    let res = contract.get_jetton_data().await?;
+    log::info!("DATA: {:?}", res);
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(&res.content).await?;
+    assert_eq!(
+        content_res.symbol.as_ref().unwrap(),
+        &String::from("DuRove's")
+    );
+    assert_eq!(content_res.decimals.unwrap(), 0x9);
+
+    let contract = TonContract::new(
+        &client,
+        &"EQDoEAodkem9PJdk3W1mqjnkvRphNaWu0glIRzxQBNZuOIbP".parse()?,
+    );
+    let res = contract.get_jetton_data().await?;
+    log::info!("DATA: {:?}", res);
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(&res.content).await?;
+    assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TFH"));
+    assert_eq!(content_res.decimals.unwrap(), 0x9);
+
+    Ok(())
+}

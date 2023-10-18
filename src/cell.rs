@@ -1,9 +1,9 @@
-mod bag_of_cells;
-mod builder;
-mod error;
-mod parser;
-mod raw;
-mod state_init;
+use std::{collections::HashMap, io::Cursor, ops::Deref, sync::Arc};
+
+use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
+use num_bigint::BigInt;
+use num_traits::{Num, ToPrimitive};
+use sha2::{Digest, Sha256};
 
 pub use bag_of_cells::*;
 pub use builder::*;
@@ -12,12 +12,12 @@ pub use parser::*;
 pub use raw::*;
 pub use state_init::*;
 
-use std::{collections::HashMap, io::Cursor, ops::Deref, sync::Arc};
-
-use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
-use num_bigint::BigInt;
-use num_traits::{Num, ToPrimitive};
-use sha2::{Digest, Sha256};
+mod bag_of_cells;
+mod builder;
+mod error;
+mod parser;
+mod raw;
+mod state_init;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct Cell {
@@ -177,13 +177,9 @@ impl Cell {
         let mut uri = String::new();
         loop {
             let parsed_cell = if first_cell {
-                std::str::from_utf8(&cell.data[1..])
-                    .map_boc_deserialization_error()?
-                    .to_string()
+                String::from_utf8_lossy(&cell.data[1..]).to_string()
             } else {
-                std::str::from_utf8(&cell.data)
-                    .map_boc_deserialization_error()?
-                    .to_string()
+                String::from_utf8_lossy(&cell.data).to_string()
             };
             uri.push_str(&parsed_cell);
             match cell.references.len() {
@@ -290,7 +286,7 @@ impl Cell {
 
         if n - prefix_length == 0 {
             let r = extractor(&self)?;
-            let data = String::from_utf8(r).map_cell_parser_error()?;
+            let data = String::from_utf8_lossy(&r).to_string();
             map.insert(
                 BigInt::from_str_radix(pp.as_str(), 2)
                     .map_cell_parser_error()?
