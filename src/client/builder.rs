@@ -1,9 +1,9 @@
-use crate::client::{
-    DefaultConnectionCallback, RetryStrategy, TonClient, TonConnectionCallback, TonConnectionParams,
-};
+use crate::client::{DefaultConnectionCallback, RetryStrategy, TonClient, TonConnectionParams};
 
 use crate::client::error;
 use std::sync::Arc;
+
+use super::TonConnectionCallback;
 
 pub struct TonClientBuilder {
     pool_size: usize,

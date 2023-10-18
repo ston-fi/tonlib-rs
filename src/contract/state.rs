@@ -1,18 +1,28 @@
-use crate::tl::{SmcMethodId, SmcRunResult};
+use std::sync::Arc;
+
 use crate::{address::TonAddress, tl::InternalTransactionId};
+use crate::{
+    client::TonClient,
+    tl::{SmcMethodId, SmcRunResult},
+};
 use crate::{client::TonConnection, tl::TvmStackEntry};
 use crate::{client::TonFunctions, tl::TvmCell};
+use async_trait::async_trait;
 
-use crate::contract::TonContractError;
+use crate::contract::{TonContractError, TonContractInterface};
+
+use super::MapClientError;
 
 pub struct TonContractState {
     connection: TonConnection,
+    address: TonAddress,
+    client: Arc<TonClient>,
     state_id: i64,
 }
 
 impl TonContractState {
-    pub async fn load<C: TonFunctions + Send + Sync>(
-        client: &C,
+    pub async fn load(
+        client: Arc<TonClient>,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
@@ -21,11 +31,13 @@ impl TonContractState {
             .map_err(|e| TonContractError::client_method_error("smc_load", Some(&address), e))?;
         Ok(TonContractState {
             connection: conn,
+            address: address.clone(),
+            client: client,
             state_id,
         })
     }
-    pub async fn load_by_transaction_id<C: TonFunctions + Send + Sync>(
-        client: &C,
+    pub async fn load_by_transaction_id(
+        client: Arc<TonClient>,
         address: &TonAddress,
         transaction_id: &InternalTransactionId,
     ) -> Result<TonContractState, TonContractError> {
@@ -41,10 +53,64 @@ impl TonContractState {
             })?;
         Ok(TonContractState {
             connection: conn,
+            address: address.clone(),
+            client: client.clone(),
             state_id,
         })
     }
-    pub async fn run_get_method(
+
+    pub async fn get_code(&self) -> Result<TvmCell, TonContractError> {
+        let result = self
+            .connection
+            .smc_get_code(self.state_id)
+            .await
+            .map_err(|error| TonContractError::client_method_error("smc_get_code", None, error));
+        result
+    }
+}
+
+impl Drop for TonContractState {
+    fn drop(&mut self) {
+        let conn = self.connection.clone();
+        let state_id = self.state_id;
+        tokio::spawn(async move {
+            let _ = conn.smc_forget(state_id).await; // Ignore failure
+        });
+    }
+}
+
+#[async_trait]
+impl TonContractInterface for TonContractState {
+    fn client(&self) -> &TonClient {
+        &self.client
+    }
+
+    fn address(&self) -> &TonAddress {
+        &self.address
+    }
+
+    async fn get_code(&self) -> Result<TvmCell, TonContractError> {
+        self.connection
+            .smc_get_code(self.state_id)
+            .await
+            .map_client_error("get_code", self.address())
+    }
+
+    async fn get_data(&self) -> Result<TvmCell, TonContractError> {
+        self.connection
+            .smc_get_data(self.state_id)
+            .await
+            .map_client_error("get_data", self.address())
+    }
+
+    async fn get_state(&self) -> Result<TvmCell, TonContractError> {
+        self.connection
+            .smc_get_state(self.state_id)
+            .await
+            .map_client_error("get_state", self.address())
+    }
+
+    async fn run_get_method(
         &self,
         method: &str,
         stack: &Vec<TvmStackEntry>,
@@ -66,24 +132,5 @@ impl TonContractState {
                 exit_code: result.exit_code,
             })
         }
-    }
-
-    pub async fn get_code(&self) -> Result<TvmCell, TonContractError> {
-        let result = self
-            .connection
-            .smc_get_code(self.state_id)
-            .await
-            .map_err(|error| TonContractError::client_method_error("smc_get_code", None, error));
-        result
-    }
-}
-
-impl Drop for TonContractState {
-    fn drop(&mut self) {
-        let conn = self.connection.clone();
-        let state_id = self.state_id;
-        tokio::spawn(async move {
-            let _ = conn.smc_forget(state_id).await; // Ignore failure
-        });
     }
 }

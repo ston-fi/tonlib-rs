@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use num_bigint::BigUint;
 
 use tonlib::address::TonAddress;
-use tonlib::contract::TonContract;
+use tonlib::contract::{TonContract, TonContractInterface};
 
 mod common;
 
@@ -23,14 +23,7 @@ pub struct PoolData {
 }
 
 #[async_trait]
-pub trait PoolContract {
-    async fn get_pool_data(&self) -> anyhow::Result<PoolData>;
-
-    async fn invalid_method(&self) -> anyhow::Result<()>;
-}
-
-#[async_trait]
-impl PoolContract for TonContract {
+pub trait PoolContract: TonContractInterface {
     async fn get_pool_data(&self) -> anyhow::Result<PoolData> {
         let res = self.run_get_method("get_pool_data", &Vec::new()).await?;
         if res.stack.elements.len() == 10 {
@@ -73,8 +66,10 @@ impl PoolContract for TonContract {
     }
 }
 
+impl<T> PoolContract for T where T: TonContractInterface {}
+
 #[tokio::test]
-async fn client_get_pool_data_works() -> anyhow::Result<()> {
+async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let contract = TonContract::new(
@@ -82,6 +77,22 @@ async fn client_get_pool_data_works() -> anyhow::Result<()> {
         &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
     );
     let pool_data = contract.get_pool_data().await?;
+    println!("pool data: {:?}", pool_data);
+    let invalid_result = contract.invalid_method().await;
+    assert!(invalid_result.is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn state_get_pool_data_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_test_client().await?;
+    let contract = TonContract::new(
+        &client,
+        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
+    );
+    let state = contract.load_state().await?;
+    let pool_data = state.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
     assert!(invalid_result.is_err());

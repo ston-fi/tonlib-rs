@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
 
+use crate::contract::TonContractInterface;
 use crate::{
     address::TonAddress,
     cell::BagOfCells,
@@ -29,18 +30,7 @@ pub struct NftItemData {
 }
 
 #[async_trait]
-pub trait NftItemContract {
-    /// Gets nft item data.
-    async fn get_nft_data(&self) -> Result<NftItemData, TonContractError>;
-    async fn get_nft_content(
-        &self,
-        index: &BigUint,
-        individual_content: BagOfCells,
-    ) -> Result<BagOfCells, TonContractError>;
-}
-
-#[async_trait]
-impl NftItemContract for TonContract {
+pub trait NftItemContract: TonContractInterface {
     async fn get_nft_data(&self) -> Result<NftItemData, TonContractError> {
         const NFT_DATA_STACK_ELEMENTS: usize = 5;
         let address = self.address().clone();
@@ -133,6 +123,8 @@ impl NftItemContract for TonContract {
         }
     }
 }
+
+impl<T> NftItemContract for T where T: TonContractInterface {}
 
 async fn read_item_metadata_content(
     client: &TonClient,
