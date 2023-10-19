@@ -11,7 +11,7 @@ pub use connection::*;
 pub use error::*;
 pub use types::*;
 
-use crate::{address::TonAddress, tl::*};
+use crate::tl::*;
 
 mod block_functions;
 mod builder;
@@ -26,18 +26,6 @@ pub struct TonClient {
 struct Inner {
     retry_strategy: RetryStrategy,
     connections: Vec<PoolConnection>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TxData {
-    pub account: TonAddress,
-    pub internal_transaction_id: InternalTransactionId,
-    pub raw_transaction: RawTransaction,
-}
-
-pub struct ShardTxData {
-    pub shard: BlockIdExt,
-    pub txs_data: Vec<TxData>,
 }
 
 impl TonClient {
