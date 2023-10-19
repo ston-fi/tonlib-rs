@@ -1,19 +1,26 @@
 use lazy_static::lazy_static;
 use std::sync::{Arc, Once};
 use std::time::Duration;
+use tokio::sync::broadcast::error::SendError;
 
 use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
-use tonlib::client::{TonClient, TonClientError, TonConnectionCallback};
-use tonlib::tl::{TonNotification, TonResult};
+use tonlib::{
+    client::DefaultConnectionCallback,
+    tl::{TonNotification, TonResult},
+};
+use tonlib::{
+    client::{TonClient, TonClientError, TonConnectionCallback},
+    tl::TlError,
+};
 
 static LOG: Once = Once::new();
 
 lazy_static! {
-    pub static ref TEST_TON_CONNECTION_CALLBACK: Arc<TestTonConnectionCallback> =
-        Arc::new(TestTonConnectionCallback {});
+    pub static ref TEST_TON_CONNECTION_CALLBACK: Arc<DefaultConnectionCallback> =
+        Arc::new(DefaultConnectionCallback {});
 }
 
 pub fn init_logging() {
@@ -53,15 +60,21 @@ impl TonConnectionCallback for TestTonConnectionCallback {
         log::trace!("on_invoke: {:?}", id);
     }
 
+    fn on_tl_error(&self, tag: &String, error: &TlError) {
+        log::warn!("[{}] Tl error: {}", tag, error);
+    }
+
     fn on_invoke_result(
         &self,
+        tag: &String,
         id: u32,
         method: &str,
         duration: &Duration,
         res: &Result<TonResult, TonClientError>,
     ) {
         log::trace!(
-            "on_invoke_result: {:?} {} {} {:?}",
+            "[{}] on_invoke_result:{:?} {} {} {:?}",
+            tag,
             id,
             method,
             duration.as_micros(),
@@ -69,11 +82,37 @@ impl TonConnectionCallback for TestTonConnectionCallback {
         );
     }
 
-    fn on_notification(&self, notification: &TonNotification) {
-        log::trace!("on_notification: {:?}", notification);
+    fn on_notification_ok(&self, tag: &String, notification: &TonNotification) {
+        log::trace!("[{}] on_notification: {:?}", tag, notification);
     }
 
-    fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {
-        log::warn!("on_error {:?} {} {}", id, code, error);
+    fn on_notification_err(&self, tag: &String, e: SendError<Arc<TonNotification>>) {
+        log::warn!("[{}] Error sending notification: {}", tag, e);
+    }
+
+    fn on_tonlib_error(&self, tag: &String, id: &Option<u32>, code: i32, error: &str) {
+        log::warn!("[{}] on_error {:?} {} {}", tag, id, code, error);
+    }
+
+    fn on_invoke_result_send_error(
+        &self,
+        tag: &String,
+        request_id: u32,
+        method: &str,
+        duration: &Duration,
+        e: &Result<TonResult, TonClientError>,
+    ) {
+        log::warn!(
+            "[{}] Error sending invoke result, method: {} request_id: {}, elapsed: {:?}: {:?}",
+            tag,
+            method,
+            request_id,
+            &duration,
+            e
+        );
+    }
+
+    fn on_ton_result_parse_error(&self, tag: &String, result: &TonResult) {
+        log::warn!("[{}] Error parsing result: {}", tag, result);
     }
 }

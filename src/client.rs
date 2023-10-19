@@ -1,22 +1,23 @@
-mod builder;
-mod connection;
-mod error;
-mod types;
+use std::{fs, ops::Deref, path::Path, sync::Arc};
 
+use async_trait::async_trait;
+use rand::Rng;
+use tokio::sync::Mutex;
+use tokio_retry::{strategy::FixedInterval, RetryIf};
+
+pub use block_functions::*;
 pub use builder::*;
 pub use connection::*;
 pub use error::*;
 pub use types::*;
 
-use async_trait::async_trait;
-use rand::Rng;
-use tokio::sync::Mutex;
+use crate::tl::*;
 
-use std::{fs, ops::Deref, path::Path, sync::Arc};
-
-use tokio_retry::{strategy::FixedInterval, RetryIf};
-
-use crate::tl::{TlTonClient, TonFunction, TonResult};
+mod block_functions;
+mod builder;
+mod connection;
+mod error;
+mod types;
 
 pub struct TonClient {
     inner: Arc<Inner>,
@@ -42,10 +43,11 @@ impl TonClient {
                 let keystore_prefix = Path::new(dir.as_str());
                 let keystore_dir = keystore_prefix.join(format!("{}", i));
                 fs::create_dir_all(&keystore_dir)?;
-                let path_str = keystore_dir
-                    .into_os_string()
-                    .into_string()
-                    .map_err(|_| TonClientError::InternalError)?;
+                let path_str = keystore_dir.into_os_string().into_string().map_err(|_| {
+                    TonClientError::InternalError {
+                        message: "Error constructing keystore path".to_string(),
+                    }
+                })?;
                 p.keystore_dir = Some(path_str)
             };
             let entry = PoolConnection {

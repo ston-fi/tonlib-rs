@@ -5,7 +5,7 @@ use tokio;
 use tokio::time::timeout;
 
 use tonlib::cell::BagOfCells;
-use tonlib::client::TonFunctions;
+use tonlib::client::{TonBlockFunctions, TonFunctions};
 use tonlib::tl::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
@@ -186,7 +186,7 @@ async fn client_get_block_header_works() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_blocks_get_transactions() -> anyhow::Result<()> {
+async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let info: BlocksMasterchainInfo = client.get_masterchain_info().await?;
@@ -231,7 +231,7 @@ async fn client_blocks_get_transactions() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_lite_server_get_info() -> anyhow::Result<()> {
+async fn test_client_lite_server_get_info() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let info: LiteServerInfo = client.lite_server_get_info().await?;
@@ -241,7 +241,7 @@ async fn client_lite_server_get_info() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_config_works() -> anyhow::Result<()> {
+async fn test_get_config_param() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_test_client().await?;
     let info = client.get_config_param(0u32, 34u32).await?;
@@ -251,5 +251,53 @@ async fn test_config_works() -> anyhow::Result<()> {
     let mut parser = config_cell.parser();
     let n = parser.load_u8(8)?;
     assert!(n == 0x12u8);
+    Ok(())
+}
+
+#[tokio::test]
+pub async fn test_get_block_header() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let seqno = client.get_masterchain_info().await?.last;
+    let headers = client.get_block_header(&seqno).await?;
+    println!("{:?}", headers);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    assert!(shards.shards.len() > 0);
+    let ids = client.get_shard_tx_ids(&shards.shards[0]).await?;
+    println!("{:?}", ids);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_shard_transactions() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    assert!(shards.shards.len() > 0);
+    let txs = client.get_shard_transactions(&shards.shards[0]).await?;
+    println!("{:?}", txs);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_shards_transactions() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &common::new_test_client().await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    assert!(shards.shards.len() > 0);
+    let shards_txs = client.get_shards_transactions(&shards.shards).await?;
+    for s in shards_txs {
+        println!("{:?} : {:?}", s.0, s.1);
+    }
     Ok(())
 }

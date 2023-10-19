@@ -11,7 +11,7 @@ use crate::{
     tl::{TvmNumber, TvmStackEntry},
 };
 
-use crate::contract::NftItemContract;
+use crate::contract::{NftItemContract, TonContractInterface};
 
 /// Data returned by get_collection_data according to TEP-62
 #[derive(Debug, Clone)]
@@ -28,16 +28,8 @@ pub struct NftCollectionData {
 }
 
 #[async_trait]
-pub trait NftCollectionContract {
+pub trait NftCollectionContract: TonContractInterface {
     /// Returns nft collection data.
-    async fn get_collection_data(&self) -> Result<NftCollectionData, TonContractError>;
-    ///Gets the serial number of the NFT item of this collection and
-    ///returns the address (TonAddress) of this NFT item smart contract.
-    async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError>;
-}
-
-#[async_trait]
-impl NftCollectionContract for TonContract {
     async fn get_collection_data(&self) -> Result<NftCollectionData, TonContractError> {
         const NFT_COLLECTION_STACK_ELEMENTS: usize = 3;
         let method_name = "get_collection_data";
@@ -68,6 +60,8 @@ impl NftCollectionContract for TonContract {
         }
     }
 
+    /// Gets the serial number of the NFT item of this collection and
+    /// returns the address (TonAddress) of this NFT item smart contract.
     async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError> {
         let input_stack = vec![
             (TvmStackEntry::Number {
@@ -95,6 +89,8 @@ impl NftCollectionContract for TonContract {
         }
     }
 }
+
+impl<T> NftCollectionContract for T where T: TonContractInterface {}
 
 async fn read_collection_metadata_content(
     client: &TonClient,
@@ -125,7 +121,7 @@ async fn read_collection_metadata_content(
             // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
             1 => {
                 let uri = reader
-                    .load_string(reader.remaining_bytes())
+                    .load_utf8(reader.remaining_bytes())
                     .map_cell_error("get_collection_data", collection_address)?;
                 Ok(MetaDataContent::External { uri })
             }

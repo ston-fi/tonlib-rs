@@ -178,14 +178,19 @@ impl TonFunctions for TonConnection {
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
             let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
-            self.inner.callback.on_tl_error(&e);
+            let tag = self.inner.tl_client.get_tag();
+            self.inner.callback.on_tl_error(tag, &e);
             let err = TonClientError::TlError(e);
             data.sender.send(Err(err)).unwrap(); // Send should always succeed, so something went terribly wrong
         }
         let maybe_result = rx.await;
         let result = match maybe_result {
             Ok(result) => result,
-            Err(_) => return Err(TonClientError::InternalError),
+            Err(_) => {
+                return Err(TonClientError::InternalError {
+                    message: "Sender dropped without sending".to_string(),
+                })
+            }
         };
         result.map(|r| (self.clone(), r))
     }
@@ -211,12 +216,11 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                     Ok(TonResult::Error { code, message }) => {
                         inner
                             .callback
-                            .on_tonlib_error(&maybe_request_id, code, &message);
+                            .on_tonlib_error(&tag, &maybe_request_id, code, &message);
                         Err(TonClientError::TonlibError { code, message })
                     }
                     Err(e) => {
-                        log::warn!("[{}] Tonlib error: {}", tag, e,);
-                        inner.callback.on_tl_error(&e);
+                        inner.callback.on_tl_error(&tag, &e);
                         Err(e.into())
                     }
                     Ok(r) => Ok(r),
@@ -228,28 +232,20 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                         let now = Instant::now();
                         let duration = now.duration_since(data.send_time);
                         inner.callback.on_invoke_result(
+                            &tag,
                             request_id,
                             data.method,
                             &duration,
                             &result,
                         );
-                        log::debug!(
-                            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}",
-                            tag,
-                            request_id,
-                            data.method,
-                            &duration
-                        );
+
                         if let Err(e) = data.sender.send(result) {
-                            inner
-                                .callback
-                                .on_invoke_result_send_error(request_id, &duration, &e);
-                            log::warn!(
-                                "[{}] Error sending invoke result, method: {} request_id: {}: {:?}",
-                                tag,
-                                data.method,
+                            inner.callback.on_invoke_result_send_error(
+                                &tag,
                                 request_id,
-                                e
+                                data.method,
+                                &duration,
+                                &e,
                             );
                         }
                     }
@@ -258,12 +254,12 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                             // Errors are ignored
                             let maybe_notification = TonNotification::from_result(&r);
                             if let Some(n) = maybe_notification {
-                                inner.callback.on_notification(&n);
+                                inner.callback.on_notification_ok(&tag, &n);
                                 if let Err(e) = inner.notification_sender.send(Arc::new(n)) {
-                                    log::warn!("[{}] Error sending notification: {}", tag, e);
+                                    inner.callback.on_notification_err(&tag, e);
                                 }
                             } else {
-                                inner.callback.on_ton_result_parse_error(&r);
+                                inner.callback.on_ton_result_parse_error(&tag, &r);
                                 log::warn!("[{}] Error parsing result: {}", tag, r);
                             }
                         }

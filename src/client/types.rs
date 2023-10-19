@@ -8,7 +8,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::{self, error::SendError};
 
 use crate::tl::TonNotification;
 use crate::tl::TonResult;
@@ -81,31 +81,156 @@ lazy_static! {
 }
 
 #[allow(unused_variables)]
+pub trait TonConnectionCallbackLogger {
+    #[allow(unused_variables)]
+    fn on_invoke_log(&self, id: u32) {}
+
+    #[allow(unused_variables)]
+    fn on_invoke_result_log(
+        &self,
+        tag: &String,
+        id: u32,
+        method: &str,
+        duration: &Duration,
+        result: &Result<TonResult, TonClientError>,
+    ) {
+        let error_string = match result {
+            Ok(r) => r.to_string(),
+            Err(e) => e.to_string(),
+        };
+
+        log::debug!(
+            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}: {}",
+            tag,
+            id,
+            method,
+            &duration,
+            error_string
+        );
+    }
+
+    fn on_invoke_result_send_error_log(
+        &self,
+        tag: &String,
+        request_id: u32,
+        method: &str,
+        duration: &Duration,
+        result: &Result<TonResult, TonClientError>,
+    ) {
+        let error_string = match result {
+            Ok(r) => r.to_string(),
+            Err(e) => e.to_string(),
+        };
+
+        log::warn!(
+            "[{}] Error sending invoke result, method: {} request_id: {}, elapsed: {:?}: {:?}",
+            tag,
+            method,
+            request_id,
+            &duration,
+            error_string
+        );
+    }
+
+    fn on_notification_ok_log(&self, tag: &String, notification: &TonNotification) {
+        log::trace!("[{}] Sending notification: {:?}", tag, notification);
+    }
+
+    fn on_notification_err_log(&self, tag: &String, e: SendError<Arc<TonNotification>>) {
+        log::warn!("[{}] Error sending notification: {}", tag, e);
+    }
+
+    fn on_tl_error_log(&self, tag: &String, error: &TlError) {
+        log::warn!("[{}] Tl error: {}", tag, error);
+    }
+
+    #[allow(unused)]
+    fn on_tonlib_error_log(&self, tag: &String, request_id: &Option<u32>, code: i32, error: &str) {
+        log::warn!("[{}] Tonlib error: code {}, error {}", tag, code, error);
+    }
+
+    fn on_ton_result_parse_error_log(&self, tag: &String, result: &TonResult) {
+        log::warn!("[{}] Error parsing result: {}", tag, result);
+    }
+}
+
 pub trait TonConnectionCallback {
-    fn on_invoke(&self, id: u32) {}
+    fn on_invoke(&self, id: u32);
     fn on_invoke_result(
         &self,
+        tag: &String,
+        id: u32,
+        method: &str,
+        duration: &Duration,
+        res: &Result<TonResult, TonClientError>,
+    );
+    fn on_invoke_result_send_error(
+        &self,
+        tag: &String,
+        request_id: u32,
+        method: &str,
+        duration: &Duration,
+        e: &Result<TonResult, TonClientError>,
+    );
+    fn on_notification_ok(&self, tag: &String, notification: &TonNotification);
+    fn on_notification_err(&self, tag: &String, notification: SendError<Arc<TonNotification>>);
+    fn on_tl_error(&self, tag: &String, error: &TlError);
+    fn on_tonlib_error(&self, tag: &String, id: &Option<u32>, code: i32, error: &str);
+    fn on_ton_result_parse_error(&self, tag: &String, result: &TonResult);
+}
+
+pub struct DefaultConnectionCallback;
+
+impl TonConnectionCallbackLogger for dyn TonConnectionCallback {}
+
+impl TonConnectionCallbackLogger for DefaultConnectionCallback {}
+impl TonConnectionCallback for DefaultConnectionCallback {
+    fn on_invoke(&self, id: u32) {
+        self.on_invoke_log(id)
+    }
+
+    fn on_invoke_result(
+        &self,
+        tag: &String,
         id: u32,
         method: &str,
         duration: &Duration,
         res: &Result<TonResult, TonClientError>,
     ) {
+        self.on_invoke_result_log(tag, id, method, duration, res)
     }
+
     fn on_invoke_result_send_error(
         &self,
-        id: u32,
+        tag: &String,
+        request_id: u32,
+        method: &str,
         duration: &Duration,
-        res: &Result<TonResult, TonClientError>,
+        e: &Result<TonResult, TonClientError>,
     ) {
+        self.on_invoke_result_send_error_log(tag, request_id, method, duration, e)
     }
-    fn on_notification(&self, notification: &TonNotification) {}
-    fn on_tl_error(&self, error: &TlError) {}
-    fn on_tonlib_error(&self, id: &Option<u32>, code: i32, error: &str) {}
-    fn on_ton_result_parse_error(&self, result: &TonResult) {}
-}
 
-pub struct DefaultConnectionCallback {}
-impl TonConnectionCallback for DefaultConnectionCallback {}
+    fn on_notification_ok(&self, tag: &String, notification: &TonNotification) {
+        self.on_notification_ok_log(tag, notification)
+    }
+
+    fn on_notification_err(&self, tag: &String, notification: SendError<Arc<TonNotification>>) {
+        self.on_notification_err_log(tag, notification)
+    }
+
+    fn on_tl_error(&self, tag: &String, error: &TlError) {
+        self.on_tl_error_log(tag, error)
+    }
+
+    fn on_tonlib_error(&self, tag: &String, id: &Option<u32>, code: i32, error: &str) {
+        self.on_tonlib_error_log(tag, id, code, error)
+    }
+
+    fn on_ton_result_parse_error(&self, tag: &String, result: &TonResult) {
+        self.on_ton_result_parse_error_log(tag, result)
+    }
+}
 
 #[async_trait]
 pub trait TonFunctions {
