@@ -20,11 +20,8 @@ pub enum TonClientError {
     #[error("TlError: {0}")]
     TlError(#[from] TlError),
 
-    #[error("Internal error")]
-    InternalError,
-
-    #[error("Raw transaction error: {msg}")]
-    RawTransactionError { msg: String },
+    #[error("Internal error: {message}")]
+    InternalError { message: String },
 }
 
 impl TonClientError {

@@ -186,7 +186,11 @@ impl TonFunctions for TonConnection {
         let maybe_result = rx.await;
         let result = match maybe_result {
             Ok(result) => result,
-            Err(_) => return Err(TonClientError::InternalError),
+            Err(_) => {
+                return Err(TonClientError::InternalError {
+                    message: "Sender dropped without sending".to_string(),
+                })
+            }
         };
         result.map(|r| (self.clone(), r))
     }
