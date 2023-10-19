@@ -1,23 +1,23 @@
-mod builder;
-mod connection;
-mod error;
-mod types;
-
-pub use builder::*;
-pub use connection::*;
-pub use error::*;
-use futures::{future::try_join_all, Future, FutureExt};
-pub use types::*;
+use std::{fs, ops::Deref, path::Path, sync::Arc};
 
 use async_trait::async_trait;
 use rand::Rng;
 use tokio::sync::Mutex;
-
-use std::{fs, ops::Deref, path::Path, pin::Pin, sync::Arc};
-
 use tokio_retry::{strategy::FixedInterval, RetryIf};
 
+pub use block_functions::*;
+pub use builder::*;
+pub use connection::*;
+pub use error::*;
+pub use types::*;
+
 use crate::{address::TonAddress, tl::*};
+
+mod block_functions;
+mod builder;
+mod connection;
+mod error;
+mod types;
 
 pub struct TonClient {
     inner: Arc<Inner>,
@@ -55,10 +55,11 @@ impl TonClient {
                 let keystore_prefix = Path::new(dir.as_str());
                 let keystore_dir = keystore_prefix.join(format!("{}", i));
                 fs::create_dir_all(&keystore_dir)?;
-                let path_str = keystore_dir
-                    .into_os_string()
-                    .into_string()
-                    .map_err(|_| TonClientError::InternalError)?;
+                let path_str = keystore_dir.into_os_string().into_string().map_err(|_| {
+                    TonClientError::InternalError {
+                        message: "Error constructing keystore path".to_string(),
+                    }
+                })?;
                 p.keystore_dir = Some(path_str)
             };
             let entry = PoolConnection {
@@ -127,100 +128,6 @@ impl TonClient {
 
     pub fn set_log_verbosity_level(verbosity_level: u32) {
         TlTonClient::set_log_verbosity_level(verbosity_level)
-    }
-
-    pub async fn get_shard_transactions(
-        &self,
-        shard_id: &BlockIdExt,
-    ) -> Result<Vec<TxData>, TonClientError> {
-        let tx_ids = self.get_shard_tx_ids(shard_id).await?;
-        let futures: Vec<Pin<Box<dyn Future<Output = Result<TxData, TonClientError>> + Send>>> =
-            tx_ids
-                .iter()
-                .map(|tx_id| self.load_raw_tx(shard_id.workchain, tx_id).boxed())
-                .collect();
-        let txs: Vec<TxData> = try_join_all(futures).await?;
-        Ok(txs)
-    }
-
-    pub async fn get_shards_transactions(
-        &self,
-        shards: &Vec<BlockIdExt>,
-    ) -> Result<Vec<ShardTxData>, TonClientError> {
-        let f = shards.iter().map(|shard| {
-            self.get_shard_transactions(shard).map(move |txs_r| {
-                txs_r.map(|txs| ShardTxData {
-                    shard: shard.clone(),
-                    txs_data: txs,
-                })
-            })
-        });
-        let txs: Vec<ShardTxData> = try_join_all(f).await?;
-        Ok(txs)
-    }
-
-    async fn get_shard_tx_ids(
-        &self,
-        shard_ext: &BlockIdExt,
-    ) -> Result<Vec<BlocksShortTxId>, TonClientError> {
-        let mut after: BlocksAccountTransactionId = NULL_BLOCKS_ACCOUNT_TRANSACTION_ID.clone();
-        let mut transactions: Vec<BlocksShortTxId> = Vec::new();
-        loop {
-            let mode = if after.lt == 0 { 7 } else { 128 + 7 };
-            let txs: BlocksTransactions = self
-                .get_block_transactions(&shard_ext, mode, 256, &after)
-                .await?;
-            if let Some(last) = txs.transactions.last() {
-                after = BlocksAccountTransactionId {
-                    account: last.account.clone(),
-                    lt: last.lt,
-                };
-            }
-            transactions.extend(txs.transactions);
-            if !txs.incomplete {
-                break;
-            }
-        }
-        Ok(transactions)
-    }
-
-    async fn load_raw_tx(
-        &self,
-        workchain: i32,
-        tx_id: &BlocksShortTxId,
-    ) -> Result<TxData, TonClientError> {
-        let addr = TonAddress::new(
-            workchain,
-            tx_id.account.as_slice().try_into().map_err(|_| {
-                TonClientError::RawTransactionError {
-                    msg: format!("Invalid TonAddress: {:?}", tx_id),
-                }
-            })?,
-        );
-        let id = InternalTransactionId {
-            lt: tx_id.lt,
-            hash: tx_id.hash.clone(),
-        };
-        let tx_result = self
-            .get_raw_transactions_v2(addr.to_hex().as_str(), &id, 1, false)
-            .await?;
-        let tx = if tx_result.transactions.len() == 1 {
-            tx_result.transactions[0].clone()
-        } else {
-            return Err(TonClientError::RawTransactionError {
-                msg: format!(
-                    "Expected 1 tx, got {}, query: {:?}/{:?}",
-                    tx_result.transactions.len(),
-                    addr,
-                    id
-                ),
-            });
-        };
-        Ok(TxData {
-            account: addr,
-            internal_transaction_id: id,
-            raw_transaction: tx,
-        })
     }
 }
 
