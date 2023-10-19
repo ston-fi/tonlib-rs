@@ -301,7 +301,7 @@ mod tests {
             assert_eq!(cell.data, text_bytes);
             assert_eq!(cell.bit_len, text_bytes.len() * 8);
             let mut reader = cell.parser();
-            let result = reader.load_string(reader.remaining_bytes())?;
+            let result = reader.load_utf8(reader.remaining_bytes())?;
             assert_eq!(result, text);
         }
         Ok(())
