@@ -1,17 +1,16 @@
 use std::time::Duration;
 use std::{str::FromStr, thread};
 
-use futures::future::try_join_all;
 use tokio;
 use tokio::time::timeout;
 
+use tonlib::cell::BagOfCells;
 use tonlib::client::{TonBlockFunctions, TonFunctions};
 use tonlib::tl::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib::{address::TonAddress, tl::LiteServerInfo};
-use tonlib::{cell::BagOfCells, client::TxData};
 
 mod common;
 
