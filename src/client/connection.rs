@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
+use crate::client::TonClientError;
 use crate::client::{
     TonConnectionCallback, TonConnectionParams, TonFunctions, TonNotificationReceiver,
 };
@@ -16,8 +17,6 @@ use crate::tl::TonResult;
 use crate::tl::TvmStackEntry;
 use crate::tl::{Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult};
 use crate::tl::{TlTonClient, TonResultDiscriminants};
-
-use crate::client::TonClientError;
 
 struct RequestData {
     method: &'static str,
@@ -33,7 +32,7 @@ struct Inner {
     counter: AtomicU32,
     request_map: RequestMap,
     notification_sender: TonNotificationSender,
-    callback: Arc<dyn TonConnectionCallback + Send + Sync>,
+    callback: Arc<dyn TonConnectionCallback>,
     _notification_receiver: TonNotificationReceiver,
 }
 
@@ -49,9 +48,7 @@ impl TonConnection {
     /// # Errors
     ///
     /// Returns error to capture any failure to create thread at system level
-    pub fn new(
-        callback: Arc<dyn TonConnectionCallback + Send + Sync>,
-    ) -> Result<TonConnection, TonClientError> {
+    pub fn new(callback: Arc<dyn TonConnectionCallback>) -> Result<TonConnection, TonClientError> {
         let tag = format!(
             "ton-conn-{}",
             CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
@@ -77,7 +74,7 @@ impl TonConnection {
     /// Creates a new initialized TonConnection
     pub async fn connect(
         params: &TonConnectionParams,
-        callback: Arc<dyn TonConnectionCallback + Send + Sync>,
+        callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
         let conn = Self::new(callback)?;
         let keystore_type = if let Some(directory) = &params.keystore_dir {
@@ -174,14 +171,19 @@ impl TonFunctions for TonConnection {
             sender: tx,
         };
         self.inner.request_map.insert(cnt, data);
-        self.inner.callback.on_invoke(cnt);
+        self.inner
+            .callback
+            .on_invoke(self.inner.tl_client.get_tag(), cnt, function);
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
             let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
             let tag = self.inner.tl_client.get_tag();
-            self.inner.callback.on_tl_error(tag, &e);
-            let err = TonClientError::TlError(e);
-            data.sender.send(Err(err)).unwrap(); // Send should always succeed, so something went terribly wrong
+            let duration = Instant::now().duration_since(data.send_time);
+            let res = Err(TonClientError::TlError(e));
+            self.inner
+                .callback
+                .on_invoke_result(tag, cnt, data.method, &duration, &res);
+            data.sender.send(res).unwrap(); // Send should always succeed, so something went terribly wrong
         }
         let maybe_result = rx.await;
         let result = match maybe_result {
@@ -189,7 +191,7 @@ impl TonFunctions for TonConnection {
             Err(_) => {
                 return Err(TonClientError::InternalError {
                     message: "Sender dropped without sending".to_string(),
-                })
+                });
             }
         };
         result.map(|r| (self.clone(), r))
@@ -210,58 +212,56 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
         if let Some(inner) = weak_inner.upgrade() {
             let recv = inner.tl_client.receive(1.0);
             if let Some((ton_result, maybe_extra)) = recv {
-                let maybe_request_id = maybe_extra.and_then(|s| s.parse::<u32>().ok());
+                let maybe_request_id = if let Some(s) = &maybe_extra {
+                    s.parse::<u32>().ok()
+                } else {
+                    None
+                };
                 let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));
                 let result: Result<TonResult, TonClientError> = match ton_result {
                     Ok(TonResult::Error { code, message }) => {
-                        inner
-                            .callback
-                            .on_tonlib_error(&tag, &maybe_request_id, code, &message);
                         Err(TonClientError::TonlibError { code, message })
                     }
-                    Err(e) => {
-                        inner.callback.on_tl_error(&tag, &e);
-                        Err(e.into())
-                    }
+                    Err(e) => Err(e.into()),
                     Ok(r) => Ok(r),
                 };
 
-                match maybe_data {
-                    Some((_, data)) => {
-                        let request_id = maybe_request_id.unwrap(); // Can't be empty if data is not empty
-                        let now = Instant::now();
-                        let duration = now.duration_since(data.send_time);
-                        inner.callback.on_invoke_result(
-                            &tag,
-                            request_id,
-                            data.method,
-                            &duration,
-                            &result,
-                        );
+                if let Some((_, data)) = maybe_data {
+                    // Found corresponding request, reply to it
+                    let request_id = maybe_request_id.unwrap(); // Can't be empty if data is not empty
+                    let now = Instant::now();
+                    let duration = now.duration_since(data.send_time);
+                    inner.callback.on_invoke_result(
+                        &tag,
+                        request_id,
+                        data.method,
+                        &duration,
+                        &result,
+                    );
 
-                        if let Err(e) = data.sender.send(result) {
-                            inner.callback.on_invoke_result_send_error(
-                                &tag,
-                                request_id,
+                    if let Err(_) = data.sender.send(result) {
+                        log::warn!(
+                                "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
+                                tag,
                                 data.method,
+                                request_id,
                                 &duration,
-                                &e,
                             );
-                        }
                     }
-                    None => {
-                        if let Ok(r) = result {
-                            // Errors are ignored
-                            let maybe_notification = TonNotification::from_result(&r);
-                            if let Some(n) = maybe_notification {
-                                inner.callback.on_notification_ok(&tag, &n);
-                                if let Err(e) = inner.notification_sender.send(Arc::new(n)) {
-                                    inner.callback.on_notification_err(&tag, e);
-                                }
-                            } else {
-                                inner.callback.on_ton_result_parse_error(&tag, &r);
-                                log::warn!("[{}] Error parsing result: {}", tag, r);
-                            }
+                } else {
+                    // No request data, attempt to parse notification. Errors are ignored here.
+                    if let Ok(r) = result {
+                        let maybe_notification = TonNotification::from_result(&r);
+                        if let Some(n) = maybe_notification {
+                            inner.callback.on_notification(&tag, &n);
+                            // The call might only fail if there are no receivers, so just ignore the result
+                            let _ = inner.notification_sender.send(Arc::new(n));
+                        } else {
+                            let extra = match &maybe_extra {
+                                Some(s) => Some(s.as_str()),
+                                None => None,
+                            };
+                            inner.callback.on_ton_result_parse_error(&tag, extra, &r);
                         }
                     }
                 }
