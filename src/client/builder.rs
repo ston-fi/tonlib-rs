@@ -1,4 +1,7 @@
-use crate::client::{DefaultConnectionCallback, RetryStrategy, TonClient, TonConnectionParams};
+use crate::client::{
+    MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
+    LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
+};
 
 use crate::client::error;
 use std::sync::Arc;
@@ -9,7 +12,7 @@ pub struct TonClientBuilder {
     pool_size: usize,
     connection_params: TonConnectionParams,
     retry_strategy: RetryStrategy,
-    callback: Arc<dyn TonConnectionCallback + Send + Sync>,
+    callback: Arc<dyn TonConnectionCallback>,
 }
 
 impl TonClientBuilder {
@@ -18,7 +21,7 @@ impl TonClientBuilder {
             pool_size: 1,
             connection_params: TonConnectionParams::default(),
             retry_strategy: RetryStrategy::default(),
-            callback: Arc::new(DefaultConnectionCallback {}),
+            callback: LOGGING_CONNECTION_CALLBACK.clone(),
         }
     }
 
@@ -37,16 +40,23 @@ impl TonClientBuilder {
         self
     }
 
-    pub fn with_callback(
-        &mut self,
-        callback: Arc<dyn TonConnectionCallback + Send + Sync>,
-    ) -> &mut Self {
+    pub fn with_callback(&mut self, callback: Arc<dyn TonConnectionCallback>) -> &mut Self {
         self.callback = callback;
         self
     }
 
-    pub fn with_default_callback(&mut self) -> &mut Self {
-        self.callback = Arc::new(DefaultConnectionCallback {});
+    pub fn with_callbacks(&mut self, callbacks: Vec<Arc<dyn TonConnectionCallback>>) -> &mut Self {
+        self.callback = Arc::new(MultiConnectionCallback::new(callbacks));
+        self
+    }
+
+    pub fn without_callback(&mut self) -> &mut Self {
+        self.callback = NOOP_CONNECTION_CALLBACK.clone();
+        self
+    }
+
+    pub fn with_logging_callback(&mut self) -> &mut Self {
+        self.callback = LOGGING_CONNECTION_CALLBACK.clone();
         self
     }
 

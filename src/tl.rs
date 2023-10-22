@@ -42,8 +42,8 @@ impl TlTonClient {
         client
     }
 
-    pub fn get_tag(&self) -> &String {
-        &self.tag
+    pub fn get_tag(&self) -> &str {
+        self.tag.as_str()
     }
 
     pub fn execute(&self, function: &TonFunction) -> Result<TonResult, TlError> {
