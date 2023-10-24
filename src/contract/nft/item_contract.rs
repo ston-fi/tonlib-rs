@@ -1,15 +1,14 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
 
-use crate::contract::TonContractInterface;
-use crate::{
-    address::TonAddress,
-    cell::BagOfCells,
-    client::TonClient,
-    contract::{MapCellError, MapStackError, TonContract, TonContractError},
-    meta::MetaDataContent,
-    tl::{TvmCell, TvmNumber, TvmStackEntry},
+use crate::address::TonAddress;
+use crate::cell::BagOfCells;
+use crate::client::TonClientInterface;
+use crate::contract::{
+    MapCellError, MapStackError, TonContractError, TonContractInterface, TonContractState,
 };
+use crate::meta::MetaDataContent;
+use crate::tl::{TvmCell, TvmNumber, TvmStackEntry};
 
 /// Data returned by get_static_data according to TEP-62
 #[derive(Debug, Clone)]
@@ -54,7 +53,7 @@ pub trait NftItemContract: TonContractInterface {
                 .map_stack_error(method_name, &address)?;
             let boc = stack.get_boc(4).map_stack_error(method_name, &address)?;
             let individual_content = read_item_metadata_content(
-                &self.client(),
+                self.client(),
                 &index.clone(),
                 &collection_address.clone(),
                 &address,
@@ -127,7 +126,7 @@ pub trait NftItemContract: TonContractInterface {
 impl<T> NftItemContract for T where T: TonContractInterface {}
 
 async fn read_item_metadata_content(
-    client: &TonClient,
+    client: &dyn TonClientInterface,
     index: &BigUint,
     collection_address: &TonAddress,
     item_address: &TonAddress,
@@ -167,8 +166,9 @@ async fn read_item_metadata_content(
             // The dictionary must have uri key with a value containing the URI pointing to the JSON document with token metadata.
             // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
             _ => {
-                let collection_contract = TonContract::new(client, collection_address);
-                let nft_content = collection_contract
+                let collection_contract_state =
+                    TonContractState::load(client, collection_address).await?;
+                let nft_content = collection_contract_state
                     .get_nft_content(index, boc.clone())
                     .await?;
                 let cell = nft_content

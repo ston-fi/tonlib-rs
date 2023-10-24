@@ -5,17 +5,16 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
+use crate::address::TonAddress;
+use crate::client::connection::TonConnection;
 use crate::client::TonClientError;
-use crate::tl::TonNotification;
-use crate::tl::TonResult;
+use crate::config::MAINNET_CONFIG;
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,
-    InternalTransactionId, RawFullAccountState, RawTransactions,
+    InternalTransactionId, LiteServerInfo, RawFullAccountState, RawTransactions, TonFunction,
+    TonNotification, TonResult, TonResultDiscriminants, TvmCell,
 };
-use crate::tl::{TonFunction, TonResultDiscriminants};
-use crate::{client::connection::TonConnection, tl::TvmCell};
-use crate::{config::MAINNET_CONFIG, tl::LiteServerInfo};
 
 pub type TonNotificationReceiver = broadcast::Receiver<Arc<TonNotification>>;
 
@@ -64,7 +63,7 @@ lazy_static! {
 }
 
 #[async_trait]
-pub trait TonFunctions {
+pub trait TonClientInterface: Send + Sync {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError>;
 
     async fn invoke_on_connection(
@@ -78,11 +77,11 @@ pub trait TonFunctions {
 
     async fn get_raw_account_state(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
     ) -> Result<RawFullAccountState, TonClientError> {
         let func = TonFunction::RawGetAccountState {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
         };
         let result = self.invoke(&func).await?;
@@ -97,12 +96,12 @@ pub trait TonFunctions {
 
     async fn get_raw_transactions(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         from_transaction_id: &InternalTransactionId,
     ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactions {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             from_transaction_id: from_transaction_id.clone(),
         };
@@ -118,14 +117,14 @@ pub trait TonFunctions {
 
     async fn get_raw_transactions_v2(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         from_transaction_id: &InternalTransactionId,
         count: usize,
         try_decode_messages: bool,
     ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactionsV2 {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             from_transaction_id: from_transaction_id.clone(),
             count: count as u32,
@@ -176,11 +175,11 @@ pub trait TonFunctions {
 
     async fn get_account_state(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
     ) -> Result<FullAccountState, TonClientError> {
         let func = TonFunction::GetAccountState {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
         };
         let result = self.invoke(&func).await?;
@@ -214,12 +213,12 @@ pub trait TonFunctions {
 
     async fn smc_load_by_transaction(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         transaction_id: &InternalTransactionId,
     ) -> Result<(TonConnection, i64), TonClientError> {
         let func = TonFunction::SmcLoadByTransaction {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             transaction_id: transaction_id.clone(),
         };

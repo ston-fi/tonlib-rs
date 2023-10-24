@@ -63,6 +63,7 @@ pub(crate) unsafe fn deserialize_result_extra(
 
 #[cfg(test)]
 mod tests {
+
     use std::ffi::CString;
 
     use crate::tl::function::TonFunction;

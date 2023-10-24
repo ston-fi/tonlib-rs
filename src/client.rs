@@ -1,9 +1,13 @@
-use std::{fs, ops::Deref, path::Path, sync::Arc};
+use std::fs;
+use std::ops::Deref;
+use std::path::Path;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use rand::Rng;
 use tokio::sync::Mutex;
-use tokio_retry::{strategy::FixedInterval, RetryIf};
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::RetryIf;
 
 pub use block_functions::*;
 pub use builder::*;
@@ -122,7 +126,7 @@ impl TonClient {
 }
 
 #[async_trait]
-impl TonFunctions for TonClient {
+impl TonClientInterface for TonClient {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         let item = self.random_item();
         let conn = item.get_connection().await?;

@@ -1,16 +1,17 @@
+use std::str::FromStr;
+use std::thread;
 use std::time::Duration;
-use std::{str::FromStr, thread};
 
-use tokio;
 use tokio::time::timeout;
+use tokio::{self};
 
+use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
-use tonlib::client::{TonBlockFunctions, TonFunctions};
+use tonlib::client::{TonBlockFunctions, TonClientInterface};
 use tonlib::tl::{
     AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
-    InternalTransactionId, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    InternalTransactionId, LiteServerInfo, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
-use tonlib::{address::TonAddress, tl::LiteServerInfo};
 
 mod common;
 
@@ -19,7 +20,9 @@ async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let r = client
-        .get_account_state("EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH")
+        .get_account_state(&TonAddress::from_base64_url(
+            "EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH",
+        )?)
         .await;
     println!("{:?}", r);
     assert!(r.is_ok());
@@ -37,7 +40,9 @@ async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
     let r = client
-        .get_raw_account_state("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
+        .get_raw_account_state(&TonAddress::from_base64_url(
+            "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
+        )?)
         .await;
     println!("{:?}", r);
     assert!(r.is_ok());
@@ -47,7 +52,7 @@ async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
-    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
+    let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
     let max_retries = 3;
     let mut retries = 0;
     while retries < max_retries {
@@ -110,7 +115,7 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
 async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
     common::init_logging();
 
-    let address = "EQCVx4vipWfDkf2uNhTUkpT97wkzRXHm-N1cNn_kqcLxecxT";
+    let address = &TonAddress::from_base64_url("EQCVx4vipWfDkf2uNhTUkpT97wkzRXHm-N1cNn_kqcLxecxT")?;
     let internal_transaction_id = InternalTransactionId::from_str(
         "32016630000001:91485a21ba6eaaa91827e357378fe332228d11f3644e802f7e0f873a11ce9c6f",
     )?;
@@ -221,9 +226,7 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
                 hash: tx_id.hash.clone(),
                 lt: tx_id.lt,
             };
-            let tx = client
-                .get_raw_transactions_v2(addr.to_hex().as_str(), &id, 1, false)
-                .await?;
+            let tx = client.get_raw_transactions_v2(&addr, &id, 1, false).await?;
             println!("Tx: {:?}", tx.transactions[0])
         }
     }

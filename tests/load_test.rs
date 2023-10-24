@@ -2,8 +2,7 @@ use futures::future::try_join_all;
 use rand::Rng;
 use tonlib::address::TonAddress;
 use tonlib::client::TonClient;
-use tonlib::contract::TonContract;
-use tonlib::contract::{JettonMasterContract, JettonWalletContract};
+use tonlib::contract::{JettonMasterContract, JettonWalletContract, TonContract};
 
 mod common;
 
@@ -18,6 +17,7 @@ async fn load_test_smc_methods() -> anyhow::Result<()> {
     let mut handles = vec![];
     for _ in 0..NUM_RUNNERS {
         let c = client.clone();
+
         let h = tokio::spawn(async move { smc_methods_runner(c).await });
         handles.push(h);
     }
