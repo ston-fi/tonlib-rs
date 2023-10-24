@@ -2,12 +2,9 @@ use async_trait::async_trait;
 
 use num_bigint::BigUint;
 
-use crate::contract::TonContractInterface;
-use crate::{
-    address::TonAddress,
-    cell::BagOfCells,
-    contract::{MapStackError, TonContractError},
-};
+use crate::address::TonAddress;
+use crate::cell::BagOfCells;
+use crate::contract::{MapStackError, TonContractError, TonContractInterface};
 
 #[derive(Debug, Clone)]
 pub struct WalletData {

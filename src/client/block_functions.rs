@@ -5,7 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::address::TonAddress;
-use crate::client::{TonClientError, TonFunctions};
+use crate::client::{TonClientError, TonClientInterface};
 use crate::tl::{
     BlockIdExt, BlocksAccountTransactionId, BlocksShortTxId, BlocksTransactions,
     InternalTransactionId, RawTransaction, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
@@ -20,7 +20,7 @@ pub struct TxData {
 
 /// High-level functions for working with blocks & shards
 #[async_trait]
-pub trait TonBlockFunctions: TonFunctions + Send + Sync {
+pub trait TonBlockFunctions: TonClientInterface + Send + Sync {
     /// Returns the list of all transaction IDs in specified shard.
     async fn get_shard_tx_ids(
         &self,
@@ -76,9 +76,9 @@ pub trait TonBlockFunctions: TonFunctions + Send + Sync {
     }
 }
 
-impl<T> TonBlockFunctions for T where T: TonFunctions + Send + Sync {}
+impl<T> TonBlockFunctions for T where T: TonClientInterface + Send + Sync {}
 
-async fn load_raw_tx<T: TonFunctions + Send + Sync + ?Sized>(
+async fn load_raw_tx<T: TonClientInterface + Send + Sync + ?Sized>(
     client: &T,
     workchain: i32,
     tx_id: &BlocksShortTxId,
@@ -97,9 +97,7 @@ async fn load_raw_tx<T: TonFunctions + Send + Sync + ?Sized>(
         lt: tx_id.lt,
         hash: tx_id.hash.clone(),
     };
-    let tx_result = client
-        .get_raw_transactions_v2(addr.to_hex().as_str(), &id, 1, false)
-        .await?;
+    let tx_result = client.get_raw_transactions_v2(&addr, &id, 1, false).await?;
     let tx = if tx_result.transactions.len() == 1 {
         tx_result.transactions[0].clone()
     } else {

@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::cell::*;
 
@@ -184,12 +182,11 @@ impl BagOfCells {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Instant};
+    use std::sync::Arc;
+    use std::time::Instant;
 
-    use crate::{
-        cell::{BagOfCells, CellBuilder, MapTonCellError, TonCellError},
-        message::ZERO_COINS,
-    };
+    use crate::cell::{BagOfCells, CellBuilder, MapTonCellError, TonCellError};
+    use crate::message::ZERO_COINS;
 
     #[test]
     fn cell_repr_works() -> anyhow::Result<()> {

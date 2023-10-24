@@ -1,11 +1,9 @@
 use thiserror::Error;
 
-use crate::{
-    address::TonAddress,
-    cell::TonCellError,
-    client::TonClientError,
-    tl::{TvmStackEntry, TvmStackError},
-};
+use crate::address::TonAddress;
+use crate::cell::TonCellError;
+use crate::client::TonClientError;
+use crate::tl::{TvmStackEntry, TvmStackError};
 
 #[derive(Error, Debug)]
 pub enum TonContractError {

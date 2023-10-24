@@ -2,12 +2,15 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use tonlib::address::TonAddress;
 use tonlib::client::{
-    MultiConnectionCallback, TonClientError, TonConnection, TonConnectionCallback, TonFunctions,
-    DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
+    MultiConnectionCallback, TonClientError, TonClientInterface, TonConnection,
+    TonConnectionCallback, DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK,
+    NOOP_CONNECTION_CALLBACK,
 };
-use tonlib::tl::{KeyStoreType, SyncState, UpdateSyncState};
-use tonlib::tl::{TonFunction, TonNotification, TonResult};
+use tonlib::tl::{
+    KeyStoreType, SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState,
+};
 
 mod common;
 
@@ -129,7 +132,9 @@ async fn test_connection_sync() -> anyhow::Result<()> {
         }
     });
     let r = conn
-        .get_account_state("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
+        .get_account_state(&TonAddress::from_base64_url(
+            "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
+        )?)
         .await;
     println!("{:?}", r);
     assert!(r.is_ok());

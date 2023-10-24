@@ -1,12 +1,10 @@
 use lazy_static::lazy_static;
 use nacl::sign::signature;
 
-use crate::message::ZERO_COINS;
-use crate::{address::TonAddress, cell::TonCellError, mnemonic::KeyPair};
-use crate::{
-    cell::{BagOfCells, Cell, CellBuilder, StateInit},
-    message::TonMessageError,
-};
+use crate::address::TonAddress;
+use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, TonCellError};
+use crate::message::{TonMessageError, ZERO_COINS};
+use crate::mnemonic::KeyPair;
 
 lazy_static! {
     pub static ref WALLET_V3_CODE: BagOfCells = {
@@ -176,11 +174,9 @@ impl TonWallet {
 
 #[cfg(test)]
 mod tests {
+    use crate::address::TonAddress;
     use crate::mnemonic::Mnemonic;
-    use crate::{
-        address::TonAddress,
-        wallet::{TonWallet, WalletVersion},
-    };
+    use crate::wallet::{TonWallet, WalletVersion};
 
     #[test]
     fn derive_wallet_works() -> anyhow::Result<()> {

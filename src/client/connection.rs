@@ -7,16 +7,14 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
-use crate::client::TonClientError;
 use crate::client::{
-    TonConnectionCallback, TonConnectionParams, TonFunctions, TonNotificationReceiver,
+    TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
+    TonNotificationReceiver,
 };
-use crate::tl::TonFunction;
-use crate::tl::TonNotification;
-use crate::tl::TonResult;
-use crate::tl::TvmStackEntry;
-use crate::tl::{Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult};
-use crate::tl::{TlTonClient, TonResultDiscriminants};
+use crate::tl::{
+    Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult, TlTonClient,
+    TonFunction, TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
+};
 
 struct RequestData {
     method: &'static str,
@@ -153,7 +151,7 @@ impl TonConnection {
 }
 
 #[async_trait]
-impl TonFunctions for TonConnection {
+impl TonClientInterface for TonConnection {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         Ok(self.clone())
     }

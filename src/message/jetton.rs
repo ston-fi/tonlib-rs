@@ -1,5 +1,5 @@
-use crate::cell::Cell;
-use crate::{address::TonAddress, cell::CellBuilder};
+use crate::address::TonAddress;
+use crate::cell::{Cell, CellBuilder};
 use crc::{Crc, CRC_32_ISO_HDLC};
 use num_bigint::BigUint;
 use num_traits::Zero;

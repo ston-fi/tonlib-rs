@@ -3,11 +3,10 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::address::TonAddress;
 use crate::client::TonClient;
-use crate::contract::TonContract;
-use crate::contract::TonContractInterface;
+use crate::contract::{TonContract, TonContractInterface, TransactionError};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-use crate::{address::TonAddress, contract::TransactionError};
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,

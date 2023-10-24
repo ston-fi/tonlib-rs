@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::Cursor, ops::Deref, sync::Arc};
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::ops::Deref;
+use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 use num_bigint::BigInt;

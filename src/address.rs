@@ -2,14 +2,10 @@ mod error;
 
 pub use error::*;
 
-use serde::{
-    de::{Error, Visitor},
-    Deserialize, Deserializer,
-};
-use std::{
-    fmt::{Debug, Display, Formatter},
-    str::FromStr,
-};
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::fmt::{Debug, Display, Formatter};
+use std::str::FromStr;
 
 use crc::Crc;
 use lazy_static::lazy_static;
@@ -323,6 +319,7 @@ impl<'de> Deserialize<'de> for TonAddress {
 
 #[cfg(test)]
 mod tests {
+
     use serde_json::Value;
 
     use crate::address::TonAddress;

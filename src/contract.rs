@@ -6,8 +6,6 @@ mod nft;
 mod state;
 mod wallet;
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 pub use error::*;
 pub use interface::*;
@@ -17,43 +15,29 @@ pub use nft::*;
 pub use state::*;
 pub use wallet::*;
 
-use crate::{
-    address::TonAddress,
-    client::{TonClient, TonFunctions},
-    tl::{
-        FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction,
-        RawTransactions, SmcRunResult, TvmCell, TvmStackEntry,
-    },
+use crate::address::TonAddress;
+use crate::client::{TonClient, TonClientInterface};
+use crate::tl::{
+    FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction, RawTransactions,
+    SmcRunResult, TvmCell, TvmStackEntry,
 };
 
 pub struct TonContract {
-    client: Arc<TonClient>,
+    client: TonClient,
     address: TonAddress,
-    address_hex: String,
 }
 
 impl TonContract {
     pub fn new(client: &TonClient, address: &TonAddress) -> TonContract {
         let contract = TonContract {
-            client: Arc::new(client.clone()),
+            client: client.clone(),
             address: address.clone(),
-            address_hex: address.to_hex(),
         };
         contract
     }
 
-    #[inline(always)]
-    pub fn client(&self) -> &TonClient {
-        &self.client
-    }
-
-    #[inline(always)]
-    pub fn address_hex(&self) -> &str {
-        self.address_hex.as_str()
-    }
-
     pub async fn load_state(&self) -> Result<TonContractState, TonContractError> {
-        let state = TonContractState::load(self.client.clone(), &self.address).await?;
+        let state = TonContractState::load(&self.client.clone(), &self.address).await?;
         Ok(state)
     }
 
@@ -62,7 +46,7 @@ impl TonContract {
         transaction_id: &InternalTransactionId,
     ) -> Result<TonContractState, TonContractError> {
         let state = TonContractState::load_by_transaction_id(
-            self.client.clone(),
+            &self.client.clone(),
             &self.address,
             transaction_id,
         )
@@ -70,18 +54,9 @@ impl TonContract {
         Ok(state)
     }
 
-    pub async fn get_code_by_transaction_id(
-        &self,
-        transaction_id: &InternalTransactionId,
-    ) -> Result<TvmCell, TonContractError> {
-        let state = self.load_state_by_transaction_id(transaction_id).await?;
-        let result = state.get_code().await?;
-        Ok(result)
-    }
-
     pub async fn get_account_state(&self) -> Result<FullAccountState, TonContractError> {
         self.client
-            .get_account_state(self.address_hex())
+            .get_account_state(self.address())
             .await
             .map_err(|error| {
                 TonContractError::client_method_error(
@@ -94,7 +69,7 @@ impl TonContract {
 
     pub async fn get_raw_account_state(&self) -> Result<RawFullAccountState, TonContractError> {
         self.client
-            .get_raw_account_state(self.address_hex())
+            .get_raw_account_state(self.address())
             .await
             .map_err(|error| {
                 TonContractError::client_method_error(
@@ -111,7 +86,7 @@ impl TonContract {
         limit: usize,
     ) -> Result<RawTransactions, TonContractError> {
         self.client
-            .get_raw_transactions_v2(self.address_hex(), from_transaction_id, limit, false)
+            .get_raw_transactions_v2(self.address(), from_transaction_id, limit, false)
             .await
             .map_err(|error| {
                 TonContractError::client_method_error(
@@ -136,7 +111,7 @@ impl TonContract {
         }
     }
 
-    pub async fn create_contract_transactions_cache(
+    pub async fn create_latest_transactions_cache(
         &self,
         capacity: usize,
     ) -> LatestContractTransactionsCache {
@@ -146,7 +121,7 @@ impl TonContract {
 
 #[async_trait]
 impl TonContractInterface for TonContract {
-    fn client(&self) -> &TonClient {
+    fn client(&self) -> &dyn TonClientInterface {
         &self.client
     }
 
