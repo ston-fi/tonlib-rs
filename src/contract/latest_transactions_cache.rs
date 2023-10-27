@@ -76,10 +76,17 @@ impl LatestContractTransactionsCache {
         let mut finished = false;
         let mut next_to_load: InternalTransactionId = last_tx_id.clone();
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
-            let txs = self
-                .contract
-                .get_raw_transactions(&next_to_load, 16)
-                .await?;
+            let maybe_txs = self.contract.get_raw_transactions(&next_to_load, 16).await;
+            let txs = match maybe_txs {
+                Ok(txs) => txs,
+                Err(_) => {
+                    let maybe_txs = self.contract.get_raw_transactions(&next_to_load, 1).await;
+                    match maybe_txs {
+                        Ok(txs) => txs,
+                        Err(_) => break,
+                    }
+                }
+            };
 
             for tx in txs.transactions {
                 if loaded.len() >= self.capacity || tx.transaction_id.lt <= synced_tx_id.lt {
