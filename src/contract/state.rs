@@ -10,12 +10,12 @@ use crate::contract::{TonContractError, TonContractInterface};
 use super::MapClientError;
 
 struct Inner {
+    address: TonAddress,
     connection: TonConnection,
     state_id: i64,
 }
 
 pub struct TonContractState {
-    address: TonAddress,
     inner: Arc<Inner>,
 }
 
@@ -29,12 +29,12 @@ impl TonContractState {
             .await
             .map_err(|e| TonContractError::client_method_error("smc_load", Some(&address), e))?;
         let inner = Inner {
+            address: address.clone(),
             connection: conn,
             state_id,
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
-            address: address.clone(),
         })
     }
 
@@ -54,12 +54,12 @@ impl TonContractState {
                 )
             })?;
         let inner = Inner {
+            address: address.clone(),
             connection: conn,
             state_id,
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
-            address: address.clone(),
         })
     }
 
@@ -91,7 +91,7 @@ impl TonContractInterface for TonContractState {
     }
 
     fn address(&self) -> &TonAddress {
-        &self.address
+        &self.inner.address
     }
 
     async fn get_code(&self) -> Result<TvmCell, TonContractError> {
