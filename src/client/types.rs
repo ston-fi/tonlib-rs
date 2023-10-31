@@ -52,7 +52,7 @@ pub struct RetryStrategy {
 impl Default for RetryStrategy {
     fn default() -> Self {
         RetryStrategy {
-            interval_ms: 100,
+            interval_ms: 5,
             max_retries: 10,
         }
     }

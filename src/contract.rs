@@ -114,8 +114,9 @@ impl TonContract {
     pub async fn create_latest_transactions_cache(
         &self,
         capacity: usize,
+        soft_limit: bool,
     ) -> LatestContractTransactionsCache {
-        LatestContractTransactionsCache::new(&self.client, &self.address, capacity)
+        LatestContractTransactionsCache::new(&self.client, &self.address, capacity, soft_limit)
     }
 }
 
