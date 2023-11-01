@@ -1,12 +1,17 @@
-use std::{fs, ops::Deref, path::Path, sync::Arc};
+use std::fs;
+use std::ops::Deref;
+use std::path::Path;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use rand::Rng;
 use tokio::sync::Mutex;
-use tokio_retry::{strategy::FixedInterval, RetryIf};
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::RetryIf;
 
 pub use block_functions::*;
 pub use builder::*;
+pub use callback::*;
 pub use connection::*;
 pub use error::*;
 pub use types::*;
@@ -15,6 +20,7 @@ use crate::tl::*;
 
 mod block_functions;
 mod builder;
+mod callback;
 mod connection;
 mod error;
 mod types;
@@ -34,7 +40,7 @@ impl TonClient {
         pool_size: usize,
         params: &TonConnectionParams,
         retry_strategy: &RetryStrategy,
-        callback: Arc<dyn TonConnectionCallback + Send + Sync>,
+        callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonClient, TonClientError> {
         let mut connections = Vec::with_capacity(pool_size);
         for i in 0..pool_size {
@@ -120,7 +126,7 @@ impl TonClient {
 }
 
 #[async_trait]
-impl TonFunctions for TonClient {
+impl TonClientInterface for TonClient {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         let item = self.random_item();
         let conn = item.get_connection().await?;
@@ -161,7 +167,7 @@ fn retry_condition(error: &TonClientError) -> bool {
 
 struct PoolConnection {
     params: TonConnectionParams,
-    callback: Arc<dyn TonConnectionCallback + Send + Sync>,
+    callback: Arc<dyn TonConnectionCallback>,
     conn: Mutex<Option<TonConnection>>,
 }
 

@@ -1,7 +1,8 @@
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{address::TonAddress, tl::error::TvmStackError};
+use crate::address::TonAddress;
+use crate::tl::error::TvmStackError;
 
 use crate::cell::BagOfCells;
 
@@ -247,6 +248,7 @@ impl TvmStack {
 
 #[cfg(test)]
 mod tests {
+
     use crate::tl::stack::{TvmNumber, TvmStack, TvmStackEntry};
 
     const SERIAL: &str = r#"[{"@type":"tvm.stackEntryNumber","number":{"number":"100500"}}]"#;

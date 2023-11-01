@@ -1,14 +1,11 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
 
-use crate::contract::TonContractInterface;
-use crate::{
-    address::TonAddress,
-    cell::{BagOfCells, CellBuilder, TonCellError},
-    contract::{MapCellError, MapStackError, TonContractError},
-    meta::MetaDataContent,
-    tl::{TvmSlice, TvmStackEntry},
-};
+use crate::address::TonAddress;
+use crate::cell::{BagOfCells, CellBuilder, TonCellError};
+use crate::contract::{MapCellError, MapStackError, TonContractError, TonContractInterface};
+use crate::meta::MetaDataContent;
+use crate::tl::{TvmSlice, TvmStackEntry};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct JettonData {
@@ -59,6 +56,7 @@ pub trait JettonMasterContract: TonContractInterface {
             })
         }
     }
+
     async fn get_wallet_address(
         &self,
         owner_address: &TonAddress,

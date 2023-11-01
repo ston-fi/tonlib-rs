@@ -1,38 +1,20 @@
-use crate::tl::{TlError, TonFunction, TonResultDiscriminants};
-use crate::{client::connection::TonConnection, tl::TvmCell};
-use crate::{config::MAINNET_CONFIG, tl::LiteServerInfo};
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::broadcast::{self, error::SendError};
+use tokio::sync::broadcast;
 
-use crate::tl::TonNotification;
-use crate::tl::TonResult;
+use crate::address::TonAddress;
+use crate::client::connection::TonConnection;
+use crate::client::TonClientError;
+use crate::config::MAINNET_CONFIG;
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,
-    InternalTransactionId, RawFullAccountState, RawTransactions,
+    InternalTransactionId, LiteServerInfo, RawFullAccountState, RawTransactions, TonFunction,
+    TonNotification, TonResult, TonResultDiscriminants, TvmCell,
 };
-
-use crate::client::TonClientError;
-
-#[derive(Debug, Clone)]
-pub struct TonError {
-    pub code: i32,
-    pub message: String,
-}
-
-impl fmt::Display for TonError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TonError code: {}, message: {}", self.code, self.message)
-    }
-}
-
-impl Error for TonError {}
 
 pub type TonNotificationReceiver = broadcast::Receiver<Arc<TonNotification>>;
 
@@ -70,7 +52,7 @@ pub struct RetryStrategy {
 impl Default for RetryStrategy {
     fn default() -> Self {
         RetryStrategy {
-            interval_ms: 100,
+            interval_ms: 5,
             max_retries: 10,
         }
     }
@@ -80,160 +62,8 @@ lazy_static! {
     pub static ref DEFAULT_RETRY_STRATEGY: RetryStrategy = RetryStrategy::default();
 }
 
-#[allow(unused_variables)]
-pub trait TonConnectionCallbackLogger {
-    #[allow(unused_variables)]
-    fn on_invoke_log(&self, id: u32) {}
-
-    #[allow(unused_variables)]
-    fn on_invoke_result_log(
-        &self,
-        tag: &String,
-        id: u32,
-        method: &str,
-        duration: &Duration,
-        result: &Result<TonResult, TonClientError>,
-    ) {
-        let error_string = match result {
-            Ok(r) => r.to_string(),
-            Err(e) => e.to_string(),
-        };
-
-        log::debug!(
-            "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}: {}",
-            tag,
-            id,
-            method,
-            &duration,
-            error_string
-        );
-    }
-
-    fn on_invoke_result_send_error_log(
-        &self,
-        tag: &String,
-        request_id: u32,
-        method: &str,
-        duration: &Duration,
-        result: &Result<TonResult, TonClientError>,
-    ) {
-        let error_string = match result {
-            Ok(r) => r.to_string(),
-            Err(e) => e.to_string(),
-        };
-
-        log::warn!(
-            "[{}] Error sending invoke result, method: {} request_id: {}, elapsed: {:?}: {:?}",
-            tag,
-            method,
-            request_id,
-            &duration,
-            error_string
-        );
-    }
-
-    fn on_notification_ok_log(&self, tag: &String, notification: &TonNotification) {
-        log::trace!("[{}] Sending notification: {:?}", tag, notification);
-    }
-
-    fn on_notification_err_log(&self, tag: &String, e: SendError<Arc<TonNotification>>) {
-        log::warn!("[{}] Error sending notification: {}", tag, e);
-    }
-
-    fn on_tl_error_log(&self, tag: &String, error: &TlError) {
-        log::warn!("[{}] Tl error: {}", tag, error);
-    }
-
-    #[allow(unused)]
-    fn on_tonlib_error_log(&self, tag: &String, request_id: &Option<u32>, code: i32, error: &str) {
-        log::warn!("[{}] Tonlib error: code {}, error {}", tag, code, error);
-    }
-
-    fn on_ton_result_parse_error_log(&self, tag: &String, result: &TonResult) {
-        log::warn!("[{}] Error parsing result: {}", tag, result);
-    }
-}
-
-pub trait TonConnectionCallback {
-    fn on_invoke(&self, id: u32);
-    fn on_invoke_result(
-        &self,
-        tag: &String,
-        id: u32,
-        method: &str,
-        duration: &Duration,
-        res: &Result<TonResult, TonClientError>,
-    );
-    fn on_invoke_result_send_error(
-        &self,
-        tag: &String,
-        request_id: u32,
-        method: &str,
-        duration: &Duration,
-        e: &Result<TonResult, TonClientError>,
-    );
-    fn on_notification_ok(&self, tag: &String, notification: &TonNotification);
-    fn on_notification_err(&self, tag: &String, notification: SendError<Arc<TonNotification>>);
-    fn on_tl_error(&self, tag: &String, error: &TlError);
-    fn on_tonlib_error(&self, tag: &String, id: &Option<u32>, code: i32, error: &str);
-    fn on_ton_result_parse_error(&self, tag: &String, result: &TonResult);
-}
-
-pub struct DefaultConnectionCallback;
-
-impl TonConnectionCallbackLogger for dyn TonConnectionCallback {}
-
-impl TonConnectionCallbackLogger for DefaultConnectionCallback {}
-impl TonConnectionCallback for DefaultConnectionCallback {
-    fn on_invoke(&self, id: u32) {
-        self.on_invoke_log(id)
-    }
-
-    fn on_invoke_result(
-        &self,
-        tag: &String,
-        id: u32,
-        method: &str,
-        duration: &Duration,
-        res: &Result<TonResult, TonClientError>,
-    ) {
-        self.on_invoke_result_log(tag, id, method, duration, res)
-    }
-
-    fn on_invoke_result_send_error(
-        &self,
-        tag: &String,
-        request_id: u32,
-        method: &str,
-        duration: &Duration,
-        e: &Result<TonResult, TonClientError>,
-    ) {
-        self.on_invoke_result_send_error_log(tag, request_id, method, duration, e)
-    }
-
-    fn on_notification_ok(&self, tag: &String, notification: &TonNotification) {
-        self.on_notification_ok_log(tag, notification)
-    }
-
-    fn on_notification_err(&self, tag: &String, notification: SendError<Arc<TonNotification>>) {
-        self.on_notification_err_log(tag, notification)
-    }
-
-    fn on_tl_error(&self, tag: &String, error: &TlError) {
-        self.on_tl_error_log(tag, error)
-    }
-
-    fn on_tonlib_error(&self, tag: &String, id: &Option<u32>, code: i32, error: &str) {
-        self.on_tonlib_error_log(tag, id, code, error)
-    }
-
-    fn on_ton_result_parse_error(&self, tag: &String, result: &TonResult) {
-        self.on_ton_result_parse_error_log(tag, result)
-    }
-}
-
 #[async_trait]
-pub trait TonFunctions {
+pub trait TonClientInterface: Send + Sync {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError>;
 
     async fn invoke_on_connection(
@@ -247,11 +77,11 @@ pub trait TonFunctions {
 
     async fn get_raw_account_state(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
     ) -> Result<RawFullAccountState, TonClientError> {
         let func = TonFunction::RawGetAccountState {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
         };
         let result = self.invoke(&func).await?;
@@ -266,12 +96,12 @@ pub trait TonFunctions {
 
     async fn get_raw_transactions(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         from_transaction_id: &InternalTransactionId,
     ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactions {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             from_transaction_id: from_transaction_id.clone(),
         };
@@ -287,14 +117,14 @@ pub trait TonFunctions {
 
     async fn get_raw_transactions_v2(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         from_transaction_id: &InternalTransactionId,
         count: usize,
         try_decode_messages: bool,
     ) -> Result<RawTransactions, TonClientError> {
         let func = TonFunction::RawGetTransactionsV2 {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             from_transaction_id: from_transaction_id.clone(),
             count: count as u32,
@@ -345,11 +175,11 @@ pub trait TonFunctions {
 
     async fn get_account_state(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
     ) -> Result<FullAccountState, TonClientError> {
         let func = TonFunction::GetAccountState {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
         };
         let result = self.invoke(&func).await?;
@@ -383,12 +213,12 @@ pub trait TonFunctions {
 
     async fn smc_load_by_transaction(
         &self,
-        account_address: &str,
+        account_address: &TonAddress,
         transaction_id: &InternalTransactionId,
     ) -> Result<(TonConnection, i64), TonClientError> {
         let func = TonFunction::SmcLoadByTransaction {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
             transaction_id: transaction_id.clone(),
         };

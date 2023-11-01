@@ -3,15 +3,17 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::client::TonClient;
-use crate::contract::TonContract;
-use crate::contract::TonContractInterface;
+use crate::address::TonAddress;
+use crate::client::{TonClient, TonClientError};
+use crate::contract::{TonContract, TonContractInterface, TransactionError};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-use crate::{address::TonAddress, contract::TransactionError};
+
+use super::TonContractError;
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,
     contract: TonContract,
+    soft_limit: bool,
     inner: Mutex<Inner>,
 }
 
@@ -24,10 +26,12 @@ impl LatestContractTransactionsCache {
         client: &TonClient,
         contract_address: &TonAddress,
         capacity: usize,
+        soft_limit: bool,
     ) -> LatestContractTransactionsCache {
         LatestContractTransactionsCache {
             capacity,
             contract: TonContract::new(client, &contract_address.clone()),
+            soft_limit,
             inner: Mutex::new(Inner {
                 transactions: LinkedList::new(),
             }),
@@ -76,11 +80,32 @@ impl LatestContractTransactionsCache {
         let mut loaded: Vec<Arc<RawTransaction>> = Vec::new();
         let mut finished = false;
         let mut next_to_load: InternalTransactionId = last_tx_id.clone();
+        let mut batch_size: usize = 16;
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
-            let txs = self
+            let maybe_txs = self
                 .contract
-                .get_raw_transactions(&next_to_load, 16)
-                .await?;
+                .get_raw_transactions(&next_to_load, batch_size)
+                .await;
+            let txs = match maybe_txs {
+                Ok(txs) => txs,
+                Err(e) if self.soft_limit => match e {
+                    TonContractError::ClientMethodError {
+                        error: TonClientError::TonlibError { code: 500, .. },
+                        ..
+                    } => {
+                        batch_size = batch_size / 2;
+                        if batch_size == 0 {
+                            break;
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => break,
+                },
+                Err(e) => {
+                    return Err(e.into());
+                }
+            };
 
             for tx in txs.transactions {
                 if loaded.len() >= self.capacity || tx.transaction_id.lt <= synced_tx_id.lt {

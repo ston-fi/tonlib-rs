@@ -1,16 +1,14 @@
 use async_trait::async_trait;
 
-use crate::{
-    address::TonAddress,
-    client::TonClient,
-    tl::{SmcRunResult, TvmCell, TvmStackEntry},
-};
+use crate::address::TonAddress;
+use crate::client::TonClientInterface;
+use crate::tl::{SmcRunResult, TvmCell, TvmStackEntry};
 
 use super::TonContractError;
 
 #[async_trait]
 pub trait TonContractInterface {
-    fn client(&self) -> &TonClient;
+    fn client(&self) -> &dyn TonClientInterface;
 
     fn address(&self) -> &TonAddress;
 

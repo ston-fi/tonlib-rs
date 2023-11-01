@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::Cursor, ops::Deref, sync::Arc};
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::ops::Deref;
+use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 use num_bigint::BigInt;
@@ -24,6 +27,12 @@ pub struct Cell {
     pub data: Vec<u8>,
     pub bit_len: usize,
     pub references: Vec<Arc<Cell>>,
+}
+
+impl Into<Vec<Cell>> for Cell {
+    fn into(self) -> Vec<Cell> {
+        vec![self]
+    }
 }
 
 impl Cell {

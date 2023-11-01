@@ -1,12 +1,10 @@
 use lazy_static::lazy_static;
 use nacl::sign::signature;
 
-use crate::message::ZERO_COINS;
-use crate::{address::TonAddress, cell::TonCellError, mnemonic::KeyPair};
-use crate::{
-    cell::{BagOfCells, Cell, CellBuilder, StateInit},
-    message::TonMessageError,
-};
+use crate::address::TonAddress;
+use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, TonCellError};
+use crate::message::{TonMessageError, ZERO_COINS};
+use crate::mnemonic::KeyPair;
 
 lazy_static! {
     pub static ref WALLET_V3_CODE: BagOfCells = {
@@ -105,24 +103,30 @@ impl TonWallet {
         })
     }
 
-    pub fn create_external_message(
+    pub fn create_external_message<T>(
         &self,
         expire_at: u32,
         seqno: u32,
-        internal_message: Cell,
-    ) -> Result<Cell, TonMessageError> {
+        internal_message: T,
+    ) -> Result<Cell, TonMessageError>
+    where
+        T: Into<Vec<Cell>>,
+    {
         let body = self.create_external_body(expire_at, seqno, internal_message)?;
         let signed = self.sign_external_body(&body)?;
         let wrapped = self.wrap_signed_body(signed)?;
         Ok(wrapped)
     }
 
-    pub fn create_external_body(
+    pub fn create_external_body<T>(
         &self,
         expire_at: u32,
         seqno: u32,
-        internal_message: Cell,
-    ) -> Result<Cell, TonCellError> {
+        internal_message: T,
+    ) -> Result<Cell, TonCellError>
+    where
+        T: Into<Vec<Cell>>,
+    {
         let mut builder = CellBuilder::new();
         builder
             .store_u32(32, self.version.wallet_id())?
@@ -131,8 +135,10 @@ impl TonWallet {
         if self.version.has_op() {
             builder.store_u8(8, 0)?;
         }
-        builder.store_u8(8, 3)?; // send_mode
-        builder.store_child(internal_message)?;
+        for internal_message in internal_message.into() {
+            builder.store_u8(8, 3)?; // send_mode
+            builder.store_child(internal_message)?;
+        }
         builder.build()
     }
 
@@ -168,11 +174,9 @@ impl TonWallet {
 
 #[cfg(test)]
 mod tests {
+    use crate::address::TonAddress;
     use crate::mnemonic::Mnemonic;
-    use crate::{
-        address::TonAddress,
-        wallet::{TonWallet, WalletVersion},
-    };
+    use crate::wallet::{TonWallet, WalletVersion};
 
     #[test]
     fn derive_wallet_works() -> anyhow::Result<()> {

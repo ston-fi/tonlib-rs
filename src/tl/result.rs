@@ -2,12 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use strum::{Display, EnumDiscriminants, IntoStaticStr};
 
+use crate::client::TonClientError;
+use crate::tl::stack::TvmCell;
 use crate::tl::types::{
     BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo,
     FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
     RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
 };
-use crate::{client::TonClientError, tl::stack::TvmCell};
 
 #[derive(
     IntoStaticStr, EnumDiscriminants, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash,

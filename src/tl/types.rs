@@ -5,8 +5,7 @@ use serde_aux::prelude::*;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
-use crate::tl::stack::TvmCell;
-use crate::tl::stack::TvmStack;
+use crate::tl::stack::{TvmCell, TvmStack};
 use crate::tl::Base64Standard;
 
 use crate::tl::InternalTransactionIdParseError;
@@ -580,7 +579,8 @@ pub struct ConfigInfo {
 
 #[cfg(test)]
 mod tests {
-    use crate::tl::{types::InternalTransactionId, InternalTransactionIdParseError};
+    use crate::tl::types::InternalTransactionId;
+    use crate::tl::InternalTransactionIdParseError;
     use tokio_test::assert_err;
 
     #[test]

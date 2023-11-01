@@ -2,14 +2,12 @@ use async_trait::async_trait;
 use num_bigint::BigUint;
 use num_traits::Zero;
 
-use crate::{
-    address::TonAddress,
-    cell::BagOfCells,
-    client::TonClient,
-    contract::{MapCellError, MapStackError, TonContract, TonContractError},
-    meta::MetaDataContent,
-    tl::{TvmNumber, TvmStackEntry},
-};
+use crate::address::TonAddress;
+use crate::cell::BagOfCells;
+use crate::client::TonClientInterface;
+use crate::contract::{MapCellError, MapStackError, TonContractError, TonContractState};
+use crate::meta::MetaDataContent;
+use crate::tl::{TvmNumber, TvmStackEntry};
 
 use crate::contract::{NftItemContract, TonContractInterface};
 
@@ -93,7 +91,7 @@ pub trait NftCollectionContract: TonContractInterface {
 impl<T> NftCollectionContract for T where T: TonContractInterface {}
 
 async fn read_collection_metadata_content(
-    client: &TonClient,
+    client_interface: &dyn TonClientInterface,
     collection_address: &TonAddress,
     boc: &BagOfCells,
 ) -> Result<MetaDataContent, TonContractError> {
@@ -131,8 +129,9 @@ async fn read_collection_metadata_content(
             // The dictionary must have uri key with a value containing the URI pointing to the JSON document with token metadata.
             // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
             _ => {
-                let collection_contract = TonContract::new(client, collection_address);
-                let nft_content = collection_contract
+                let collection_contract_state =
+                    TonContractState::load(client_interface, collection_address).await?;
+                let nft_content = collection_contract_state
                     .get_nft_content(&BigUint::zero(), boc.clone())
                     .await?;
                 let cell = nft_content
