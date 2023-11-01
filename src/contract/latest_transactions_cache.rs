@@ -3,10 +3,10 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::client::TonClient;
+use crate::address::TonAddress;
+use crate::client::{TonClient, TonClientError};
 use crate::contract::{TonContract, TonContractInterface, TransactionError};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-use crate::{address::TonAddress, client::TonClientError};
 
 use super::TonContractError;
 

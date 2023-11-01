@@ -82,7 +82,7 @@ impl CellParser<'_> {
         Ok(res)
     }
 
-    pub fn load_string(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
+    pub fn load_utf8(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
         let bytes = self.load_bytes(num_bytes)?;
         String::from_utf8(bytes).map_cell_parser_error()
     }
