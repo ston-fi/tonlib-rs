@@ -15,6 +15,7 @@ struct Inner {
     state_id: i64,
 }
 
+#[derive(Clone)]
 pub struct TonContractState {
     inner: Arc<Inner>,
 }
@@ -74,10 +75,10 @@ impl TonContractState {
     }
 }
 
-impl Drop for TonContractState {
+impl Drop for Inner {
     fn drop(&mut self) {
-        let conn = self.inner.connection.clone();
-        let state_id = self.inner.state_id;
+        let conn = self.connection.clone();
+        let state_id = self.state_id;
         tokio::spawn(async move {
             let _ = conn.smc_forget(state_id).await; // Ignore failure
         });
