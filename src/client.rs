@@ -14,6 +14,7 @@ pub use builder::*;
 pub use callback::*;
 pub use connection::*;
 pub use error::*;
+pub use interface::*;
 pub use types::*;
 
 use crate::tl::*;
@@ -23,6 +24,7 @@ mod builder;
 mod callback;
 mod connection;
 mod error;
+mod interface;
 mod types;
 
 pub struct TonClient {

@@ -2,7 +2,7 @@ use futures::future::try_join_all;
 use rand::Rng;
 use tonlib::address::TonAddress;
 use tonlib::client::TonClient;
-use tonlib::contract::{JettonMasterContract, JettonWalletContract, TonContract};
+use tonlib::contract::{JettonMasterContract, JettonWalletContract, TonContractFactory};
 
 mod common;
 
@@ -55,14 +55,15 @@ const JETTONS: [&str; NUM_JETTONS] = [
 ];
 
 async fn smc_methods_runner(client: TonClient) -> anyhow::Result<()> {
+    let factory = TonContractFactory::new(&client);
     for _ in 0..NUM_ITERATIONS {
         let wallet_index = get_random(NUM_WALLETS);
         let jetton_index = get_random(NUM_JETTONS);
         let wallet_addr: TonAddress = WALLETS[wallet_index].parse()?;
         let jetton_addr: TonAddress = JETTONS[jetton_index].parse()?;
-        let jetton: TonContract = TonContract::new(&client, &jetton_addr);
+        let jetton = factory.get_contract(&jetton_addr);
         let jetton_wallet_addr = jetton.get_wallet_address(&wallet_addr).await?;
-        let jetton_wallet = TonContract::new(&client, &jetton_wallet_addr);
+        let jetton_wallet = factory.get_contract(&jetton_wallet_addr);
         let wallet_data_result = jetton_wallet.get_wallet_data().await;
         match wallet_data_result {
             Ok(wallet_data) => {
