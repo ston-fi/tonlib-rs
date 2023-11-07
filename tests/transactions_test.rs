@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use std::sync::Arc;
 use std::{thread, time};
 use tonlib::address::TonAddress;
-use tonlib::contract::LatestContractTransactionsCache;
+use tonlib::client::LatestContractTransactionsCache;
 use tonlib::tl::RawTransaction;
 
 mod common;

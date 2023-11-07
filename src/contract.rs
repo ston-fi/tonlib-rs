@@ -4,7 +4,6 @@ pub use error::*;
 pub use factory::*;
 pub use interface::*;
 pub use jetton::*;
-pub use latest_transactions_cache::*;
 pub use nft::*;
 pub use state::*;
 pub use wallet::*;
@@ -20,7 +19,7 @@ mod error;
 mod factory;
 mod interface;
 mod jetton;
-mod latest_transactions_cache;
+
 mod nft;
 mod state;
 mod wallet;

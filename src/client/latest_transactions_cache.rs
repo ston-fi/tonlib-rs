@@ -5,7 +5,6 @@ use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
 use crate::client::{TonClient, TonClientError, TonClientInterface};
-use crate::contract::{MapClientError, TonContractError, TransactionError};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
 
 pub struct LatestContractTransactionsCache {
@@ -41,11 +40,13 @@ impl LatestContractTransactionsCache {
     /// Returns up to `limit` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TransactionError> {
+    pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonClientError> {
         if limit > self.capacity {
-            return Err(TransactionError::LimitExceeded {
-                limit: limit,
-                capacity: self.capacity,
+            return Err(TonClientError::IllegalArgument {
+                message: format!(
+                    "Transactions cache size requested ({}) must not exceed cache capacity ({})",
+                    limit, self.capacity
+                ),
             });
         }
         let mut lock = self.inner.lock().await;
@@ -61,17 +62,13 @@ impl LatestContractTransactionsCache {
     /// Returns up to `capacity` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TransactionError> {
+    pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TonClientError> {
         self.get(self.capacity).await
     }
 
-    async fn sync(&self, inner: &mut Inner) -> Result<(), TransactionError> {
+    async fn sync(&self, inner: &mut Inner) -> Result<(), TonClientError> {
         // Find out what to sync
-        let state = self
-            .client
-            .get_account_state(&self.address)
-            .await
-            .map_client_error("get_account_state", &self.address)?;
+        let state = self.client.get_account_state(&self.address).await?;
         let last_tx_id = &state.last_transaction_id;
 
         let synced_tx_id: &InternalTransactionId = inner
@@ -104,12 +101,7 @@ impl LatestContractTransactionsCache {
                     _ => break,
                 },
                 Err(e) => {
-                    let contract_error = TonContractError::client_method_error(
-                        "get_raw_transactions_v2",
-                        Some(&self.address),
-                        e,
-                    );
-                    return Err(contract_error.into());
+                    return Err(e);
                 }
             };
 
