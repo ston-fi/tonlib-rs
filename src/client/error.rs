@@ -22,6 +22,9 @@ pub enum TonClientError {
 
     #[error("Internal error: {message}")]
     InternalError { message: String },
+
+    #[error("Illegal argument: {message}")]
+    IllegalArgument { message: String },
 }
 
 impl TonClientError {
