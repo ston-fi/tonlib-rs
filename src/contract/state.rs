@@ -7,8 +7,6 @@ use async_trait::async_trait;
 
 use crate::contract::{TonContractError, TonContractInterface};
 
-use super::MapClientError;
-
 struct Inner {
     address: TonAddress,
     connection: TonConnection,
@@ -25,10 +23,7 @@ impl TonContractState {
         client: &dyn TonClientInterface,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
-        let (conn, state_id) = client
-            .smc_load(&address.to_hex())
-            .await
-            .map_client_error("smc_load", address)?;
+        let (conn, state_id) = client.smc_load(&address.to_hex()).await?;
         let inner = Inner {
             address: address.clone(),
             connection: conn,
@@ -46,8 +41,7 @@ impl TonContractState {
     ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
             .smc_load_by_transaction(&address, transaction_id)
-            .await
-            .map_client_error("smc_load_by_transaction", address)?;
+            .await?;
         let inner = Inner {
             address: address.clone(),
             connection: conn,
@@ -80,27 +74,30 @@ impl TonContractInterface for TonContractState {
     }
 
     async fn get_code(&self) -> Result<TvmCell, TonContractError> {
-        self.inner
+        let r = self
+            .inner
             .connection
             .smc_get_code(self.inner.state_id)
-            .await
-            .map_client_error("get_code", self.address())
+            .await?;
+        Ok(r)
     }
 
     async fn get_data(&self) -> Result<TvmCell, TonContractError> {
-        self.inner
+        let r = self
+            .inner
             .connection
             .smc_get_data(self.inner.state_id)
-            .await
-            .map_client_error("get_data", self.address())
+            .await?;
+        Ok(r)
     }
 
     async fn get_state(&self) -> Result<TvmCell, TonContractError> {
-        self.inner
+        let r = self
+            .inner
             .connection
             .smc_get_state(self.inner.state_id)
-            .await
-            .map_client_error("get_state", self.address())
+            .await?;
+        Ok(r)
     }
 
     async fn run_get_method(
@@ -115,13 +112,13 @@ impl TonContractInterface for TonContractState {
             .inner
             .connection
             .smc_run_get_method(self.inner.state_id, &method_id, stack)
-            .await
-            .map_err(|error| TonContractError::client_method_error(method, None, error))?;
+            .await?;
         if result.exit_code == 0 || result.exit_code == 1 {
             Ok(result)
         } else {
             Err(TonContractError::TvmRunError {
                 gas_used: result.gas_used,
+                method: method.to_string(),
                 stack: result.stack.elements,
                 exit_code: result.exit_code,
             })

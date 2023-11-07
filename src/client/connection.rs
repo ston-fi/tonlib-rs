@@ -203,6 +203,8 @@ impl Clone for TonConnection {
     }
 }
 
+static NOT_AVAILABLE: &str = "N/A";
+
 /// Client run loop
 fn run_loop(tag: String, weak_inner: Weak<Inner>) {
     log::info!("[{}] Starting event loop", tag);
@@ -218,7 +220,15 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                 let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));
                 let result: Result<TonResult, TonClientError> = match ton_result {
                     Ok(TonResult::Error { code, message }) => {
-                        Err(TonClientError::TonlibError { code, message })
+                        let method = maybe_data
+                            .as_ref()
+                            .map(|d| d.1.method)
+                            .unwrap_or(NOT_AVAILABLE);
+                        Err(TonClientError::TonlibError {
+                            method,
+                            code,
+                            message,
+                        })
                     }
                     Err(e) => Err(e.into()),
                     Ok(r) => Ok(r),
