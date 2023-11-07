@@ -7,8 +7,11 @@ use crate::tl::{TvmStackEntry, TvmStackError};
 
 #[derive(Error, Debug)]
 pub enum TonContractError {
-    #[error("Tvm run error: code: {exit_code}, gas: {gas_used}, stack: {stack:?}")]
+    #[error(
+        "Tvm run error: code: {exit_code}, method: {method}, gas: {gas_used}, stack: {stack:?}"
+    )]
     TvmRunError {
+        method: String,
         gas_used: i64,
         stack: Vec<TvmStackEntry>,
         exit_code: i32,
@@ -28,12 +31,8 @@ pub enum TonContractError {
         error: TonCellError,
     },
 
-    #[error("Ton client error: '{method}', address: {address}, error: {error} ")]
-    ClientMethodError {
-        method: String,
-        address: String,
-        error: TonClientError,
-    },
+    #[error("{0}")]
+    ClientMethodError(#[from] TonClientError),
 
     #[error("Invalid method result stack: '{method}', address: {address}, actual: {actual}, expected {expected}")]
     InvalidMethodResultStackSize {
@@ -59,33 +58,6 @@ pub trait MapCellError<R> {
         T: ToString;
 }
 
-pub trait MapClientError<R> {
-    fn map_client_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString;
-}
-
-impl TonContractError {
-    pub fn client_method_error<T>(
-        method: T,
-        address: Option<&TonAddress>,
-        error: TonClientError,
-    ) -> TonContractError
-    where
-        T: ToString,
-    {
-        TonContractError::ClientMethodError {
-            method: method.to_string(),
-            address: if let Some(addr) = address {
-                addr.to_string()
-            } else {
-                "N/A".to_string()
-            },
-            error: error,
-        }
-    }
-}
-
 impl<R> MapStackError<R> for Result<R, TvmStackError> {
     fn map_stack_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
     where
@@ -107,19 +79,6 @@ impl<R> MapCellError<R> for Result<R, TonCellError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
             method: method.to_string(),
             address: address.clone(),
-            error: e.into(),
-        })
-    }
-}
-
-impl<R> MapClientError<R> for Result<R, TonClientError> {
-    fn map_client_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString,
-    {
-        self.map_err(|e| TonContractError::ClientMethodError {
-            method: method.to_string(),
-            address: address.clone().to_string(),
             error: e.into(),
         })
     }

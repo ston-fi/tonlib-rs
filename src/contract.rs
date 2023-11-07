@@ -10,10 +10,7 @@ pub use wallet::*;
 
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
-use crate::tl::{
-    FullAccountState, InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell,
-    TvmStackEntry,
-};
+use crate::tl::{InternalTransactionId, SmcRunResult, TvmCell, TvmStackEntry};
 
 mod error;
 mod factory;
@@ -52,28 +49,6 @@ impl TonContract {
             .get_contract_state_by_transaction(&self.address, transaction_id)
             .await?;
         Ok(r)
-    }
-
-    pub async fn get_account_state(&self) -> Result<FullAccountState, TonContractError> {
-        self.factory
-            .get_client()
-            .get_account_state(self.address())
-            .await
-            .map_client_error("get_account_state", &self.address)
-    }
-
-    pub async fn get_raw_account_state(&self) -> Result<RawFullAccountState, TonContractError> {
-        self.factory
-            .get_client()
-            .get_raw_account_state(self.address())
-            .await
-            .map_err(|error| {
-                TonContractError::client_method_error(
-                    "get_raw_account_state",
-                    Some(&self.address),
-                    error,
-                )
-            })
     }
 }
 

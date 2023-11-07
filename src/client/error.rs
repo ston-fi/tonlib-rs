@@ -12,7 +12,11 @@ pub enum TonClientError {
     },
 
     #[error("TonError: code {code}, message {message}")]
-    TonlibError { code: i32, message: String },
+    TonlibError {
+        method: &'static str,
+        code: i32,
+        message: String,
+    },
 
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
