@@ -12,8 +12,8 @@ pub use wallet::*;
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
 use crate::tl::{
-    FullAccountState, InternalTransactionId, RawFullAccountState, RawTransaction, RawTransactions,
-    SmcRunResult, TvmCell, TvmStackEntry,
+    FullAccountState, InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell,
+    TvmStackEntry,
 };
 
 mod error;
@@ -75,51 +75,6 @@ impl TonContract {
                     error,
                 )
             })
-    }
-
-    pub async fn get_raw_transactions(
-        &self,
-        from_transaction_id: &InternalTransactionId,
-        limit: usize,
-    ) -> Result<RawTransactions, TonContractError> {
-        self.factory
-            .get_client()
-            .get_raw_transactions_v2(self.address(), from_transaction_id, limit, false)
-            .await
-            .map_err(|error| {
-                TonContractError::client_method_error(
-                    "get_raw_transactions_v2",
-                    Some(&self.address),
-                    error,
-                )
-            })
-    }
-
-    pub async fn get_raw_transaction(
-        &self,
-        transaction_id: &InternalTransactionId,
-    ) -> Result<Option<RawTransaction>, TonContractError> {
-        let txs = self.get_raw_transactions(transaction_id, 1).await?;
-        match txs.transactions.len() {
-            0 => Ok(None),
-            1 => Ok(Some(txs.transactions[0].clone())),
-            n => Err(TonContractError::InternalError {
-                message: format!("expected one transaction for {} got {}", transaction_id, n),
-            }),
-        }
-    }
-
-    pub async fn create_latest_transactions_cache(
-        &self,
-        capacity: usize,
-        soft_limit: bool,
-    ) -> LatestContractTransactionsCache {
-        LatestContractTransactionsCache::new(
-            &self.factory.get_client(),
-            &self.address,
-            capacity,
-            soft_limit,
-        )
     }
 }
 
