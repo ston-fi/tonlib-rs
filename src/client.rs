@@ -10,6 +10,7 @@ use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 
 pub use block_functions::*;
+pub use block_stream::*;
 pub use builder::*;
 pub use callback::*;
 pub use connection::*;
@@ -20,6 +21,7 @@ pub use types::*;
 use crate::tl::*;
 
 mod block_functions;
+mod block_stream;
 mod builder;
 mod callback;
 mod connection;
