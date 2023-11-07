@@ -4,15 +4,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
-use crate::client::{TonClient, TonClientError};
-use crate::contract::{TonContract, TonContractInterface, TransactionError};
+use crate::client::{TonClient, TonClientError, TonClientInterface};
+use crate::contract::{MapClientError, TonContractError, TransactionError};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-
-use super::TonContractError;
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,
-    contract: TonContract,
+    client: TonClient,
+    address: TonAddress,
     soft_limit: bool,
     inner: Mutex<Inner>,
 }
@@ -30,7 +29,8 @@ impl LatestContractTransactionsCache {
     ) -> LatestContractTransactionsCache {
         LatestContractTransactionsCache {
             capacity,
-            contract: TonContract::new(client, &contract_address.clone()),
+            client: client.clone(),
+            address: contract_address.clone(),
             soft_limit,
             inner: Mutex::new(Inner {
                 transactions: LinkedList::new(),
@@ -67,7 +67,11 @@ impl LatestContractTransactionsCache {
 
     async fn sync(&self, inner: &mut Inner) -> Result<(), TransactionError> {
         // Find out what to sync
-        let state = self.contract.get_account_state().await?;
+        let state = self
+            .client
+            .get_account_state(&self.address)
+            .await
+            .map_client_error("get_account_state", &self.address)?;
         let last_tx_id = &state.last_transaction_id;
 
         let synced_tx_id: &InternalTransactionId = inner
@@ -83,16 +87,13 @@ impl LatestContractTransactionsCache {
         let mut batch_size: usize = 16;
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
             let maybe_txs = self
-                .contract
-                .get_raw_transactions(&next_to_load, batch_size)
+                .client
+                .get_raw_transactions_v2(&self.address, &next_to_load, batch_size, false)
                 .await;
             let txs = match maybe_txs {
                 Ok(txs) => txs,
                 Err(e) if self.soft_limit => match e {
-                    TonContractError::ClientMethodError {
-                        error: TonClientError::TonlibError { code: 500, .. },
-                        ..
-                    } => {
+                    TonClientError::TonlibError { code: 500, .. } => {
                         batch_size = batch_size / 2;
                         if batch_size == 0 {
                             break;
@@ -103,7 +104,12 @@ impl LatestContractTransactionsCache {
                     _ => break,
                 },
                 Err(e) => {
-                    return Err(e.into());
+                    let contract_error = TonContractError::client_method_error(
+                        "get_raw_transactions_v2",
+                        Some(&self.address),
+                        e,
+                    );
+                    return Err(contract_error.into());
                 }
             };
 
@@ -122,7 +128,7 @@ impl LatestContractTransactionsCache {
             log::trace!(
                 "Adding {} new transactions for contract {}",
                 loaded.len(),
-                self.contract.address()
+                self.address
             );
         }
         for tx in loaded.iter().rev() {
@@ -134,7 +140,7 @@ impl LatestContractTransactionsCache {
             log::trace!(
                 "Removing {} outdated transactions for contract {}",
                 inner.transactions.len() - self.capacity,
-                self.contract.address()
+                self.address
             );
         }
         while inner.transactions.len() > self.capacity {

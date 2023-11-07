@@ -21,14 +21,14 @@ pub struct TonContractState {
 }
 
 impl TonContractState {
-    pub async fn load(
+    pub(crate) async fn load(
         client: &dyn TonClientInterface,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
             .smc_load(&address.to_hex())
             .await
-            .map_err(|e| TonContractError::client_method_error("smc_load", Some(&address), e))?;
+            .map_client_error("smc_load", address)?;
         let inner = Inner {
             address: address.clone(),
             connection: conn,
@@ -39,7 +39,7 @@ impl TonContractState {
         })
     }
 
-    pub async fn load_by_transaction_id(
+    pub(crate) async fn load_by_transaction(
         client: &dyn TonClientInterface,
         address: &TonAddress,
         transaction_id: &InternalTransactionId,
@@ -47,13 +47,7 @@ impl TonContractState {
         let (conn, state_id) = client
             .smc_load_by_transaction(&address, transaction_id)
             .await
-            .map_err(|error| {
-                TonContractError::client_method_error(
-                    "smc_load_by_transaction",
-                    Some(&address),
-                    error,
-                )
-            })?;
+            .map_client_error("smc_load_by_transaction", address)?;
         let inner = Inner {
             address: address.clone(),
             connection: conn,
@@ -62,16 +56,6 @@ impl TonContractState {
         Ok(TonContractState {
             inner: Arc::new(inner),
         })
-    }
-
-    pub async fn get_code(&self) -> Result<TvmCell, TonContractError> {
-        let result = self
-            .inner
-            .connection
-            .smc_get_code(self.inner.state_id)
-            .await
-            .map_err(|error| TonContractError::client_method_error("smc_get_code", None, error));
-        result
     }
 }
 

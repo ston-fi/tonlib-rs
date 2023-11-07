@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 use std::time::Duration;
 
 use tonlib::address::TonAddress;
-use tonlib::contract::{TonContract, TonContractInterface};
+use tonlib::contract::{TonContractFactory, TonContractInterface};
 
 mod common;
 
@@ -73,10 +73,9 @@ impl<T> PoolContract for T where T: TonContractInterface {}
 async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
-    );
+    let factory = TonContractFactory::new(&client);
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
     let pool_data = contract.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
@@ -88,11 +87,10 @@ async fn contract_get_pool_data_works() -> anyhow::Result<()> {
 async fn state_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
-    );
-    let state = contract.load_state().await?;
+    let factory = TonContractFactory::new(&client);
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
+    let state = contract.get_state().await?;
     let pool_data = state.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
@@ -104,11 +102,10 @@ async fn state_get_pool_data_works() -> anyhow::Result<()> {
 async fn state_clone_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
-    );
-    let state1 = contract.load_state().await?;
+    let factory = TonContractFactory::new(&client);
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
+    let state1 = contract.get_state().await?;
     let pool_data = state1.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     {
