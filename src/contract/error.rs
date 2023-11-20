@@ -56,22 +56,27 @@ pub enum TonContractError {
 }
 
 pub trait MapStackError<R> {
-    fn map_stack_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString;
+    fn map_stack_error(
+        self,
+        method: &'static str,
+        address: &TonAddress,
+    ) -> Result<R, TonContractError>;
 }
 
 pub trait MapCellError<R> {
-    fn map_cell_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString;
+    fn map_cell_error(
+        self,
+        method: &'static str,
+        address: &TonAddress,
+    ) -> Result<R, TonContractError>;
 }
 
 impl<R> MapStackError<R> for Result<R, TvmStackError> {
-    fn map_stack_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString,
-    {
+    fn map_stack_error(
+        self,
+        method: &'static str,
+        address: &TonAddress,
+    ) -> Result<R, TonContractError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
             method: method.to_string(),
             address: address.clone(),
@@ -81,10 +86,11 @@ impl<R> MapStackError<R> for Result<R, TvmStackError> {
 }
 
 impl<R> MapCellError<R> for Result<R, TonCellError> {
-    fn map_cell_error<T>(self, method: T, address: &TonAddress) -> Result<R, TonContractError>
-    where
-        T: ToString,
-    {
+    fn map_cell_error(
+        self,
+        method: &'static str,
+        address: &TonAddress,
+    ) -> Result<R, TonContractError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
             method: method.to_string(),
             address: address.clone(),

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
+use strum::IntoStaticStr;
 
 use crate::address::TonAddress;
 use crate::cell::{BagOfCells, CellBuilder, TonCellError};
@@ -16,28 +17,30 @@ pub struct JettonData {
     pub wallet_code: BagOfCells,
 }
 
+#[derive(IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+enum JettonMasterMethods {
+    GetJettonData,
+    GetWalletAddress,
+}
+
 #[async_trait]
 pub trait JettonMasterContract: TonContractInterface {
     async fn get_jetton_data(&self) -> Result<JettonData, TonContractError> {
         const JETTON_DATA_STACK_ELEMENTS: usize = 5;
-        let method_name = "get_jetton_data";
+        let method = JettonMasterMethods::GetJettonData.into();
         let address = self.address().clone();
 
-        let res = self.run_get_method(method_name, &Vec::new()).await?;
+        let res = self.run_get_method(method, &Vec::new()).await?;
 
         let stack = res.stack;
         if stack.elements.len() == JETTON_DATA_STACK_ELEMENTS {
-            let total_supply = stack
-                .get_biguint(0)
-                .map_stack_error(method_name, &address)?;
-            let mintable = stack.get_i32(1).map_stack_error(method_name, &address)? != 0;
-            let admin_address = stack
-                .get_address(2)
-                .map_stack_error(method_name, &address)?;
-            let boc = stack.get_boc(3).map_stack_error(method_name, &address)?;
-            let content =
-                read_jetton_metadata_content(&boc).map_cell_error(method_name, &address)?;
-            let wallet_code = stack.get_boc(4).map_stack_error(method_name, &address)?;
+            let total_supply = stack.get_biguint(0).map_stack_error(method, &address)?;
+            let mintable = stack.get_i32(1).map_stack_error(method, &address)? != 0;
+            let admin_address = stack.get_address(2).map_stack_error(method, &address)?;
+            let boc = stack.get_boc(3).map_stack_error(method, &address)?;
+            let content = read_jetton_metadata_content(&boc).map_cell_error(method, &address)?;
+            let wallet_code = stack.get_boc(4).map_stack_error(method, &address)?;
 
             Ok(JettonData {
                 total_supply,
@@ -48,7 +51,7 @@ pub trait JettonMasterContract: TonContractInterface {
             })
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
-                method: method_name.to_string(),
+                method: method.to_string(),
                 address: self.address().clone(),
 
                 actual: stack.elements.len(),
@@ -61,26 +64,26 @@ pub trait JettonMasterContract: TonContractInterface {
         &self,
         owner_address: &TonAddress,
     ) -> Result<TonAddress, TonContractError> {
-        let method_name = "get_wallet_address";
+        let method: &'static str = JettonMasterMethods::GetWalletAddress.into();
         let address = self.address().clone();
 
         let slice = match build_get_wallet_address_payload(owner_address) {
             Ok(slice) => Ok(slice),
             Err(e) => Err(TonContractError::CellError {
-                method: method_name.to_string(),
+                method: method.to_string(),
                 address: self.address().clone(),
                 error: e,
             }),
         }?;
 
-        let res = self.run_get_method(method_name, &vec![slice]).await?;
+        let res = self.run_get_method(method, &vec![slice]).await?;
 
         let stack = res.stack;
         if stack.elements.len() == 1 {
-            stack.get_address(0).map_stack_error(method_name, &address)
+            stack.get_address(0).map_stack_error(method, &address)
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
-                method: method_name.to_string(),
+                method: method.to_string(),
                 address: self.address().clone(),
 
                 actual: stack.elements.len(),
