@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use num_bigint::BigUint;
+use strum::IntoStaticStr;
 
 use crate::address::TonAddress;
 use crate::cell::BagOfCells;
@@ -28,30 +29,29 @@ pub struct NftItemData {
     pub individual_content: MetaDataContent,
 }
 
+#[derive(IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+enum NftItemContractMethods {
+    GetNftData,
+    GetNftContent,
+}
+
 #[async_trait]
 pub trait NftItemContract: TonContractInterface {
     async fn get_nft_data(&self) -> Result<NftItemData, TonContractError> {
+        let method = NftItemContractMethods::GetNftData.into();
         const NFT_DATA_STACK_ELEMENTS: usize = 5;
         let address = self.address().clone();
 
-        let stack = self
-            .run_get_method("get_nft_data", &Vec::new())
-            .await?
-            .stack;
+        let stack = self.run_get_method(method, &Vec::new()).await?.stack;
         if stack.elements.len() == NFT_DATA_STACK_ELEMENTS {
-            let method_name = "get_nft_data";
+            let method = method;
 
-            let init = stack.get_i32(0).map_stack_error(method_name, &address)? == -1;
-            let index = stack
-                .get_biguint(1)
-                .map_stack_error(method_name, &address)?;
-            let collection_address = stack
-                .get_address(2)
-                .map_stack_error(method_name, &address)?;
-            let owner_address = stack
-                .get_address(3)
-                .map_stack_error(method_name, &address)?;
-            let boc = stack.get_boc(4).map_stack_error(method_name, &address)?;
+            let init = stack.get_i32(0).map_stack_error(method, &address)? == -1;
+            let index = stack.get_biguint(1).map_stack_error(method, &address)?;
+            let collection_address = stack.get_address(2).map_stack_error(method, &address)?;
+            let owner_address = stack.get_address(3).map_stack_error(method, &address)?;
+            let boc = stack.get_boc(4).map_stack_error(method, &address)?;
             let individual_content = read_item_metadata_content(
                 self.client(),
                 &index.clone(),
@@ -70,7 +70,7 @@ pub trait NftItemContract: TonContractInterface {
             })
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
-                method: "get_nft_data".to_string(),
+                method: method.to_string(),
                 address: self.address().clone(),
                 actual: stack.elements.len(),
                 expected: NFT_DATA_STACK_ELEMENTS,
@@ -87,7 +87,7 @@ pub trait NftItemContract: TonContractInterface {
         index: &BigUint,
         individual_content: BagOfCells,
     ) -> Result<BagOfCells, TonContractError> {
-        let method_name = "get_nft_content";
+        let method = NftItemContractMethods::GetNftContent.into();
         let input_stack = vec![
             (TvmStackEntry::Number {
                 number: TvmNumber {
@@ -104,17 +104,15 @@ pub trait NftItemContract: TonContractInterface {
                 },
             }),
         ];
-        let stack = self.run_get_method(method_name, &input_stack).await?.stack;
+        let stack = self.run_get_method(method, &input_stack).await?.stack;
 
         if stack.elements.len() == 1 {
-            let boc = stack
-                .get_boc(0)
-                .map_stack_error(method_name, &self.address())?;
+            let boc = stack.get_boc(0).map_stack_error(method, &self.address())?;
             log::trace!("Got Boc: {:?}", boc);
             Ok(boc)
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
-                method: method_name.to_string(),
+                method: method.to_string(),
                 address: self.address().clone(),
                 actual: stack.elements.len(),
                 expected: 1,
