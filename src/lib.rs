@@ -10,3 +10,7 @@ pub mod meta;
 pub mod mnemonic;
 pub mod tl;
 pub mod wallet;
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
