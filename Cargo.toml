@@ -11,6 +11,10 @@ include = [
     "Cargo.toml"
 ]
 [features]
+# TODO: For now this feature is enabled by default, disable it by default when stabilized
+default = ["state_cache"]
+state_cache = []
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -26,6 +30,7 @@ hex = "0.4"
 hmac = "0.12"
 lazy_static = "1"
 log = "0.4"
+moka = { version = "0.12", features = ["future"] }
 nacl = "0.5"
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"

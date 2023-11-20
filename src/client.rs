@@ -16,7 +16,7 @@ pub use callback::*;
 pub use connection::*;
 pub use error::*;
 pub use interface::*;
-pub use latest_transactions_cache::*;
+
 pub use types::*;
 
 use crate::tl::*;
@@ -28,7 +28,7 @@ mod callback;
 mod connection;
 mod error;
 mod interface;
-mod latest_transactions_cache;
+
 mod types;
 
 pub struct TonClient {

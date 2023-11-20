@@ -55,7 +55,10 @@ const JETTONS: [&str; NUM_JETTONS] = [
 ];
 
 async fn smc_methods_runner(client: TonClient) -> anyhow::Result<()> {
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     for _ in 0..NUM_ITERATIONS {
         let wallet_index = get_random(NUM_WALLETS);
         let jetton_index = get_random(NUM_JETTONS);

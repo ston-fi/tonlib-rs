@@ -4,19 +4,20 @@ pub use error::*;
 pub use factory::*;
 pub use interface::*;
 pub use jetton::*;
+pub use latest_transactions_cache::*;
 pub use nft::*;
 pub use state::*;
 pub use wallet::*;
 
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
-use crate::tl::{InternalTransactionId, SmcRunResult, TvmCell, TvmStackEntry};
+use crate::tl::{InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell, TvmStackEntry};
 
 mod error;
 mod factory;
 mod interface;
 mod jetton;
-
+mod latest_transactions_cache;
 mod nft;
 mod state;
 mod wallet;
@@ -33,6 +34,13 @@ impl TonContract {
             address: address.clone(),
         };
         contract
+    }
+
+    pub async fn get_account_state(
+        &self,
+        account_address: &TonAddress,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        self.factory.get_account_state(account_address).await
     }
 
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
@@ -62,21 +70,21 @@ impl TonContractInterface for TonContract {
         &self.address
     }
 
-    async fn get_code(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_code_cell(&self) -> Result<TvmCell, TonContractError> {
         let state = self.get_state().await?;
-        let result = state.get_code().await?;
+        let result = state.get_code_cell().await?;
         Ok(result)
     }
 
-    async fn get_data(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_data_cell(&self) -> Result<TvmCell, TonContractError> {
         let state = self.get_state().await?;
-        let result = state.get_data().await?;
+        let result = state.get_data_cell().await?;
         Ok(result)
     }
 
-    async fn get_state(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_state_cell(&self) -> Result<TvmCell, TonContractError> {
         let state = self.get_state().await?;
-        let result = state.get_state().await?;
+        let result = state.get_state_cell().await?;
         Ok(result)
     }
 

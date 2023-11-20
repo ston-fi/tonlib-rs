@@ -8,9 +8,10 @@ use tokio::{self};
 use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
 use tonlib::client::{TonBlockFunctions, TonClientInterface};
+use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
-    AccountState, BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
-    InternalTransactionId, LiteServerInfo, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, InternalTransactionId,
+    LiteServerInfo, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 
 mod common;
@@ -19,19 +20,24 @@ mod common;
 async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let r = client
-        .get_account_state(&TonAddress::from_base64_url(
-            "EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH",
-        )?)
-        .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
-    match r.unwrap().account_state {
-        AccountState::Uninited { .. } => {}
-        _ => {
+    let factory = TonContractFactory::builder(&client)
+        .with_cache(100, Duration::from_secs(10))
+        .build()
+        .await?;
+    for _ in 0..100 {
+        let r = factory
+            .get_account_state(&TonAddress::from_base64_url(
+                "EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH",
+            )?)
+            .await;
+        log::info!("{:?}", r);
+        assert!(r.is_ok());
+        if r.unwrap().frozen_hash != Vec::<u8>::new() {
             panic!("Expected UnInited state")
         }
     }
+    drop(factory);
+    tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(())
 }
 
