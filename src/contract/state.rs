@@ -73,7 +73,7 @@ impl TonContractInterface for TonContractState {
         &self.inner.address
     }
 
-    async fn get_code(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_code_cell(&self) -> Result<TvmCell, TonContractError> {
         let r = self
             .inner
             .connection
@@ -82,7 +82,7 @@ impl TonContractInterface for TonContractState {
         Ok(r)
     }
 
-    async fn get_data(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_data_cell(&self) -> Result<TvmCell, TonContractError> {
         let r = self
             .inner
             .connection
@@ -91,7 +91,7 @@ impl TonContractInterface for TonContractState {
         Ok(r)
     }
 
-    async fn get_state(&self) -> Result<TvmCell, TonContractError> {
+    async fn get_state_cell(&self) -> Result<TvmCell, TonContractError> {
         let r = self
             .inner
             .connection

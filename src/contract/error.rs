@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use thiserror::Error;
 
 use crate::address::TonAddress;
@@ -32,7 +33,7 @@ pub enum TonContractError {
     },
 
     #[error("{0}")]
-    ClientMethodError(#[from] TonClientError),
+    ClientError(#[from] TonClientError),
 
     #[error("Invalid method result stack: '{method}', address: {address}, actual: {actual}, expected {expected}")]
     InvalidMethodResultStackSize {
@@ -44,6 +45,14 @@ pub enum TonContractError {
 
     #[error("Internal error: {message}")]
     InternalError { message: String },
+
+    #[error("Illegal argument: {message}")]
+    IllegalArgument { message: String },
+
+    // TODO: Experiment with it, maybe just use  `CacheError { message: String }`
+    #[cfg(feature = "state_cache")]
+    #[error("{0}")]
+    CacheError(#[from] Arc<TonContractError>),
 }
 
 pub trait MapStackError<R> {

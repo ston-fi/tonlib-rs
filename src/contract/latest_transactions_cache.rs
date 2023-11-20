@@ -4,12 +4,15 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
-use crate::client::{TonClient, TonClientError, TonClientInterface};
+use crate::client::TonClientError;
+use crate::contract::{TonClientInterface, TonContractFactory};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
+
+use crate::contract::TonContractError;
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,
-    client: TonClient,
+    contract_factory: TonContractFactory,
     address: TonAddress,
     soft_limit: bool,
     inner: Mutex<Inner>,
@@ -21,14 +24,14 @@ struct Inner {
 
 impl LatestContractTransactionsCache {
     pub fn new(
-        client: &TonClient,
+        contract_factory: &TonContractFactory,
         contract_address: &TonAddress,
         capacity: usize,
         soft_limit: bool,
     ) -> LatestContractTransactionsCache {
         LatestContractTransactionsCache {
             capacity,
-            client: client.clone(),
+            contract_factory: contract_factory.clone(),
             address: contract_address.clone(),
             soft_limit,
             inner: Mutex::new(Inner {
@@ -40,9 +43,9 @@ impl LatestContractTransactionsCache {
     /// Returns up to `limit` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonClientError> {
+    pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         if limit > self.capacity {
-            return Err(TonClientError::IllegalArgument {
+            return Err(TonContractError::IllegalArgument {
                 message: format!(
                     "Transactions cache size requested ({}) must not exceed cache capacity ({})",
                     limit, self.capacity
@@ -62,13 +65,16 @@ impl LatestContractTransactionsCache {
     /// Returns up to `capacity` last transactions.
     ///
     /// Returned transactions are sorted from latest to earliest.
-    pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TonClientError> {
+    pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         self.get(self.capacity).await
     }
 
-    async fn sync(&self, inner: &mut Inner) -> Result<(), TonClientError> {
+    async fn sync(&self, inner: &mut Inner) -> Result<(), TonContractError> {
         // Find out what to sync
-        let state = self.client.get_account_state(&self.address).await?;
+        let state = self
+            .contract_factory
+            .get_account_state(&self.address)
+            .await?;
         let last_tx_id = &state.last_transaction_id;
 
         let synced_tx_id: &InternalTransactionId = inner
@@ -84,7 +90,8 @@ impl LatestContractTransactionsCache {
         let mut batch_size: usize = 16;
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
             let maybe_txs = self
-                .client
+                .contract_factory
+                .get_client()
                 .get_raw_transactions_v2(&self.address, &next_to_load, batch_size, false)
                 .await;
             let txs = match maybe_txs {
@@ -101,7 +108,7 @@ impl LatestContractTransactionsCache {
                     _ => break,
                 },
                 Err(e) => {
-                    return Err(e);
+                    return Err(e.into());
                 }
             };
 

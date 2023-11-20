@@ -8,7 +8,10 @@ mod common;
 async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?); // Moon jetton
     let res = contract.get_jetton_data().await?;
@@ -30,7 +33,10 @@ async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
 async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86".parse()?); // Fanzee jetton
     let res = contract.get_jetton_data().await?;
@@ -46,7 +52,10 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
 async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA".parse()?); // jUSDT jetton
     let res = contract.get_jetton_data().await?;
@@ -61,7 +70,10 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
 async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIw".parse()?); // BOLT jetton
     let res = contract.get_jetton_data().await?;
@@ -79,7 +91,10 @@ async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
 async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?); // jUSDC jetton
     let res = contract.get_jetton_data().await?;
@@ -99,7 +114,10 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
 async fn test_get_wallet_address() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?);
     let owner_address =
@@ -116,7 +134,10 @@ async fn test_get_wallet_address() -> anyhow::Result<()> {
 async fn test_get_jetton_data_invalid_utf8_sequence() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_test_client().await?;
-    let factory = TonContractFactory::new(&client);
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
     let contract =
         factory.get_contract(&"EQDX__KZ7A--poP3Newpo_zx4tQ-yl9yzRwlmg_vifxMEA8m".parse()?);
     let res = contract.get_jetton_data().await?;

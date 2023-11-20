@@ -16,6 +16,7 @@ pub struct BlockStreamItem {
 ///
 /// The result of `next` call is the height of next masterchain block together with
 /// all shards in all workchains that were finalized in corresponding masterchain block.
+///
 pub struct BlockStream {
     client: TonClient,
     next_seqno: i32,
