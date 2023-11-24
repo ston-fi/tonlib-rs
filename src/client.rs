@@ -98,7 +98,7 @@ impl TonClient {
         match result {
             Ok(result) => Ok(result),
             Err(e) => {
-                item.reset().await;
+               // item.reset().await;
                 Err(e)
             }
         }
