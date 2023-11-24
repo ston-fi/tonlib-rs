@@ -97,10 +97,7 @@ impl TonClient {
             RetryIf::spawn(strategy, || self.do_invoke(function, item), retry_condition).await;
         match result {
             Ok(result) => Ok(result),
-            Err(e) => {
-                item.reset().await;
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -188,11 +185,5 @@ impl PoolConnection {
                 Ok(conn)
             }
         }
-    }
-
-    #[allow(dead_code)]
-    async fn reset(&self) {
-        let mut guard = self.conn.lock().await;
-        *guard = None;
     }
 }
