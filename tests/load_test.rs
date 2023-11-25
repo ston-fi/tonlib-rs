@@ -13,7 +13,7 @@ const NUM_ITERATIONS: usize = 1000000;
 #[tokio::test]
 async fn load_test_smc_methods() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_testnet_client().await?;
     let mut handles = vec![];
     for _ in 0..NUM_RUNNERS {
         let c = client.clone();

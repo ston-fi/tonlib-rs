@@ -13,7 +13,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
     common::init_logging();
     let validator: &TonAddress = &"Ef9VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVbxn".parse()?;
 
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_cache(100, Duration::from_secs(10))
         .build()
@@ -71,7 +71,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
     common::init_logging();
     let addr: &TonAddress = &"EQC9kYAEZS0ePT8KCnwk6Fo69HO0t_FEqIRmIY7rW6fh3lK7".parse()?;
 
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_cache(100, Duration::from_secs(10))
         .build()
@@ -127,7 +127,7 @@ async fn get_txs_for_empty_works() -> anyhow::Result<()> {
     common::init_logging();
     let addr: &TonAddress = &"EQAjJIyYzKc4bww1zo3_fAqHWZdYCJHwhs84wtU8smO_Hr3i".parse()?;
 
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_cache(100, Duration::from_secs(10))
         .build()

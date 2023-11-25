@@ -47,6 +47,7 @@ impl TonClient {
         params: &TonConnectionParams,
         retry_strategy: &RetryStrategy,
         callback: Arc<dyn TonConnectionCallback>,
+        archive_nodes_only: bool,
     ) -> Result<TonClient, TonClientError> {
         let mut connections = Vec::with_capacity(pool_size);
         for i in 0..pool_size {
@@ -66,6 +67,7 @@ impl TonClient {
                 params: p,
                 callback: callback.clone(),
                 conn: Mutex::new(None),
+                archive_nodes_only,
             };
             connections.push(entry);
         }
@@ -95,10 +97,7 @@ impl TonClient {
         let item = self.random_item();
         let result =
             RetryIf::spawn(strategy, || self.do_invoke(function, item), retry_condition).await;
-        match result {
-            Ok(result) => Ok(result),
-            Err(e) => Err(e),
-        }
+        result
     }
 
     async fn do_invoke(
@@ -172,6 +171,7 @@ struct PoolConnection {
     params: TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
     conn: Mutex<Option<TonConnection>>,
+    archive_nodes_only: bool,
 }
 
 impl PoolConnection {
@@ -180,7 +180,12 @@ impl PoolConnection {
         match guard.deref() {
             Some(conn) => Ok(conn.clone()),
             None => {
-                let conn = TonConnection::connect(&self.params, self.callback.clone()).await?;
+                let conn = if self.archive_nodes_only {
+                    // connect to other node until it will be able to fetch the very first block
+                    TonConnection::connect_to_archive(&self.params, self.callback.clone()).await?
+                } else {
+                    TonConnection::connect(&self.params, self.callback.clone()).await?
+                };
                 *guard = Some(conn.clone());
                 Ok(conn)
             }
