@@ -7,7 +7,7 @@ mod common;
 #[tokio::test]
 async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -32,7 +32,7 @@ async fn test_get_jetton_content_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -51,7 +51,7 @@ async fn test_get_jetton_content_internal_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -69,7 +69,7 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -90,7 +90,7 @@ async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -113,7 +113,7 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_wallet_address() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -133,7 +133,7 @@ async fn test_get_wallet_address() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_jetton_data_invalid_utf8_sequence() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()

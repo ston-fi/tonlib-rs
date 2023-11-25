@@ -5,7 +5,7 @@ mod common;
 #[tokio::test]
 pub async fn block_listener_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_testnet_client().await?;
     let seqno = client.get_masterchain_info().await?.last.seqno - 20;
     let mut listener = BlockStream::new(&client, seqno);
     for _ in 0..10 {
@@ -27,7 +27,7 @@ pub async fn block_listener_works() -> anyhow::Result<()> {
 #[tokio::test]
 pub async fn block_listener_get_block_header() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_testnet_client().await?;
     let seqno = client.get_masterchain_info().await?.last;
     let headers = client.get_block_header(&seqno).await?;
     println!("{:?}", headers);

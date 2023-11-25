@@ -13,6 +13,7 @@ pub struct TonClientBuilder {
     connection_params: TonConnectionParams,
     retry_strategy: RetryStrategy,
     callback: Arc<dyn TonConnectionCallback>,
+    archive_nodes_only: bool,
 }
 
 impl TonClientBuilder {
@@ -22,6 +23,7 @@ impl TonClientBuilder {
             connection_params: TonConnectionParams::default(),
             retry_strategy: RetryStrategy::default(),
             callback: LOGGING_CONNECTION_CALLBACK.clone(),
+            archive_nodes_only: false,
         }
     }
 
@@ -75,12 +77,18 @@ impl TonClientBuilder {
         self
     }
 
+    pub fn with_archive_nodes_only(&mut self) -> &mut Self {
+        self.archive_nodes_only = true;
+        self
+    }
+
     pub async fn build(&self) -> Result<TonClient, error::TonClientError> {
         TonClient::new(
             self.pool_size,
             &self.connection_params,
             &self.retry_strategy,
             self.callback.clone(),
+            self.archive_nodes_only,
         )
         .await
     }

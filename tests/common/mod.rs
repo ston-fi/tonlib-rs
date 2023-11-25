@@ -5,7 +5,10 @@ use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
 
-use tonlib::client::TonClient;
+use tonlib::{
+    client::{TonClient, TonConnectionParams},
+    config::{MAINNET_CONFIG, TESTNET_CONFIG},
+};
 
 static LOG: Once = Once::new();
 
@@ -29,11 +32,58 @@ pub fn init_logging() {
 }
 
 #[allow(dead_code)]
-pub async fn new_test_client() -> anyhow::Result<TonClient> {
+pub async fn new_testnet_client() -> anyhow::Result<TonClient> {
+    let mut params = TonConnectionParams::default();
+    params.config = TESTNET_CONFIG.to_string();
     let client = TonClient::builder()
+        .with_connection_params(&params)
         .with_pool_size(2)
         .with_logging_callback()
         .with_keystore_dir("./var/ton".to_string())
+        .build()
+        .await?;
+    Ok(client)
+}
+
+#[allow(dead_code)]
+pub async fn new_archive_testnet_client() -> anyhow::Result<TonClient> {
+    let mut params = TonConnectionParams::default();
+    params.config = TESTNET_CONFIG.to_string();
+    let client = TonClient::builder()
+        .with_connection_params(&params)
+        .with_pool_size(2)
+        .with_logging_callback()
+        .with_keystore_dir("./var/ton".to_string())
+        .with_archive_nodes_only()
+        .build()
+        .await?;
+    Ok(client)
+}
+
+#[allow(dead_code)]
+pub async fn new_mainnet_client() -> anyhow::Result<TonClient> {
+    let mut params = TonConnectionParams::default();
+    params.config = MAINNET_CONFIG.to_string();
+    let client = TonClient::builder()
+        .with_connection_params(&params)
+        .with_pool_size(2)
+        .with_logging_callback()
+        .with_keystore_dir("./var/ton".to_string())
+        .build()
+        .await?;
+    Ok(client)
+}
+
+#[allow(dead_code)]
+pub async fn new_archive_mainnet_client() -> anyhow::Result<TonClient> {
+    let mut params = TonConnectionParams::default();
+    params.config = MAINNET_CONFIG.to_string();
+    let client = TonClient::builder()
+        .with_connection_params(&params)
+        .with_pool_size(2)
+        .with_logging_callback()
+        .with_keystore_dir("./var/ton".to_string())
+        .with_archive_nodes_only()
         .build()
         .await?;
     Ok(client)

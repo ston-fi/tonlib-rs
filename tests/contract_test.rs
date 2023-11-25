@@ -72,7 +72,7 @@ impl<T> PoolContract for T where T: TonContractInterface {}
 #[tokio::test]
 async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -89,7 +89,7 @@ async fn contract_get_pool_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn state_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -107,7 +107,7 @@ async fn state_get_pool_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn state_clone_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()

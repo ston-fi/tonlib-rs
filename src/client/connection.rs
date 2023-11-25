@@ -7,13 +7,16 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
-use crate::client::{
-    TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
-    TonNotificationReceiver,
-};
 use crate::tl::{
     Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult, TlTonClient,
     TonFunction, TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
+};
+use crate::{
+    client::{
+        TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
+        TonNotificationReceiver,
+    },
+    tl::BlockId,
 };
 
 struct RequestData {
@@ -92,6 +95,27 @@ impl TonConnection {
             )
             .await?;
         Ok(conn)
+    }
+
+    pub async fn connect_to_archive(
+        params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+    ) -> Result<TonConnection, TonClientError> {
+        // connect to other node until it will be able to fetch the very first block
+        loop {
+            let c = TonConnection::connect(params, callback.clone()).await?;
+            let info = BlockId {
+                workchain: -1,
+                shard: i64::MIN,
+                seqno: 1,
+            };
+            let r = c.lookup_block(1, &info, 0, 0).await;
+            if r.is_ok() {
+                break Ok(c);
+            } else {
+                log::info!("Dropping connection to non-archive node");
+            }
+        }
     }
 
     /// Attempts to initialize an existing TonConnection

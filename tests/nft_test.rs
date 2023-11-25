@@ -6,7 +6,7 @@ mod common;
 #[tokio::test]
 async fn test_get_nft_data() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -20,7 +20,7 @@ async fn test_get_nft_data() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_data() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -34,7 +34,7 @@ async fn test_get_nft_collection_data() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -50,7 +50,7 @@ async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -80,7 +80,7 @@ async fn test_get_nft_content_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -101,7 +101,7 @@ async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_some() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -124,7 +124,7 @@ async fn test_get_nft_content_some() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -157,7 +157,7 @@ async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
@@ -179,7 +179,7 @@ async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_some() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_default_cache()
         .build()
