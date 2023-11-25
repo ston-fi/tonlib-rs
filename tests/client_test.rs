@@ -5,13 +5,17 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tokio::{self};
 
-use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
 use tonlib::client::{TonBlockFunctions, TonClientInterface};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
     BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, InternalTransactionId,
     LiteServerInfo, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+};
+use tonlib::{
+    address::TonAddress,
+    client::TonClient,
+    config::{MAINNET_CONFIG, TESTNET_CONFIG},
 };
 
 mod common;
@@ -308,5 +312,54 @@ async fn test_get_shards_transactions() -> anyhow::Result<()> {
     for s in shards_txs {
         println!("{:?} : {:?}", s.0, s.1);
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_mainnet_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = TonClient::builder()
+        .with_pool_size(2)
+        .with_config(MAINNET_CONFIG)
+        .build()
+        .await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    let blocks_header = client.get_block_header(&info.last).await?;
+    assert!(shards.shards.len() > 0);
+    let shards_txs = client.get_shards_transactions(&shards.shards).await?;
+    for s in shards_txs {
+        log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1);
+    }
+    log::info!(
+        "MAINNET: Blocks header for  {} seqno : {:?}",
+        info.last.seqno,
+        blocks_header
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_testnet_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = TonClient::builder()
+        .with_pool_size(2)
+        .with_config(TESTNET_CONFIG)
+        .build()
+        .await?;
+    let info = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    assert!(shards.shards.len() > 0);
+    let shards_txs = client.get_shards_transactions(&shards.shards).await?;
+    let blocks_header = client.get_block_header(&info.last).await?;
+    for s in shards_txs {
+        log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1);
+    }
+
+    log::info!(
+        "TESTNET: Blocks header for  {} seqno : {:?}",
+        info.last.seqno,
+        blocks_header
+    );
     Ok(())
 }

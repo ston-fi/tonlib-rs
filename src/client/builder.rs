@@ -35,6 +35,11 @@ impl TonClientBuilder {
         self
     }
 
+    pub fn with_config(&mut self, config: &str) -> &mut Self {
+        self.connection_params.config = config.to_string();
+        self
+    }
+
     pub fn with_retry_strategy(&mut self, retry_strategy: &RetryStrategy) -> &mut Self {
         self.retry_strategy = retry_strategy.clone();
         self
