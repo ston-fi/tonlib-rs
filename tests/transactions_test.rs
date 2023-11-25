@@ -18,7 +18,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
         .with_cache(100, Duration::from_secs(10))
         .build()
         .await?;
-    let trans = LatestContractTransactionsCache::new(factory, validator, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, validator, 100, true);
     let trs = trans.get(4).await?;
     println!(
         "Got {} transactions, first {}, last {}",
@@ -76,7 +76,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
         .with_cache(100, Duration::from_secs(10))
         .build()
         .await?;
-    let trans = LatestContractTransactionsCache::new(factory.clone(), addr, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true);
 
     let trs = trans.get(4).await?;
     if trs.is_empty() {
@@ -115,7 +115,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
     let mut missing_hash = addr.hash_part.clone();
     missing_hash[31] += 1;
     let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
-    let missing_trans = LatestContractTransactionsCache::new(factory, &missing_addr, 100, true);
+    let missing_trans = LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true);
     let missing_trs = missing_trans.get(30).await?;
 
     assert_eq!(missing_trs.len(), 0);
@@ -132,7 +132,7 @@ async fn get_txs_for_empty_works() -> anyhow::Result<()> {
         .with_cache(100, Duration::from_secs(10))
         .build()
         .await?;
-    let trans = LatestContractTransactionsCache::new(factory, addr, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true);
     let trs = trans.get(4).await?;
     println!(
         "Got {} transactions, first {:?}, last {:?}",

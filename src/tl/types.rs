@@ -567,7 +567,7 @@ pub struct BlocksHeader {
     pub end_lt: i64,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub gen_utime: i64,
-    pub vert_seqno: i32,
+    pub vert_seqno: Option<i32>,
     pub prev_blocks: Vec<BlockIdExt>,
 }
 
