@@ -196,6 +196,7 @@ impl TonClientInterface for TonConnection {
         self.inner
             .callback
             .on_invoke(self.inner.tl_client.get_tag(), cnt, function);
+
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
             let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
@@ -273,12 +274,12 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
 
                     if let Err(_) = data.sender.send(result) {
                         log::warn!(
-                                "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
-                                tag,
-                                data.method,
-                                request_id,
-                                &duration,
-                            );
+                            "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
+                            tag,
+                            data.method,
+                            request_id,
+                            &duration,
+                        );
                     }
                 } else {
                     // No request data, attempt to parse notification. Errors are ignored here.

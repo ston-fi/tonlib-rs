@@ -68,7 +68,9 @@ impl BlockStream {
             }
             result_shards.insert(curr_shard.clone());
             let curr_shard_ids = self.client.get_block_header(&curr_shard).await?;
-            unprocessed_shards.extend(curr_shard_ids.prev_blocks);
+            if let Some(prev_blocks) = curr_shard_ids.prev_blocks {
+                unprocessed_shards.extend(prev_blocks);
+            };
         }
         self.next_seqno += 1;
         let new_prev_seq_shards = block_shards.shards;
