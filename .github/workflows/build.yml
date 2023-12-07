@@ -17,5 +17,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: cargo fmt --check
-      - run: cargo build --features "state-cache" --verbose 
-      - run: cargo test --features "state-cache" --lib -- --test-threads=1
+      - run: cargo build --features "state_cache" --verbose 
+      - run: cargo test --features "state_cache" --lib -- --test-threads=1
