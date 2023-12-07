@@ -3,7 +3,9 @@ use std::time::Duration;
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
+#[cfg(feature = "state_cache")]
 const DEFAULT_CAPACITY: u64 = 100_000;
+#[cfg(feature = "state_cache")]
 const DEFAULT_TTL: Duration = Duration::from_secs(60 * 60);
 
 pub struct TonContractFactoryBuilder {
@@ -44,10 +46,7 @@ impl TonContractFactoryBuilder {
 
     #[cfg(not(feature = "state_cache"))]
     pub fn with_cache(&mut self, _capacity: u64, _time_to_live: Duration) -> &mut Self {
-        compile_error!(
-            "State cache disabled. Use feature flag \"cache_contract_state\" to enable it.  "
-        );
-        self
+        panic!("State cache disabled. Use feature flag \"state_cache\" to enable it.  ");
     }
 
     #[cfg(feature = "state_cache")]
@@ -60,10 +59,7 @@ impl TonContractFactoryBuilder {
 
     #[cfg(not(feature = "state_cache"))]
     pub fn with_default_cache(&mut self) -> &mut Self {
-        compile_error!(
-            "State cache disabled. Use feature flag \"cache_contract_state\" to enable it.  "
-        );
-        self
+        panic!("State cache disabled. Use feature flag \"state_cache\" to enable it.  ");
     }
 
     #[cfg(feature = "state_cache")]

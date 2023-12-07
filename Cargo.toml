@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.10.0"
+version = "0.11.0-dev"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -10,9 +10,9 @@ include = [
     "resources/*",
     "Cargo.toml"
 ]
+
 [features]
-# TODO: For now this feature is enabled by default, disable it by default when stabilized
-default = ["state_cache"]
+default = []
 state_cache = []
 
 
@@ -45,7 +45,7 @@ reqwest = "0.11"
 thiserror = "1"
 tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
-tonlib-sys = "2023.6"
+tonlib-sys = "2023.11"
 
 [dev-dependencies]
 anyhow = "1"

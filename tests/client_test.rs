@@ -23,7 +23,7 @@ mod common;
 #[tokio::test]
 async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_testnet_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client)
         .with_cache(100, Duration::from_secs(10))
         .build()
@@ -48,7 +48,7 @@ async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let r = client
         .get_raw_account_state(&TonAddress::from_base64_url(
             "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
@@ -92,7 +92,7 @@ async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
 async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
     common::init_logging();
     {
-        let client = common::new_testnet_client().await?;
+        let client = common::new_mainnet_client().await?;
         let (conn, id1) = client
             .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
             .await?; // pool 0.3.0
@@ -134,7 +134,7 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
     let mut retries = 0;
     while retries < max_retries {
         retries += 1;
-        let client = common::new_testnet_client().await?;
+        let client = common::new_archive_mainnet_client().await?;
 
         let state = client.get_raw_account_state(address).await.unwrap();
 
@@ -154,7 +154,7 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_smc_get_code_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_code(id1).await?;
@@ -165,7 +165,7 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_smc_get_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_data(id1).await?;
@@ -176,7 +176,7 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_smc_get_state_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_state(id1).await?;
@@ -187,7 +187,7 @@ async fn client_smc_get_state_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_get_block_header_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let seqno = client.get_masterchain_info().await?.last.seqno;
     let block_id = BlockId {
         workchain: -1,

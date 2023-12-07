@@ -568,7 +568,7 @@ pub struct BlocksHeader {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub gen_utime: i64,
     pub vert_seqno: Option<i32>,
-    pub prev_blocks: Vec<BlockIdExt>,
+    pub prev_blocks: Option<Vec<BlockIdExt>>,
 }
 
 // tonlib_api.tl, line 228

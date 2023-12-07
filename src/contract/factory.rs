@@ -85,7 +85,7 @@ impl TonContractFactory {
             Ok(self.client.get_raw_account_state(account_address).await?)
         }
         #[cfg(not(feature = "state_cache"))]
-        self.client.get_raw_account_state(account_address).await
+        Ok(self.client.get_raw_account_state(account_address).await?)
     }
 
     pub async fn get_contract_state_by_transaction(

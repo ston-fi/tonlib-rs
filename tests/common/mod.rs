@@ -39,7 +39,7 @@ pub async fn new_testnet_client() -> anyhow::Result<TonClient> {
         .with_connection_params(&params)
         .with_pool_size(2)
         .with_logging_callback()
-        .with_keystore_dir("./var/ton".to_string())
+        .with_keystore_dir("./var/ton/testnet".to_string())
         .build()
         .await?;
     Ok(client)
@@ -53,7 +53,7 @@ pub async fn new_archive_testnet_client() -> anyhow::Result<TonClient> {
         .with_connection_params(&params)
         .with_pool_size(2)
         .with_logging_callback()
-        .with_keystore_dir("./var/ton".to_string())
+        .with_keystore_dir("./var/ton/testnet".to_string())
         .with_archive_nodes_only()
         .build()
         .await?;
