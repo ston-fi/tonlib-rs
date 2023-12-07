@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -10,7 +10,11 @@ include = [
     "resources/*",
     "Cargo.toml"
 ]
+
 [features]
+default = []
+state_cache = []
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,9 +27,10 @@ crc = "3"
 dashmap = "5"
 futures = "0.3"
 hex = "0.4"
-hmac = "0.12"
+hmac = {version = "0.12", features = ["std"]}
 lazy_static = "1"
 log = "0.4"
+moka = { version = "0.12", features = ["future"] }
 nacl = "0.5"
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
@@ -34,13 +39,13 @@ serde = { version = "1", features = ["derive"] }
 serde-aux = "4"
 serde_json = "1"
 sha2 = "0.10"
-strum = { version = "0.24", features = ["derive"] }
+strum = { version = "0.25", features = ["derive"] }
 pbkdf2 = "0.11"
 reqwest = "0.11"
 thiserror = "1"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
-tonlib-sys = "2023.6"
+tonlib-sys = "2023.11"
 
 [dev-dependencies]
 anyhow = "1"

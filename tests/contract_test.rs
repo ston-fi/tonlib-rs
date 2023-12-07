@@ -1,9 +1,10 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
+use std::time::Duration;
 
 use tonlib::address::TonAddress;
-use tonlib::contract::{TonContract, TonContractInterface};
+use tonlib::contract::{TonContractFactory, TonContractInterface};
 
 mod common;
 
@@ -71,11 +72,13 @@ impl<T> PoolContract for T where T: TonContractInterface {}
 #[tokio::test]
 async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
-    );
+    let client = common::new_archive_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
     let pool_data = contract.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
@@ -86,15 +89,41 @@ async fn contract_get_pool_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn state_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_test_client().await?;
-    let contract = TonContract::new(
-        &client,
-        &"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?,
-    );
-    let state = contract.load_state().await?;
+    let client = common::new_archive_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
+    let state = contract.get_state().await?;
     let pool_data = state.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
     assert!(invalid_result.is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn state_clone_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_archive_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
+    let contract =
+        factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
+    let state1 = contract.get_state().await?;
+    let pool_data = state1.get_pool_data().await?;
+    println!("pool data: {:?}", pool_data);
+    {
+        let state2 = state1.clone();
+        let pool_data = state2.get_pool_data().await?;
+        println!("pool data: {:?}", pool_data);
+    }
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    let pool_data = state1.get_pool_data().await?;
+    println!("pool data: {:?}", pool_data);
     Ok(())
 }

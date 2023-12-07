@@ -7,13 +7,16 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
-use crate::client::{
-    TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
-    TonNotificationReceiver,
-};
 use crate::tl::{
     Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult, TlTonClient,
     TonFunction, TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
+};
+use crate::{
+    client::{
+        TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
+        TonNotificationReceiver,
+    },
+    tl::BlockId,
 };
 
 struct RequestData {
@@ -94,6 +97,27 @@ impl TonConnection {
         Ok(conn)
     }
 
+    pub async fn connect_to_archive(
+        params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+    ) -> Result<TonConnection, TonClientError> {
+        // connect to other node until it will be able to fetch the very first block
+        loop {
+            let c = TonConnection::connect(params, callback.clone()).await?;
+            let info = BlockId {
+                workchain: -1,
+                shard: i64::MIN,
+                seqno: 1,
+            };
+            let r = c.lookup_block(1, &info, 0, 0).await;
+            if r.is_ok() {
+                break Ok(c);
+            } else {
+                log::info!("Dropping connection to non-archive node");
+            }
+        }
+    }
+
     /// Attempts to initialize an existing TonConnection
     pub async fn init(
         &self,
@@ -172,6 +196,7 @@ impl TonClientInterface for TonConnection {
         self.inner
             .callback
             .on_invoke(self.inner.tl_client.get_tag(), cnt, function);
+
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
             let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
@@ -203,6 +228,8 @@ impl Clone for TonConnection {
     }
 }
 
+static NOT_AVAILABLE: &str = "N/A";
+
 /// Client run loop
 fn run_loop(tag: String, weak_inner: Weak<Inner>) {
     log::info!("[{}] Starting event loop", tag);
@@ -218,7 +245,15 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                 let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));
                 let result: Result<TonResult, TonClientError> = match ton_result {
                     Ok(TonResult::Error { code, message }) => {
-                        Err(TonClientError::TonlibError { code, message })
+                        let method = maybe_data
+                            .as_ref()
+                            .map(|d| d.1.method)
+                            .unwrap_or(NOT_AVAILABLE);
+                        Err(TonClientError::TonlibError {
+                            method,
+                            code,
+                            message,
+                        })
                     }
                     Err(e) => Err(e.into()),
                     Ok(r) => Ok(r),
@@ -239,12 +274,12 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
 
                     if let Err(_) = data.sender.send(result) {
                         log::warn!(
-                                "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
-                                tag,
-                                data.method,
-                                request_id,
-                                &duration,
-                            );
+                            "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
+                            tag,
+                            data.method,
+                            request_id,
+                            &duration,
+                        );
                     }
                 } else {
                     // No request data, attempt to parse notification. Errors are ignored here.

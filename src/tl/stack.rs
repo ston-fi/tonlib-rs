@@ -232,16 +232,23 @@ impl TvmStack {
     }
 
     fn extract_boc(e: &TvmStackEntry, index: usize) -> Result<BagOfCells, TvmStackError> {
-        if let TvmStackEntry::Cell { cell } = e {
-            BagOfCells::parse(&cell.bytes).map_err(|_| TvmStackError::BoCConversion {
+        match e {
+            TvmStackEntry::Slice { slice } => {
+                BagOfCells::parse(&slice.bytes).map_err(|_| TvmStackError::BoCConversion {
+                    e: e.clone(),
+                    index,
+                })
+            }
+            TvmStackEntry::Cell { cell } => {
+                BagOfCells::parse(&cell.bytes).map_err(|_| TvmStackError::BoCConversion {
+                    e: e.clone(),
+                    index,
+                })
+            }
+            _ => Err(TvmStackError::BoCConversion {
                 e: e.clone(),
                 index,
-            })
-        } else {
-            Err(TvmStackError::BoCConversion {
-                e: e.clone(),
-                index,
-            })
+            }),
         }
     }
 }
