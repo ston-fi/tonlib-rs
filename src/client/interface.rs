@@ -221,11 +221,13 @@ pub trait TonClientInterface: Send + Sync {
         }
     }
 
-    async fn get_masterchain_info(&self) -> Result<BlocksMasterchainInfo, TonClientError> {
+    async fn get_masterchain_info(
+        &self,
+    ) -> Result<(TonConnection, BlocksMasterchainInfo), TonClientError> {
         let func = TonFunction::BlocksGetMasterchainInfo {};
-        let result = self.invoke(&func).await?;
+        let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
-            TonResult::BlocksMasterchainInfo(result) => Ok(result),
+            TonResult::BlocksMasterchainInfo(result) => Ok((conn, result)),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::BlocksMasterchainInfo,
                 r,

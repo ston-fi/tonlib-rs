@@ -1,10 +1,11 @@
+use futures::future::try_join_all;
 use std::collections::HashSet;
 use std::time::Duration;
 
 use tokio::time;
 
-use crate::client::{TonClient, TonClientError, TonClientInterface};
-use crate::tl::{BlockId, BlockIdExt, BlocksShards};
+use crate::client::{TonClient, TonClientError, TonClientInterface, TonConnection};
+use crate::tl::{BlockId, BlockIdExt, BlocksHeader, BlocksShards};
 
 #[derive(Debug, Clone)]
 pub struct BlockStreamItem {
@@ -20,7 +21,6 @@ pub struct BlockStreamItem {
 pub struct BlockStream {
     client: TonClient,
     next_seqno: i32,
-    known_master_seqno: i32,
     prev_block_set: HashSet<BlockId>,
 }
 
@@ -29,7 +29,6 @@ impl BlockStream {
         BlockStream {
             client: client.clone(),
             next_seqno: from_seqno,
-            known_master_seqno: 0,
             prev_block_set: Default::default(),
         }
     }
@@ -39,39 +38,48 @@ impl BlockStream {
     /// If the next block is not yet available, the returned future resolves when it's added to masterchain.
     pub async fn next(&mut self) -> Result<BlockStreamItem, TonClientError> {
         if self.prev_block_set.is_empty() {
-            let (prev_block_shards, _) = self.get_master_block_shards(self.next_seqno - 1).await?;
+            let (prev_block_shards, _) =
+                Self::get_master_block_shards(&self.client, self.next_seqno - 1).await?;
             for shard in prev_block_shards.shards {
                 self.prev_block_set.insert(shard.to_block_id());
             }
         };
-        if self.known_master_seqno < self.next_seqno {
-            loop {
-                let masterchain_info = self.client.get_masterchain_info().await?;
-                self.known_master_seqno = masterchain_info.last.seqno;
-                if masterchain_info.last.seqno < self.next_seqno {
-                    time::sleep(Duration::from_millis(100)).await;
-                } else {
-                    break;
-                }
+        let connection = loop {
+            let (conn, masterchain_info) = self.client.get_masterchain_info().await?;
+            if masterchain_info.last.seqno < self.next_seqno {
+                time::sleep(Duration::from_millis(100)).await;
+            } else {
+                break conn;
             }
-        }
-        let (block_shards, master_block) = self.get_master_block_shards(self.next_seqno).await?;
+        };
+        let (block_shards, master_block) =
+            Self::get_master_block_shards(&connection, self.next_seqno).await?;
         let mut result_shards: HashSet<BlockIdExt> = Default::default();
         let mut unprocessed_shards: Vec<BlockIdExt> = Default::default();
         unprocessed_shards.extend(block_shards.shards.clone());
-        while let Some(curr_shard) = unprocessed_shards.pop() {
-            if self.prev_block_set.contains(&curr_shard.to_block_id()) {
-                continue;
+        while !unprocessed_shards.is_empty() {
+            let mut shards_to_process: HashSet<BlockIdExt> = Default::default();
+            for s in unprocessed_shards.into_iter() {
+                if self.prev_block_set.contains(&s.to_block_id()) {
+                    continue;
+                }
+                if result_shards.contains(&s) {
+                    continue;
+                }
+                result_shards.insert(s.clone());
+                shards_to_process.insert(s);
             }
-            if result_shards.contains(&curr_shard) {
-                continue;
+            unprocessed_shards = Default::default();
+            let headers = self
+                .get_block_headers(&connection, &shards_to_process)
+                .await?;
+            for h in headers {
+                if let Some(prev_blocks) = h.prev_blocks {
+                    unprocessed_shards.extend(prev_blocks)
+                }
             }
-            result_shards.insert(curr_shard.clone());
-            let curr_shard_ids = self.client.get_block_header(&curr_shard).await?;
-            if let Some(prev_blocks) = curr_shard_ids.prev_blocks {
-                unprocessed_shards.extend(prev_blocks);
-            };
         }
+
         self.next_seqno += 1;
         let new_prev_seq_shards = block_shards.shards;
         self.prev_block_set = new_prev_seq_shards
@@ -84,8 +92,34 @@ impl BlockStream {
         })
     }
 
-    async fn get_master_block_shards(
+    async fn get_block_headers(
         &self,
+        conn: &TonConnection,
+        shards: &HashSet<BlockIdExt>,
+    ) -> Result<Vec<BlocksHeader>, TonClientError> {
+        let futures: Vec<_> = shards
+            .iter()
+            .map(|id| self.retrying_get_block_header(conn, id))
+            .collect();
+        let r = try_join_all(futures).await?;
+        Ok(r)
+    }
+
+    async fn retrying_get_block_header(
+        &self,
+        conn: &TonConnection,
+        block_id: &BlockIdExt,
+    ) -> Result<BlocksHeader, TonClientError> {
+        let r = conn.get_block_header(block_id).await;
+        // Fallback to random connection on client
+        match r {
+            Ok(bh) => Ok(bh),
+            Err(_) => self.client.get_block_header(block_id).await,
+        }
+    }
+
+    async fn get_master_block_shards<C: TonClientInterface>(
+        conn: &C,
         seqno: i32,
     ) -> Result<(BlocksShards, BlockIdExt), TonClientError> {
         let master_block = BlockId {
@@ -93,9 +127,9 @@ impl BlockStream {
             shard: i64::MIN,
             seqno,
         };
-        let master_block_ext = self.client.lookup_block(1, &master_block, 0, 0).await?;
+        let master_block_ext = conn.lookup_block(1, &master_block, 0, 0).await?;
         Ok((
-            self.client.get_block_shards(&master_block_ext).await?,
+            conn.get_block_shards(&master_block_ext).await?,
             master_block_ext,
         ))
     }

@@ -66,7 +66,6 @@ pub async fn new_mainnet_client() -> anyhow::Result<TonClient> {
     params.config = MAINNET_CONFIG.to_string();
     let client = TonClient::builder()
         .with_connection_params(&params)
-        .with_pool_size(2)
         .with_logging_callback()
         .with_keystore_dir("./var/ton".to_string())
         .build()
