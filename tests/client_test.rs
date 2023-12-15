@@ -9,8 +9,8 @@ use tonlib::cell::BagOfCells;
 use tonlib::client::{TonBlockFunctions, TonClientInterface};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
-    BlockId, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, InternalTransactionId,
-    LiteServerInfo, SmcMethodId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo, SmcMethodId,
+    NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib::{
     address::TonAddress,
@@ -188,7 +188,8 @@ async fn client_smc_get_state_works() -> anyhow::Result<()> {
 async fn client_get_block_header_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
-    let seqno = client.get_masterchain_info().await?.last.seqno;
+    let (_, info) = client.get_masterchain_info().await?;
+    let seqno = info.last.seqno;
     let block_id = BlockId {
         workchain: -1,
         shard: i64::MIN,
@@ -204,7 +205,7 @@ async fn client_get_block_header_works() -> anyhow::Result<()> {
 async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_testnet_client().await?;
-    let info: BlocksMasterchainInfo = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     println!("MasterchainInfo: {:?}", &info);
     let block_id = BlockId {
         workchain: info.last.workchain,
@@ -271,7 +272,8 @@ async fn test_get_config_param() -> anyhow::Result<()> {
 pub async fn test_get_block_header() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await?;
-    let seqno = client.get_masterchain_info().await?.last;
+    let (_, info) = client.get_masterchain_info().await?;
+    let seqno = info.last;
     let headers = client.get_block_header(&seqno).await?;
     println!("{:?}", headers);
     Ok(())
@@ -281,7 +283,7 @@ pub async fn test_get_block_header() -> anyhow::Result<()> {
 async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     assert!(shards.shards.len() > 0);
     let ids = client.get_shard_tx_ids(&shards.shards[0]).await?;
@@ -293,7 +295,7 @@ async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
 async fn test_get_shard_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     assert!(shards.shards.len() > 0);
     let txs = client.get_shard_transactions(&shards.shards[0]).await?;
@@ -305,7 +307,7 @@ async fn test_get_shard_transactions() -> anyhow::Result<()> {
 async fn test_get_shards_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     assert!(shards.shards.len() > 0);
     let shards_txs = client.get_shards_transactions(&shards.shards).await?;
@@ -319,7 +321,7 @@ async fn test_get_shards_transactions() -> anyhow::Result<()> {
 async fn test_missing_block_error() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -340,7 +342,7 @@ async fn test_missing_block_error() -> anyhow::Result<()> {
 async fn test_first_block_error() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_archive_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -356,7 +358,7 @@ async fn test_first_block_error() -> anyhow::Result<()> {
 async fn test_keep_connection_alive() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_archive_testnet_client().await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let next_block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -386,7 +388,7 @@ async fn client_mainnet_works() -> anyhow::Result<()> {
         .with_config(MAINNET_CONFIG)
         .build()
         .await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     let blocks_header = client.get_block_header(&info.last).await?;
     assert!(shards.shards.len() > 0);
@@ -410,7 +412,7 @@ async fn client_testnet_works() -> anyhow::Result<()> {
         .with_config(TESTNET_CONFIG)
         .build()
         .await?;
-    let info = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     assert!(shards.shards.len() > 0);
     let shards_txs = client.get_shards_transactions(&shards.shards).await?;
