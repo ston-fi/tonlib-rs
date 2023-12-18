@@ -117,7 +117,7 @@ impl ContractFactoryCache {
         let first_block_seqno = loop {
             let masterchain_info_result = client.get_masterchain_info().await;
             match masterchain_info_result {
-                Ok(info) => break info.last.seqno,
+                Ok((_, info)) => break info.last.seqno,
                 Err(e) => {
                     log::warn!(
                         "[ContractFactoryCache] Could not retrieve current block: {}",
