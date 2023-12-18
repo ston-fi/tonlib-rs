@@ -24,10 +24,7 @@ mod common;
 async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_archive_mainnet_client().await?;
-    let factory = TonContractFactory::builder(&client)
-        .with_cache(100, Duration::from_secs(10))
-        .build()
-        .await?;
+    let factory = TonContractFactory::builder(&client).build().await?;
     for _ in 0..100 {
         let r = factory
             .get_account_state(&TonAddress::from_base64_url(
@@ -48,7 +45,7 @@ async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_mainnet_client().await?;
+    let client = common::new_archive_mainnet_client().await?;
     let r = client
         .get_raw_account_state(&TonAddress::from_base64_url(
             "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
