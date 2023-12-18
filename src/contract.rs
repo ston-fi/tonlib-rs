@@ -36,11 +36,8 @@ impl TonContract {
         contract
     }
 
-    pub async fn get_account_state(
-        &self,
-        account_address: &TonAddress,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        self.factory.get_account_state(account_address).await
+    pub async fn get_account_state(&self) -> Result<RawFullAccountState, TonContractError> {
+        self.factory.get_account_state(&self.address).await
     }
 
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
