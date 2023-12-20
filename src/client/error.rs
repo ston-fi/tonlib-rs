@@ -11,7 +11,7 @@ pub enum TonClientError {
         expected: TonResultDiscriminants,
     },
 
-    #[error("TonError: code {code}, message {message}")]
+    #[error("TonError: method: {method}, code {code}, message {message}")]
     TonlibError {
         method: &'static str,
         code: i32,
