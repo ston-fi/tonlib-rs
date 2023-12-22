@@ -188,8 +188,11 @@ impl Inner {
             block.master_shard.seqno
         );
 
+        let mut all_shards = block.shards.clone();
+        all_shards.push(block.master_shard.clone());
+
         let tx_ids: Vec<_> = client
-            .get_shards_tx_ids(block.shards.as_slice())
+            .get_shards_tx_ids(all_shards.as_slice())
             .await?
             .into_iter()
             .map(|(_, vec)| vec)
