@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -8,8 +9,9 @@ use moka::future::Cache;
 
 use crate::address::TonAddress;
 use crate::client::{
-    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientInterface,
+    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientError, TonClientInterface,
 };
+use crate::contract::TonContractError::CacheError;
 use crate::contract::{TonContractError, TonContractState};
 use crate::tl::{InternalTransactionId, RawFullAccountState};
 
@@ -59,15 +61,38 @@ impl ContractFactoryCache {
         client: &TonClient,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
-        let state = self
+        let state_result = self
             .inner
             .contract_state_cache
             .try_get_with(
                 address.clone(),
                 Self::load_contract_state(client, &self.inner.tx_id_cache, address),
             )
-            .await?;
-        Ok(state)
+            .await;
+        match state_result {
+            Ok(state) => Ok(state),
+            Err(e) => self.try_recover_hash_mismatch(client, address, &e).await,
+        }
+    }
+
+    // There's a bug in tonlib that prevents smc.loadByTransaction to work for ston.fi LpAccount
+    // after providing liquidity in a single operation.
+    // In this situation we fall back to normal smc.load without caching
+    async fn try_recover_hash_mismatch(
+        &self,
+        client: &TonClient,
+        address: &TonAddress,
+        e: &Arc<TonContractError>,
+    ) -> Result<TonContractState, TonContractError> {
+        match e.deref() {
+            TonContractError::ClientError(TonClientError::TonlibError { message, .. }) => {
+                if message == "transaction hash mismatch" {
+                    return TonContractState::load(client, address).await;
+                }
+            }
+            _ => {}
+        }
+        return Err(CacheError(e.clone()));
     }
 
     async fn load_contract_state(

@@ -29,7 +29,7 @@ test-branch:
   script:
     - cargo fmt --check
     - cargo rustc --features "state_cache" -- -D warnings
-    - cargo test --lib --features "state-cache"
+    - cargo test --lib --features "state_cache"
   tags:
     - ston
   rules:
