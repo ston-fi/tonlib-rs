@@ -29,7 +29,6 @@ impl ContractFactoryCache {
         client: &TonClient,
         capacity: u64,
         time_to_live: Duration,
-        presync_blocks: i32,
     ) -> Result<ContractFactoryCache, TonContractError> {
         let inner = Inner {
             client: client.clone(),
@@ -45,7 +44,6 @@ impl ContractFactoryCache {
                 .max_capacity(capacity)
                 .time_to_live(time_to_live)
                 .build(),
-            presync_blocks,
         };
 
         let arc_inner = Arc::new(inner);
@@ -138,7 +136,7 @@ impl ContractFactoryCache {
                 let masterchain_info_result = client.get_masterchain_info().await;
                 match masterchain_info_result {
                     Ok((_, info)) => {
-                        let first_block_seqno = info.last.seqno - inner.presync_blocks;
+                        let first_block_seqno = info.last.seqno;
                         let block_stream = BlockStream::new(&client, first_block_seqno);
                         break block_stream;
                     }
@@ -204,7 +202,6 @@ struct Inner {
     contract_state_cache: ContractStateCache,
     tx_id_cache: TxIdCache,
     account_state_cache: AccountStateCache,
-    presync_blocks: i32,
 }
 
 impl Inner {
