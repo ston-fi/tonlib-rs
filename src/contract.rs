@@ -40,6 +40,15 @@ impl TonContract {
         self.factory.get_account_state(&self.address).await
     }
 
+    pub async fn get_account_state_by_transaction(
+        &self,
+        transaction_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        self.factory
+            .get_account_state_by_transaction(&self.address, transaction_id)
+            .await
+    }
+
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
         let r = self.factory.get_contract_state(&self.address).await?;
         Ok(r)

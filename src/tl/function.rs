@@ -26,6 +26,12 @@ pub enum TonFunction {
     RawGetAccountState {
         account_address: AccountAddress,
     },
+    //tonlib_api.tl, line 261
+    #[serde(rename = "raw.getAccountStateByTransaction")]
+    RawGetAccountStateByTransaction {
+        account_address: AccountAddress,
+        transaction_id: InternalTransactionId,
+    },
     // tonlib_api.tl, line 262
     #[serde(rename = "raw.getTransactions")]
     RawGetTransactions {

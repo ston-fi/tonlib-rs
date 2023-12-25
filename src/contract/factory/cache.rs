@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -32,6 +31,7 @@ impl ContractFactoryCache {
         time_to_live: Duration,
     ) -> Result<ContractFactoryCache, TonContractError> {
         let inner = Inner {
+            client: client.clone(),
             contract_state_cache: Cache::builder()
                 .max_capacity(capacity)
                 .time_to_live(time_to_live)
@@ -48,17 +48,53 @@ impl ContractFactoryCache {
 
         let arc_inner = Arc::new(inner);
         let weak_inner = Arc::downgrade(&arc_inner);
-        let client_clone = client.clone();
 
-        tokio::task::spawn(async move { Self::run_loop(weak_inner, client_clone).await });
+        tokio::task::spawn(async move { Self::run_loop(weak_inner).await });
 
         let cache = ContractFactoryCache { inner: arc_inner };
         Ok(cache)
     }
 
+    pub async fn get_account_state(
+        &self,
+        address: &TonAddress,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        let state_result = self
+            .inner
+            .account_state_cache
+            .try_get_with(
+                address.clone(),
+                Self::load_account_state(&self.inner.client, &self.inner.tx_id_cache, address),
+            )
+            .await;
+        match state_result {
+            Ok(state) => Ok(state),
+            Err(e) if e.is_transaction_hash_mismatch() => {
+                // Fallback to raw.getAccountState without caching to work around bug in tonlib
+                Ok(self.inner.client.get_raw_account_state(address).await?)
+            }
+            Err(e) => Err(CacheError(e.clone())),
+        }
+    }
+
+    async fn load_account_state(
+        client: &TonClient,
+        tx_id_cache: &TxIdCache,
+        address: &TonAddress,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        let maybe_tx_id = tx_id_cache.get(&address).await;
+        let state = if let Some(tx_id) = maybe_tx_id {
+            client
+                .get_raw_account_state_by_transaction(address, &tx_id)
+                .await?
+        } else {
+            client.get_raw_account_state(address).await?
+        };
+        Ok(state)
+    }
+
     pub(crate) async fn get_contract_state(
         &self,
-        client: &TonClient,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
         let state_result = self
@@ -66,33 +102,17 @@ impl ContractFactoryCache {
             .contract_state_cache
             .try_get_with(
                 address.clone(),
-                Self::load_contract_state(client, &self.inner.tx_id_cache, address),
+                Self::load_contract_state(&self.inner.client, &self.inner.tx_id_cache, address),
             )
             .await;
         match state_result {
             Ok(state) => Ok(state),
-            Err(e) => self.try_recover_hash_mismatch(client, address, &e).await,
-        }
-    }
-
-    // There's a bug in tonlib that prevents smc.loadByTransaction to work for ston.fi LpAccount
-    // after providing liquidity in a single operation.
-    // In this situation we fall back to normal smc.load without caching
-    async fn try_recover_hash_mismatch(
-        &self,
-        client: &TonClient,
-        address: &TonAddress,
-        e: &Arc<TonContractError>,
-    ) -> Result<TonContractState, TonContractError> {
-        match e.deref() {
-            TonContractError::ClientError(TonClientError::TonlibError { message, .. }) => {
-                if message == "transaction hash mismatch" {
-                    return TonContractState::load(client, address).await;
-                }
+            Err(e) if e.is_transaction_hash_mismatch() => {
+                // Fallback to smc.load without caching to work around bug in tonlib
+                TonContractState::load(&self.inner.client, address).await
             }
-            _ => {}
+            Err(e) => Err(CacheError(e.clone())),
         }
-        return Err(CacheError(e.clone()));
     }
 
     async fn load_contract_state(
@@ -109,51 +129,32 @@ impl ContractFactoryCache {
         Ok(state)
     }
 
-    pub async fn get_account_state(
-        &self,
-        client: &TonClient,
-        account_address: &TonAddress,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        let maybe_state = self
-            .inner
-            .account_state_cache
-            .try_get_with(
-                account_address.clone(),
-                Self::load_account_state(client, account_address),
-            )
-            .await;
-        match maybe_state {
-            Ok(state) => Ok(state),
-            Err(e) => Err(TonContractError::InternalError {
-                message: format!("{:?}", e),
-            }),
-        }
-    }
-
-    async fn load_account_state(
-        client: &TonClient,
-        address: &TonAddress,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        let state = client.get_raw_account_state(address).await?;
-        Ok(state)
-    }
-
-    async fn run_loop(weak_inner: Weak<Inner>, client: TonClient) {
-        let first_block_seqno = loop {
-            let masterchain_info_result = client.get_masterchain_info().await;
-            match masterchain_info_result {
-                Ok((_, info)) => break info.last.seqno,
-                Err(e) => {
-                    log::warn!(
-                        "[ContractFactoryCache] Could not retrieve current block: {}",
-                        e
-                    );
-                    tokio::time::sleep(Duration::from_millis(DELAY_ON_TON_FAILURE)).await;
+    async fn run_loop(weak_inner: Weak<Inner>) {
+        let mut block_stream = loop {
+            if let Some(inner) = weak_inner.upgrade() {
+                let client = &inner.client;
+                let masterchain_info_result = client.get_masterchain_info().await;
+                match masterchain_info_result {
+                    Ok((_, info)) => {
+                        let first_block_seqno = info.last.seqno;
+                        let block_stream = BlockStream::new(&client, first_block_seqno);
+                        break block_stream;
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "[ContractFactoryCache] Could not retrieve current block: {:?}",
+                            e
+                        );
+                        tokio::time::sleep(Duration::from_millis(DELAY_ON_TON_FAILURE)).await;
+                    }
                 }
-            }
+            } else {
+                log::info!(
+                    "[ContractFactoryCache] Exiting run loop before initializing BlockStream"
+                );
+                return;
+            };
         };
-
-        let mut block_stream = BlockStream::new(&client, first_block_seqno);
 
         loop {
             // Must exit run loop if inner has been dropped
@@ -166,7 +167,7 @@ impl ContractFactoryCache {
                 Ok(block) => block,
                 Err(e) => {
                     log::warn!(
-                        "[ContractFactoryCache] Could not retrieve next block: {}",
+                        "[ContractFactoryCache] Could not retrieve next block: {:?}",
                         e
                     );
                     tokio::time::sleep(Duration::from_millis(DELAY_ON_TON_FAILURE)).await;
@@ -176,12 +177,12 @@ impl ContractFactoryCache {
 
             loop {
                 if let Some(inner) = weak_inner.upgrade() {
-                    let process_result = inner.process_next_block(&client, &block).await;
+                    let process_result = inner.process_next_block(&block).await;
                     match process_result {
                         Ok(_) => break,
                         Err(e) => {
                             log::warn!(
-                                "[ContractFactoryCache] Error processing block {}: {}",
+                                "[ContractFactoryCache] Error processing block {}: {:?}",
                                 block.master_shard.seqno,
                                 e
                             );
@@ -197,17 +198,14 @@ impl ContractFactoryCache {
 }
 
 struct Inner {
+    client: TonClient,
     contract_state_cache: ContractStateCache,
     tx_id_cache: TxIdCache,
     account_state_cache: AccountStateCache,
 }
 
 impl Inner {
-    async fn process_next_block(
-        &self,
-        client: &TonClient,
-        block: &BlockStreamItem,
-    ) -> Result<(), TonContractError> {
+    async fn process_next_block(&self, block: &BlockStreamItem) -> Result<(), TonContractError> {
         log::trace!(
             "[ContractFactoryCache] Processing block: {}",
             block.master_shard.seqno
@@ -216,7 +214,8 @@ impl Inner {
         let mut all_shards = block.shards.clone();
         all_shards.push(block.master_shard.clone());
 
-        let tx_ids: Vec<_> = client
+        let tx_ids: Vec<_> = self
+            .client
             .get_shards_tx_ids(all_shards.as_slice())
             .await?
             .into_iter()
@@ -251,5 +250,33 @@ impl Inner {
             self.contract_state_cache.remove(&address),
             self.account_state_cache.remove(&address)
         );
+    }
+}
+
+// There's a bug in tonlib 2023.6 that prevents smc.loadByTransaction & raw.getAccountStateByTransaction
+// to work for ston.fi LpAccount after providing liquidity both tokens in a single transaction.
+// This bug is fixed in tonlib 2023.11.
+//
+// We need this trait to detect & work around these situations before we can upgrade to the
+// version of tonlib without this bug.
+trait TransactionHashMismatch {
+    fn is_transaction_hash_mismatch(&self) -> bool;
+}
+
+impl TransactionHashMismatch for TonClientError {
+    fn is_transaction_hash_mismatch(&self) -> bool {
+        match self {
+            TonClientError::TonlibError { message, .. } => message == "transaction hash mismatch",
+            _ => false,
+        }
+    }
+}
+
+impl TransactionHashMismatch for TonContractError {
+    fn is_transaction_hash_mismatch(&self) -> bool {
+        match self {
+            TonContractError::ClientError(e) => e.is_transaction_hash_mismatch(),
+            _ => false,
+        }
     }
 }
