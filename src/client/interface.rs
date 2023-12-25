@@ -41,6 +41,27 @@ pub trait TonClientInterface: Send + Sync {
         }
     }
 
+    async fn get_raw_account_state_by_transaction(
+        &self,
+        account_address: &TonAddress,
+        transaction_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonClientError> {
+        let func = TonFunction::RawGetAccountStateByTransaction {
+            account_address: AccountAddress {
+                account_address: account_address.to_hex(),
+            },
+            transaction_id: transaction_id.clone(),
+        };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::RawFullAccountState(state) => Ok(state),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawFullAccountState,
+                r,
+            )),
+        }
+    }
+
     async fn get_raw_transactions(
         &self,
         account_address: &TonAddress,
