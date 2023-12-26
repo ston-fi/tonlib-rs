@@ -32,9 +32,11 @@ impl TonContractFactory {
         with_cache: bool,
         capacity: u64,
         time_to_live: Duration,
+        presync_blocks: i32,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
-            let cache = ContractFactoryCache::new(client, capacity, time_to_live).await?;
+            let cache =
+                ContractFactoryCache::new(client, capacity, time_to_live, presync_blocks).await?;
             Some(cache)
         } else {
             None
