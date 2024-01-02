@@ -1,10 +1,12 @@
+use std::thread;
+use std::time::Duration;
+
 use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
-use std::time::Duration;
 
 use tonlib::address::TonAddress;
-use tonlib::contract::{TonContractFactory, TonContractInterface};
+use tonlib::contract::{TonContractFactory, TonContractInterface, TonContractState};
 
 mod common;
 
@@ -166,4 +168,25 @@ async fn test_contract_state_by_transaction() -> anyhow::Result<()> {
     let result2 = contract_state2.run_get_method(method_name, &vec![]).await?;
     assert_eq!(result1, result2);
     Ok(())
+}
+
+#[tokio::test]
+async fn test_state_dropping() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let state = factory
+        .get_contract_state(&"EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt".parse()?)
+        .await?;
+    let thread_builder = thread::Builder::new().name("test_drop".to_string());
+    let handle = thread_builder.spawn(move || test_drop(state))?;
+    log::info!("Dropping state");
+    let r = handle.join();
+    log::info!("Join result: {:?}", r);
+    assert!(r.is_ok());
+    Ok(())
+}
+
+fn test_drop(state: TonContractState) {
+    drop(state);
 }
