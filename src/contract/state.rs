@@ -4,6 +4,7 @@ use crate::address::TonAddress;
 use crate::client::{TonClientInterface, TonConnection};
 use crate::tl::{InternalTransactionId, SmcMethodId, SmcRunResult, TvmCell, TvmStackEntry};
 use async_trait::async_trait;
+use tokio::runtime::Handle;
 
 use crate::contract::{TonContractError, TonContractInterface};
 
@@ -11,6 +12,7 @@ struct Inner {
     address: TonAddress,
     connection: TonConnection,
     state_id: i64,
+    runtime: Handle,
 }
 
 #[derive(Clone)]
@@ -28,6 +30,7 @@ impl TonContractState {
             address: address.clone(),
             connection: conn,
             state_id,
+            runtime: Handle::current(),
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
@@ -46,6 +49,7 @@ impl TonContractState {
             address: address.clone(),
             connection: conn,
             state_id,
+            runtime: Handle::current(),
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
@@ -55,6 +59,7 @@ impl TonContractState {
 
 impl Drop for Inner {
     fn drop(&mut self) {
+        let _guard = self.runtime.enter();
         let conn = self.connection.clone();
         let state_id = self.state_id;
         tokio::spawn(async move {
