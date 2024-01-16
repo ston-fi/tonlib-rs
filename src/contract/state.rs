@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::address::TonAddress;
 use crate::client::{TonClientInterface, TonConnection};
@@ -111,7 +111,7 @@ impl TonContractInterface for TonContractState {
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError> {
         let method_id = SmcMethodId::Name {
-            name: String::from(method),
+            name: Cow::from(method.to_string()),
         };
         let result = self
             .inner

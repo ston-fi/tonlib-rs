@@ -2,8 +2,11 @@ use base64::CharacterSet;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
-use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display, Formatter},
+};
 
 use crate::tl::stack::{TvmCell, TvmStack};
 use crate::tl::Base64Standard;
@@ -457,7 +460,7 @@ pub enum SmcMethodId {
     #[serde(rename = "smc.methodIdNumber")]
     Number { number: i32 },
     #[serde(rename = "smc.methodIdName")]
-    Name { name: String },
+    Name { name: Cow<'static, str> },
 }
 
 // tonlib_api.tl, line 182
@@ -580,7 +583,8 @@ pub struct ConfigInfo {
 #[cfg(test)]
 mod tests {
     use crate::tl::types::InternalTransactionId;
-    use crate::tl::InternalTransactionIdParseError;
+    use crate::tl::{InternalTransactionIdParseError, SmcMethodId};
+    use std::borrow::Cow;
     use tokio_test::assert_err;
 
     #[test]
@@ -653,6 +657,18 @@ mod tests {
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3 " // space
                 .parse();
         assert_err!(r);
+        Ok(())
+    }
+
+    #[test]
+    fn test_smc_method_id_serde() -> anyhow::Result<()> {
+        let method_name = "get_jetton_data";
+        let method_id = SmcMethodId::Name {
+            name: Cow::Borrowed(method_name),
+        };
+        let json = serde_json::to_string(&method_id)?;
+        let result: SmcMethodId = serde_json::from_str(json.as_str())?;
+        assert_eq!(method_id, result);
         Ok(())
     }
 }
