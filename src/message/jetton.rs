@@ -1,6 +1,5 @@
 use crate::address::TonAddress;
 use crate::cell::{Cell, CellBuilder};
-use crc::{Crc, CRC_32_ISO_HDLC};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use std::sync::Arc;
@@ -122,15 +121,4 @@ impl JettonTransferMessage {
         }
         Ok(message.build()?)
     }
-}
-
-#[allow(dead_code)]
-fn calc_checksum(command: &str) -> u32 {
-    let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
-    crc.checksum(command.as_bytes())
-}
-
-#[allow(dead_code)]
-fn calc_opcode(command: &str) -> u32 {
-    calc_checksum(command) & 0x7fffffff
 }

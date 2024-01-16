@@ -32,7 +32,7 @@ pub trait TonWalletContract: TonContractInterface {
     }
 
     async fn get_public_key(&self) -> Result<Vec<u8>, TonContractError> {
-        let method = WalletContractMethods::GetPublicKey.into();
+        let method: &str = WalletContractMethods::GetPublicKey.into();
         let res = self.run_get_method(method, &Vec::new()).await?;
         let stack = res.stack;
         if stack.elements.len() != 1 {

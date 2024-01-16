@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
 use crate::tl::{SmcRunResult, TvmCell, TvmStackEntry};
+use crate::types::TonMethodId;
 
 use super::TonContractError;
 
@@ -18,9 +19,9 @@ pub trait TonContractInterface {
 
     async fn get_state_cell(&self) -> Result<TvmCell, TonContractError>;
 
-    async fn run_get_method(
+    async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
-        method: &str,
+        method: A,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError>;
 }

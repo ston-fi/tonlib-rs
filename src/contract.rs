@@ -12,6 +12,7 @@ pub use wallet::*;
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
 use crate::tl::{InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell, TvmStackEntry};
+use crate::types::TonMethodId;
 
 mod error;
 mod factory;
@@ -94,9 +95,9 @@ impl TonContractInterface for TonContract {
         Ok(result)
     }
 
-    async fn run_get_method(
+    async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
-        method: &str,
+        method: A,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError> {
         let state = self.get_state().await?;

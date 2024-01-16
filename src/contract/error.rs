@@ -6,14 +6,15 @@ use crate::address::TonAddress;
 use crate::cell::TonCellError;
 use crate::client::TonClientError;
 use crate::tl::{TvmStackEntry, TvmStackError};
+use crate::types::TonMethodId;
 
 #[derive(Error, Debug)]
 pub enum TonContractError {
     #[error(
-        "Tvm run error: code: {exit_code}, method: {method}, gas: {gas_used}, stack: {stack:?}"
+        "Tvm run error: code: {exit_code}, method: {method_id}, gas: {gas_used}, stack: {stack:?}"
     )]
     TvmRunError {
-        method: String,
+        method_id: TonMethodId,
         gas_used: i64,
         stack: Vec<TvmStackEntry>,
         exit_code: i32,

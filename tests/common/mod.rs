@@ -10,8 +10,10 @@ use tonlib::{
     config::{MAINNET_CONFIG, TESTNET_CONFIG},
 };
 
+#[allow(dead_code)]
 static LOG: Once = Once::new();
 
+#[allow(dead_code)]
 pub fn init_logging() {
     LOG.call_once(|| {
         TonClient::set_log_verbosity_level(2);
