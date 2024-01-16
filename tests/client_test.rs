@@ -9,7 +9,7 @@ use tonlib::cell::BagOfCells;
 use tonlib::client::{TonBlockFunctions, TonClientInterface};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
-    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo, SmcMethodId,
+    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo,
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib::{
@@ -93,9 +93,8 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
         let (conn, id1) = client
             .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
             .await?; // pool 0.3.0
-        let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".into(),
-        };
+        let method_id = "get_jetton_data".into();
+
         let r = conn.smc_run_get_method(id1, &method_id, &Vec::new()).await;
         println!("{:?}", r);
         // Check that it works after cloning the connection
@@ -107,9 +106,6 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
                 .1
         };
         let stack = &Vec::new();
-        let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".into(),
-        };
         let future = conn.smc_run_get_method(id2, &method_id, stack);
         let r = timeout(Duration::from_secs(2), future).await?;
         println!("{:?}", r);

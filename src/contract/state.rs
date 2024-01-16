@@ -1,12 +1,13 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
-use crate::address::TonAddress;
-use crate::client::{TonClientInterface, TonConnection};
-use crate::tl::{InternalTransactionId, SmcMethodId, SmcRunResult, TvmCell, TvmStackEntry};
 use async_trait::async_trait;
 use tokio::runtime::Handle;
 
+use crate::address::TonAddress;
+use crate::client::{TonClientInterface, TonConnection};
 use crate::contract::{TonContractError, TonContractInterface};
+use crate::tl::{InternalTransactionId, SmcRunResult, TvmCell, TvmStackEntry};
+use crate::types::TonMethodId;
 
 struct Inner {
     address: TonAddress,
@@ -105,14 +106,12 @@ impl TonContractInterface for TonContractState {
         Ok(r)
     }
 
-    async fn run_get_method(
+    async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
-        method: &str,
+        method: A,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError> {
-        let method_id = SmcMethodId::Name {
-            name: Cow::from(method.to_string()),
-        };
+        let method_id: TonMethodId = method.into();
         let result = self
             .inner
             .connection
@@ -123,7 +122,7 @@ impl TonContractInterface for TonContractState {
         } else {
             Err(TonContractError::TvmRunError {
                 gas_used: result.gas_used,
-                method: method.to_string(),
+                method_id,
                 stack: result.stack.elements,
                 exit_code: result.exit_code,
             })

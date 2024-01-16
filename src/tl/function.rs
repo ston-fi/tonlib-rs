@@ -3,10 +3,11 @@ use strum::IntoStaticStr;
 
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
-    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId,
-    Options, SmcMethodId,
+    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId, Options,
 };
 use crate::tl::Base64Standard;
+
+use super::SmcMethodId;
 
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type", rename_all = "camelCase")]

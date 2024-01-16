@@ -8,9 +8,10 @@ use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
 use crate::tl::{
-    Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult, TlTonClient,
-    TonFunction, TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
+    Config, KeyStoreType, Options, OptionsInfo, SmcRunResult, TlTonClient, TonFunction,
+    TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
 };
+use crate::types::TonMethodId;
 use crate::{
     client::{
         TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
@@ -155,12 +156,12 @@ impl TonConnection {
     pub async fn smc_run_get_method(
         &self,
         id: i64,
-        method: &SmcMethodId,
+        method: &TonMethodId,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonClientError> {
         let func = TonFunction::SmcRunGetMethod {
             id: id,
-            method: method.clone(),
+            method: method.into(),
             stack: stack.to_vec(),
         };
         let result = self.invoke(&func).await?;

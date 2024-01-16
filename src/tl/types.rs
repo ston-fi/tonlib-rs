@@ -1,16 +1,16 @@
-use base64::CharacterSet;
-use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
-use serde_aux::prelude::*;
 use std::str::FromStr;
 use std::{
     borrow::Cow,
     fmt::{Debug, Display, Formatter},
 };
 
+use base64::CharacterSet;
+use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
+use serde_aux::prelude::*;
+
 use crate::tl::stack::{TvmCell, TvmStack};
 use crate::tl::Base64Standard;
-
 use crate::tl::InternalTransactionIdParseError;
 
 // tonlib_api.tl, line 23
@@ -582,10 +582,12 @@ pub struct ConfigInfo {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
+    use tokio_test::assert_err;
+
     use crate::tl::types::InternalTransactionId;
     use crate::tl::{InternalTransactionIdParseError, SmcMethodId};
-    use std::borrow::Cow;
-    use tokio_test::assert_err;
 
     #[test]
     fn internal_transaction_id_parse_format_works() -> anyhow::Result<()> {
