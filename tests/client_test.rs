@@ -94,7 +94,7 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
             .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
             .await?; // pool 0.3.0
         let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".to_string(),
+            name: "get_jetton_data".into(),
         };
         let r = conn.smc_run_get_method(id1, &method_id, &Vec::new()).await;
         println!("{:?}", r);
@@ -108,7 +108,7 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
         };
         let stack = &Vec::new();
         let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".to_string(),
+            name: "get_jetton_data".into(),
         };
         let future = conn.smc_run_get_method(id2, &method_id, stack);
         let r = timeout(Duration::from_secs(2), future).await?;
