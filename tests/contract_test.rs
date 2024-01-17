@@ -74,7 +74,7 @@ impl<T> PoolContract for T where T: TonContractInterface {}
 #[tokio::test]
 async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
@@ -88,7 +88,7 @@ async fn contract_get_pool_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn state_get_pool_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);
@@ -103,7 +103,7 @@ async fn state_get_pool_data_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn state_clone_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()?);

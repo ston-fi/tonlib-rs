@@ -98,7 +98,7 @@ impl TonConnection {
         Ok(conn)
     }
 
-    pub async fn connect_to_archive(
+    pub(crate) async fn connect_archive(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
@@ -115,6 +115,30 @@ impl TonConnection {
                 break Ok(c);
             } else {
                 log::info!("Dropping connection to non-archive node");
+            }
+        }
+    }
+
+    pub(crate) async fn connect_healthy(
+        params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+    ) -> Result<TonConnection, TonClientError> {
+        // connect to other node until it will be able to fetch the very first block
+        loop {
+            let c = TonConnection::connect(params, callback.clone()).await?;
+            let info_result = c.get_masterchain_info().await;
+            match info_result {
+                Ok((_, info)) => {
+                    let block_result = c.get_block_header(&info.last).await;
+                    if let Err(err) = block_result {
+                        log::info!("Dropping connection to unhealthy node: {:?}", err);
+                    } else {
+                        break Ok(c);
+                    }
+                }
+                Err(err) => {
+                    log::info!("Dropping connection to unhealthy node: {:?}", err);
+                }
             }
         }
     }
