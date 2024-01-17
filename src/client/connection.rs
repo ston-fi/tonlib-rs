@@ -98,7 +98,7 @@ impl TonConnection {
         Ok(conn)
     }
 
-    pub(crate) async fn connect_archive(
+    pub async fn connect_archive(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
@@ -119,7 +119,7 @@ impl TonConnection {
         }
     }
 
-    pub(crate) async fn connect_healthy(
+    pub async fn connect_healthy(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
