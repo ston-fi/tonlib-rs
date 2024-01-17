@@ -1,5 +1,5 @@
 use crate::client::{
-    MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
+    ConnectionCheck, MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
     LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
 };
 
@@ -13,7 +13,7 @@ pub struct TonClientBuilder {
     connection_params: TonConnectionParams,
     retry_strategy: RetryStrategy,
     callback: Arc<dyn TonConnectionCallback>,
-    archive_nodes_only: bool,
+    connection_check: ConnectionCheck,
 }
 
 impl TonClientBuilder {
@@ -23,7 +23,7 @@ impl TonClientBuilder {
             connection_params: TonConnectionParams::default(),
             retry_strategy: RetryStrategy::default(),
             callback: LOGGING_CONNECTION_CALLBACK.clone(),
-            archive_nodes_only: false,
+            connection_check: ConnectionCheck::None,
         }
     }
 
@@ -77,8 +77,8 @@ impl TonClientBuilder {
         self
     }
 
-    pub fn with_archive_nodes_only(&mut self) -> &mut Self {
-        self.archive_nodes_only = true;
+    pub fn with_connection_check(&mut self, connection_check: ConnectionCheck) -> &mut Self {
+        self.connection_check = connection_check;
         self
     }
 
@@ -88,7 +88,7 @@ impl TonClientBuilder {
             &self.connection_params,
             &self.retry_strategy,
             self.callback.clone(),
-            self.archive_nodes_only,
+            self.connection_check.clone(),
         )
         .await
     }

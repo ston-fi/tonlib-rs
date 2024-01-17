@@ -5,6 +5,7 @@ use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
 
+use tonlib::client::ConnectionCheck;
 use tonlib::{
     client::{TonClient, TonConnectionParams},
     config::{MAINNET_CONFIG, TESTNET_CONFIG},
@@ -56,7 +57,7 @@ pub async fn new_archive_testnet_client() -> anyhow::Result<TonClient> {
         .with_pool_size(2)
         .with_logging_callback()
         .with_keystore_dir("./var/ton/testnet".to_string())
-        .with_archive_nodes_only()
+        .with_connection_check(ConnectionCheck::Archive)
         .build()
         .await?;
     Ok(client)
@@ -70,6 +71,7 @@ pub async fn new_mainnet_client() -> anyhow::Result<TonClient> {
         .with_connection_params(&params)
         .with_logging_callback()
         .with_keystore_dir("./var/ton".to_string())
+        .with_connection_check(ConnectionCheck::Health)
         .build()
         .await?;
     Ok(client)
@@ -84,7 +86,7 @@ pub async fn new_archive_mainnet_client() -> anyhow::Result<TonClient> {
         .with_pool_size(2)
         .with_logging_callback()
         .with_keystore_dir("./var/ton".to_string())
-        .with_archive_nodes_only()
+        .with_connection_check(ConnectionCheck::Archive)
         .build()
         .await?;
     Ok(client)

@@ -6,7 +6,7 @@ mod common;
 #[tokio::test]
 async fn test_get_nft_data() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW".parse()?);
@@ -17,7 +17,7 @@ async fn test_get_nft_data() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_data() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQB2iHQ9lmJ9zvYPauxN9hVOfHL3c_fuN5AyRq5Pm84UH6jC".parse()?);
@@ -28,7 +28,7 @@ async fn test_get_nft_collection_data() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQB2iHQ9lmJ9zvYPauxN9hVOfHL3c_fuN5AyRq5Pm84UH6jC".parse()?);
@@ -41,7 +41,7 @@ async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()?);
@@ -68,7 +68,7 @@ async fn test_get_nft_content_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQDhR36C8pSVtyhOFtE9nh2DFq4WYUbTZFmvjfnShlrXq2cz".parse()?);
@@ -86,7 +86,7 @@ async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_content_some() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQCiXgoveScGKGGqo50HbmwP3goKJaEfu9QmeBRJ-jbRxM21".parse()?);
@@ -106,7 +106,7 @@ async fn test_get_nft_content_some() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N".parse()?);
@@ -136,7 +136,7 @@ async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQCshJXbbcn7cvSkaM0Z8NyI-2pNCJC5RTGZB-cRF-Pax1lY".parse()?);
@@ -155,7 +155,7 @@ async fn test_get_nft_collection_content_arkenston() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_nft_collection_content_some() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         factory.get_contract(&"EQCbOjwru5tBb2aaXZEHbiTCVIYQ6yDNAe8SSZkP4CozibHM".parse()?);

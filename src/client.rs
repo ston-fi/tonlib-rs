@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
@@ -16,7 +17,6 @@ pub use callback::*;
 pub use connection::*;
 pub use error::*;
 pub use interface::*;
-
 pub use types::*;
 
 use crate::tl::*;
@@ -30,6 +30,18 @@ mod error;
 mod interface;
 
 mod types;
+
+/// Check on perform upon connection
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectionCheck {
+    /// No check.
+    None,
+    /// Verify node aliveness
+    Health,
+    /// Verify that connected to archive node
+    Archive,
+}
 
 pub struct TonClient {
     inner: Arc<Inner>,
@@ -47,7 +59,7 @@ impl TonClient {
         params: &TonConnectionParams,
         retry_strategy: &RetryStrategy,
         callback: Arc<dyn TonConnectionCallback>,
-        archive_nodes_only: bool,
+        connection_check: ConnectionCheck,
     ) -> Result<TonClient, TonClientError> {
         let mut connections = Vec::with_capacity(pool_size);
         for i in 0..pool_size {
@@ -67,7 +79,7 @@ impl TonClient {
                 params: p,
                 callback: callback.clone(),
                 conn: Mutex::new(None),
-                archive_nodes_only,
+                connection_check: connection_check.clone(),
             };
             connections.push(entry);
         }
@@ -169,7 +181,7 @@ struct PoolConnection {
     params: TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
     conn: Mutex<Option<TonConnection>>,
-    archive_nodes_only: bool,
+    connection_check: ConnectionCheck,
 }
 
 impl PoolConnection {
@@ -178,11 +190,16 @@ impl PoolConnection {
         match guard.deref() {
             Some(conn) => Ok(conn.clone()),
             None => {
-                let conn = if self.archive_nodes_only {
-                    // connect to other node until it will be able to fetch the very first block
-                    TonConnection::connect_to_archive(&self.params, self.callback.clone()).await?
-                } else {
-                    TonConnection::connect(&self.params, self.callback.clone()).await?
+                let conn = match self.connection_check {
+                    ConnectionCheck::None => {
+                        TonConnection::connect(&self.params, self.callback.clone()).await?
+                    }
+                    ConnectionCheck::Health => {
+                        TonConnection::connect_healthy(&self.params, self.callback.clone()).await?
+                    }
+                    ConnectionCheck::Archive => {
+                        TonConnection::connect_archive(&self.params, self.callback.clone()).await?
+                    }
                 };
                 *guard = Some(conn.clone());
                 Ok(conn)
