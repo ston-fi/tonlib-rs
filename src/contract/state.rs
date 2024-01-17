@@ -122,7 +122,7 @@ impl TonContractInterface for TonContractState {
         } else {
             Err(TonContractError::TvmRunError {
                 gas_used: result.gas_used,
-                method_id,
+                method: method_id.clone(),
                 stack: result.stack.elements,
                 exit_code: result.exit_code,
             })

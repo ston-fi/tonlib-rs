@@ -90,9 +90,9 @@ impl TonWallet {
         let hash_part = match state_init_hash.as_slice().try_into() {
             Ok(hash_part) => hash_part,
             Err(_) => {
-                return Err(TonCellError::InternalError {
-                    msg: "StateInit returned hash pof wrong size".to_string(),
-                })
+                return Err(TonCellError::InternalError(
+                    "StateInit returned hash pof wrong size".to_string(),
+                ))
             }
         };
         let addr = TonAddress::new(workchain, &hash_part);
@@ -145,7 +145,7 @@ impl TonWallet {
     pub fn sign_external_body(&self, external_body: &Cell) -> Result<Cell, TonMessageError> {
         let message_hash = external_body.cell_hash()?;
         let sig = signature(message_hash.as_slice(), self.key_pair.secret_key.as_slice())
-            .map_err(|e| TonMessageError::NaclCryptographicError { message: e.message })?;
+            .map_err(|e| TonMessageError::NaclCryptographicError(e.message))?;
         let mut body_builder = CellBuilder::new();
         body_builder.store_slice(sig.as_slice())?;
         body_builder.store_cell(&external_body)?;

@@ -27,13 +27,9 @@ impl TxId {
     pub fn new(workchain: i32, tx_id: &BlocksShortTxId) -> Result<TxId, TonClientError> {
         let addr = TonAddress::new(
             workchain,
-            tx_id
-                .account
-                .as_slice()
-                .try_into()
-                .map_err(|_| TonClientError::InternalError {
-                    message: format!("Invalid BlocksShortTxId: {:?}", tx_id),
-                })?,
+            tx_id.account.as_slice().try_into().map_err(|_| {
+                TonClientError::InternalError(format!("Invalid BlocksShortTxId: {:?}", tx_id))
+            })?,
         );
         let id = InternalTransactionId {
             lt: tx_id.lt,
@@ -128,14 +124,12 @@ async fn load_raw_tx<T: TonClientInterface + Send + Sync + ?Sized>(
     let tx = if tx_result.transactions.len() == 1 {
         tx_result.transactions[0].clone()
     } else {
-        return Err(TonClientError::InternalError {
-            message: format!(
-                "Expected 1 tx, got {}, query: {:?}/{:?}",
-                tx_result.transactions.len(),
-                tx_id.address,
-                tx_id.internal_transaction_id
-            ),
-        });
+        return Err(TonClientError::InternalError(format!(
+            "Expected 1 tx, got {}, query: {:?}/{:?}",
+            tx_result.transactions.len(),
+            tx_id.address,
+            tx_id.internal_transaction_id
+        )));
     };
     Ok(TxData {
         address: tx_id.address.clone(),

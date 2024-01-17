@@ -67,9 +67,7 @@ impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
                     })
                 }
             }
-            content => Err(MetaLoaderError::ContentLayoutUnsupported {
-                content: content.clone(),
-            }),
+            content => Err(MetaLoaderError::ContentLayoutUnsupported(content.clone())),
         }
     }
 }

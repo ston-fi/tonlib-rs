@@ -68,9 +68,7 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
                 }
             }
 
-            content => Err(MetaLoaderError::ContentLayoutUnsupported {
-                content: content.clone(),
-            }),
+            content => Err(MetaLoaderError::ContentLayoutUnsupported(content.clone())),
         }
     }
 }

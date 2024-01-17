@@ -115,7 +115,7 @@ impl CellParser<'_> {
                 let addr = TonAddress::new(wc as i32, &hash_part);
                 Ok(addr)
             }
-            _ => Err(TonCellError::InvalidAddressType { tp }),
+            _ => Err(TonCellError::InvalidAddressType(tp)),
         }
     }
 
@@ -132,7 +132,7 @@ impl CellParser<'_> {
         if remaining_bits == 0 {
             Ok(())
         } else {
-            Err(TonCellError::NonEmptyReader { remaining_bits })
+            Err(TonCellError::NonEmptyReader(remaining_bits))
         }
     }
 }
