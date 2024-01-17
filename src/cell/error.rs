@@ -2,29 +2,29 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TonCellError {
-    #[error("Bag of cells deserialization error: {msg}")]
-    BagOfCellsDeserializationError { msg: String },
+    #[error("Bag of cells deserialization error ({0})")]
+    BagOfCellsDeserializationError(String),
 
-    #[error("Bag of cells serialization error: {msg}")]
-    BagOfCellsSerializationError { msg: String },
+    #[error("Bag of cells serialization error ({0})")]
+    BagOfCellsSerializationError(String),
 
-    #[error("Cell builder error: {msg}")]
-    CellBuilderError { msg: String },
+    #[error("Cell builder error ({0})")]
+    CellBuilderError(String),
 
-    #[error("Cell parser error: {msg}")]
-    CellParserError { msg: String },
+    #[error("Cell parser error ({0})")]
+    CellParserError(String),
 
-    #[error("Internal error: {msg}")]
-    InternalError { msg: String },
+    #[error("Internal error ({0})")]
+    InternalError(String),
 
-    #[error("Invalid index: {idx}, Cell contains {ref_count} references")]
+    #[error("Invalid index (Index: {idx}, reference count: {ref_count})")]
     InvalidIndex { idx: usize, ref_count: usize },
 
-    #[error("Invalid address type: {tp}")]
-    InvalidAddressType { tp: u8 },
+    #[error("Invalid address type (Type: {0})")]
+    InvalidAddressType(u8),
 
-    #[error("Reader must be empty but there are {remaining_bits} remaining bits")]
-    NonEmptyReader { remaining_bits: usize },
+    #[error("Non-empty reader (Remaining bits: {0})")]
+    NonEmptyReader(usize),
 }
 
 pub trait MapTonCellError<R, E>
@@ -66,35 +66,33 @@ impl TonCellError {
     where
         T: ToString,
     {
-        TonCellError::BagOfCellsSerializationError {
-            msg: format!("BoC serialization error: {}", e.to_string()),
-        }
+        TonCellError::BagOfCellsSerializationError(format!(
+            "BoC serialization error: {}",
+            e.to_string()
+        ))
     }
 
     pub fn boc_deserialization_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
-        TonCellError::BagOfCellsDeserializationError {
-            msg: format!("BoC deserialization error: {}", e.to_string()),
-        }
+        TonCellError::BagOfCellsDeserializationError(format!(
+            "BoC deserialization error: {}",
+            e.to_string()
+        ))
     }
 
     pub fn cell_builder_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
-        TonCellError::CellBuilderError {
-            msg: format!("Cell builder error: {}", e.to_string()),
-        }
+        TonCellError::CellBuilderError(format!("Cell builder error: {}", e.to_string()))
     }
 
     pub fn cell_parser_error<T>(e: T) -> TonCellError
     where
         T: ToString,
     {
-        TonCellError::CellParserError {
-            msg: format!("Cell parser error: {}", e.to_string()),
-        }
+        TonCellError::CellParserError(format!("Cell parser error: {}", e.to_string()))
     }
 }

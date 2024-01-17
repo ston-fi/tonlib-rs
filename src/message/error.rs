@@ -4,15 +4,12 @@ use crate::cell::TonCellError;
 
 #[derive(Error, Debug)]
 pub enum TonMessageError {
-    #[error("nacl error: (message)")]
-    NaclCryptographicError { message: String },
-
-    #[error("Forward_ton_amount must be positive when specifying forward_payload")]
+    #[error("ForwardTonAmountIsNegative error: Forward_ton_amount must be positive when specifying forward_payload")]
     ForwardTonAmountIsNegative,
 
-    #[error("TonCellError: {cell_error}")]
-    TonCellError {
-        #[from]
-        cell_error: TonCellError,
-    },
+    #[error("NaCl cryptographic error ({0})")]
+    NaclCryptographicError(String),
+
+    #[error("TonCellError ({0})")]
+    TonCellError(#[from] TonCellError),
 }

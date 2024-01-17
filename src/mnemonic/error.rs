@@ -2,21 +2,21 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MnemonicError {
-    #[error("Invalid mnemonic word count, got: {count}")]
-    UnexpectedWordCount { count: usize },
+    #[error("Invalid mnemonic word count (count: {0})")]
+    UnexpectedWordCount(usize),
 
-    #[error("Invalid mnemonic word: '{word}'")]
-    InvalidWord { word: String },
+    #[error("Invalid mnemonic word (word: {0})")]
+    InvalidWord(String),
 
-    #[error("Invalid mnemonic with password, expected first byte equal to {byte}")]
-    InvalidFirstByte { byte: u8 },
+    #[error("Invalid mnemonic with password (first byte: {0:#X})")]
+    InvalidFirstByte(u8),
 
-    #[error("Invalid passwordless mnemonic, expected first byte equal to {byte}")]
-    InvalidPasswordlessMenmonicFirstByte { byte: u8 },
+    #[error("Invalid passwordless mnemonic (first byte: {0:#X})")]
+    InvalidPasswordlessMenmonicFirstByte(u8),
 
-    #[error("Invalid password {e}")]
-    PasswordHashError { e: pbkdf2::password_hash::Error },
+    #[error("Invalid password (hash: {0})")]
+    PasswordHashError(pbkdf2::password_hash::Error),
 
-    #[error("Invalid length of sha digest: {0}")]
+    #[error("Invalid length of sha digest (length: {0})")]
     ShaDigestLengthInvalid(#[from] sha2::digest::InvalidLength),
 }

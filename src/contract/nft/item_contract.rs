@@ -97,9 +97,7 @@ pub trait NftItemContract: TonContractInterface {
             (TvmStackEntry::Cell {
                 cell: TvmCell {
                     bytes: individual_content.serialize(false).map_err(|e| {
-                        TonContractError::InternalError {
-                            message: format!("Serialization error: {}", e),
-                        }
+                        TonContractError::InternalError(format!("Serialization error: {}", e))
                     })?, // todo support crc32c
                 },
             }),

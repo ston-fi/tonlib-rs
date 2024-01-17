@@ -69,9 +69,7 @@ impl TonClient {
                 let keystore_dir = keystore_prefix.join(format!("{}", i));
                 fs::create_dir_all(&keystore_dir)?;
                 let path_str = keystore_dir.into_os_string().into_string().map_err(|_| {
-                    TonClientError::InternalError {
-                        message: "Error constructing keystore path".to_string(),
-                    }
+                    TonClientError::InternalError("Error constructing keystore path".to_string())
                 })?;
                 p.keystore_dir = Some(path_str)
             };

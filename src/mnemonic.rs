@@ -44,13 +44,11 @@ impl Mnemonic {
 
         // Check words
         if normalized_words.len() != 24 {
-            return Err(MnemonicError::UnexpectedWordCount {
-                count: normalized_words.len(),
-            });
+            return Err(MnemonicError::UnexpectedWordCount(normalized_words.len()));
         }
         for word in &normalized_words {
             if !WORDLIST_EN_SET.contains_key(word.as_str()) {
-                return Err(MnemonicError::InvalidWord { word: word.clone() });
+                return Err(MnemonicError::InvalidWord(word.clone()));
             }
         }
 
@@ -60,7 +58,7 @@ impl Mnemonic {
                 let passless_entropy = to_entropy(&normalized_words, &None)?;
                 let seed = pbkdf2_sha512(passless_entropy, "TON fast seed version", 1, 64)?;
                 if seed[0] != 1 {
-                    return Err(MnemonicError::InvalidFirstByte { byte: 1 });
+                    return Err(MnemonicError::InvalidFirstByte(seed[0]));
                 }
                 // Make that this also is not a valid passwordless mnemonic
                 let entropy = to_entropy(&normalized_words, password)?;
@@ -71,7 +69,7 @@ impl Mnemonic {
                     64,
                 )?;
                 if seed[0] == 0 {
-                    return Err(MnemonicError::InvalidFirstByte { byte: 0 });
+                    return Err(MnemonicError::InvalidFirstByte(seed[0]));
                 }
             }
             _ => {
@@ -83,7 +81,7 @@ impl Mnemonic {
                     64,
                 )?;
                 if seed[0] != 0 {
-                    return Err(MnemonicError::InvalidPasswordlessMenmonicFirstByte { byte: 0 });
+                    return Err(MnemonicError::InvalidPasswordlessMenmonicFirstByte(seed[0]));
                 }
             }
         }
@@ -140,7 +138,7 @@ fn pbkdf2_sha512(
         pbkdf2::<Hmac<Sha512>>(key.as_slice(), salt.as_bytes(), params.rounds, out);
         Ok(())
     })
-    .map_err(|e| MnemonicError::PasswordHashError { e })?;
+    .map_err(|e| MnemonicError::PasswordHashError(e))?;
     Ok(output.as_bytes().to_vec())
 }
 

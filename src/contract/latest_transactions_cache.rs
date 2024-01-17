@@ -45,12 +45,10 @@ impl LatestContractTransactionsCache {
     /// Returned transactions are sorted from latest to earliest.
     pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         if limit > self.capacity {
-            return Err(TonContractError::IllegalArgument {
-                message: format!(
-                    "Transactions cache size requested ({}) must not exceed cache capacity ({})",
-                    limit, self.capacity
-                ),
-            });
+            return Err(TonContractError::IllegalArgument(format!(
+                "Transactions cache size requested ({}) must not exceed cache capacity ({})",
+                limit, self.capacity
+            )));
         }
         let mut lock = self.inner.lock().await;
         self.sync(lock.deref_mut()).await?;
