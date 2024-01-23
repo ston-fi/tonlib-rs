@@ -35,7 +35,7 @@ impl TlTonClient {
         let client: TlTonClient = unsafe {
             let ptr = tonlib_client_json_create();
             TlTonClient {
-                ptr: ptr,
+                ptr,
                 tag: tag.into(),
             }
         };
@@ -53,7 +53,7 @@ impl TlTonClient {
             self.tag,
             f_str.to_str().unwrap_or("<Error decoding string as UTF-8>")
         );
-        let result = unsafe {
+        unsafe {
             let c_str = tonlib_client_json_execute(self.ptr, f_str.as_ptr());
             log::trace!(
                 "[{}] result: {}",
@@ -63,8 +63,7 @@ impl TlTonClient {
                     .unwrap_or("<Error decoding string as UTF-8>")
             );
             deserialize_result(c_str)
-        };
-        result
+        }
     }
 
     pub fn send(&self, function: &TonFunction, extra: &str) -> Result<(), TlError> {

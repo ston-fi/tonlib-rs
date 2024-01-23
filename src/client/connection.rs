@@ -131,7 +131,7 @@ impl TonConnection {
             options: Options {
                 config: Config {
                     config: String::from(config),
-                    blockchain_name: blockchain_name.map(|s| String::from(s)),
+                    blockchain_name: blockchain_name.map(String::from),
                     use_callbacks_for_network,
                     ignore_cache,
                 },
@@ -142,7 +142,7 @@ impl TonConnection {
         match result {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
             r => Err(TonClientError::unexpected_ton_result(
-                TonResultDiscriminants::OptionsInfo.into(),
+                TonResultDiscriminants::OptionsInfo,
                 r,
             )),
         }
@@ -156,10 +156,10 @@ impl TonConnection {
         &self,
         id: i64,
         method: &SmcMethodId,
-        stack: &Vec<TvmStackEntry>,
+        stack: &[TvmStackEntry],
     ) -> Result<SmcRunResult, TonClientError> {
         let func = TonFunction::SmcRunGetMethod {
-            id: id,
+            id,
             method: method.clone(),
             stack: stack.to_vec(),
         };
@@ -272,7 +272,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                         &result,
                     );
 
-                    if let Err(_) = data.sender.send(result) {
+                    if data.sender.send(result).is_err() {
                         log::warn!(
                             "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
                             tag,

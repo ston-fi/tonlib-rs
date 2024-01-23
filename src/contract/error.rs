@@ -81,7 +81,7 @@ impl<R> MapStackError<R> for Result<R, TvmStackError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
             method: method.to_string(),
             address: address.clone(),
-            error: e.into(),
+            error: e,
         })
     }
 }

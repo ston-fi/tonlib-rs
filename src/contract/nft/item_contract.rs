@@ -107,7 +107,7 @@ pub trait NftItemContract: TonContractInterface {
         let stack = self.run_get_method(method, &input_stack).await?.stack;
 
         if stack.elements.len() == 1 {
-            let boc = stack.get_boc(0).map_stack_error(method, &self.address())?;
+            let boc = stack.get_boc(0).map_stack_error(method, self.address())?;
             log::trace!("Got Boc: {:?}", boc);
             Ok(boc)
         } else {

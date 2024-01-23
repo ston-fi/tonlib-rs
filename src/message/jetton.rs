@@ -109,7 +109,7 @@ impl JettonTransferMessage {
         )?;
         if let Some(cp) = self.custom_payload.as_ref() {
             message.store_bit(true)?;
-            message.store_reference(&cp)?;
+            message.store_reference(cp)?;
         } else {
             message.store_bit(false)?;
         }

@@ -29,9 +29,9 @@ pub struct Cell {
     pub references: Vec<Arc<Cell>>,
 }
 
-impl Into<Vec<Cell>> for Cell {
-    fn into(self) -> Vec<Cell> {
-        vec![self]
+impl From<Cell> for Vec<Cell> {
+    fn from(val: Cell) -> Self {
+        vec![val]
     }
 }
 
@@ -63,8 +63,7 @@ impl Cell {
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
     {
         let mut reader = self.parser();
-        let res = parse(&mut reader);
-        res
+        parse(&mut reader)
     }
 
     pub fn reference(&self, idx: usize) -> Result<&Arc<Cell>, TonCellError> {
@@ -83,21 +82,21 @@ impl Cell {
                 max_level = level;
             }
         }
-        return max_level;
+        max_level
     }
 
     fn get_max_depth(&self) -> usize {
         let mut max_depth = 0;
-        if self.references.len() > 0 {
+        if !self.references.is_empty() {
             for k in &self.references {
                 let depth = k.get_max_depth();
                 if depth > max_depth {
                     max_depth = depth;
                 }
             }
-            max_depth = max_depth + 1;
+            max_depth += 1;
         }
-        return max_depth;
+        max_depth
     }
 
     fn get_refs_descriptor(&self) -> u8 {
@@ -125,7 +124,7 @@ impl Cell {
                 .write_bytes(&self.data[..data_len - 1])
                 .map_boc_serialization_error()?;
             let last_byte = self.data[data_len - 1];
-            let l = last_byte | (1 << 8 - rest_bits - 1);
+            let l = last_byte | (1 << (8 - rest_bits - 1));
             writer.write(8, l).map_boc_serialization_error()?;
         } else {
             writer
@@ -150,7 +149,7 @@ impl Cell {
             .writer()
             .ok_or_else(|| TonCellError::cell_builder_error("Stream is not byte-aligned"))
             .map(|b| b.to_vec());
-        Ok(result?)
+        result
     }
 
     pub fn cell_hash(&self) -> Result<Vec<u8>, TonCellError> {
@@ -294,7 +293,7 @@ impl Cell {
         }
 
         if n - prefix_length == 0 {
-            let r = extractor(&self)?;
+            let r = extractor(self)?;
             let data = String::from_utf8_lossy(&r).to_string();
             map.insert(
                 BigInt::from_str_radix(pp.as_str(), 2)

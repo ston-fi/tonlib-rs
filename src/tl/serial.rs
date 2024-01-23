@@ -57,7 +57,7 @@ pub(crate) unsafe fn deserialize_result_extra(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
     let result: Result<TonResult, TlError> =
-        serde_json::from_value(value).map_err(|e| TlError::SerdeJsonError(e));
+        serde_json::from_value(value).map_err(TlError::SerdeJsonError);
     (result, extra)
 }
 

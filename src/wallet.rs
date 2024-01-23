@@ -63,10 +63,7 @@ impl WalletVersion {
     }
 
     pub fn has_op(&self) -> bool {
-        match self {
-            WalletVersion::V4R2 => true,
-            _ => false,
-        }
+        matches!(self, WalletVersion::V4R2)
     }
 }
 
@@ -148,7 +145,7 @@ impl TonWallet {
             .map_err(|e| TonMessageError::NaclCryptographicError { message: e.message })?;
         let mut body_builder = CellBuilder::new();
         body_builder.store_slice(sig.as_slice())?;
-        body_builder.store_cell(&external_body)?;
+        body_builder.store_cell(external_body)?;
         Ok(body_builder.build()?)
     }
 

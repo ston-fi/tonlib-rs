@@ -127,8 +127,8 @@ impl TvmStack {
     pub fn get_address(&self, index: usize) -> Result<TonAddress, TvmStackError> {
         self.get_boc(index)?
             .single_root()?
-            .parse_fully(|r| Ok(r.load_address()?))
-            .map_err(|e| TvmStackError::TonCellError(e))
+            .parse_fully(|r| r.load_address())
+            .map_err(TvmStackError::TonCellError)
     }
 
     fn get<T>(
