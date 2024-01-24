@@ -21,5 +21,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsodium-dev libsecp256k1-dev
       - run: cargo fmt --check
+      - run: cargo clippy
       - run: cargo build --features "state_cache" --verbose 
       - run: cargo test --features "state_cache" --lib -- --test-threads=1
