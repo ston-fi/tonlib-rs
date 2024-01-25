@@ -57,6 +57,22 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_get_jetton_content_empty_external_meta() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let contract =
+        factory.get_contract(&"EQD-J6UqYQezuUm6SlPDnHwTxXqo4uHys_fle_zKvM5nYJkA".parse()?);
+    let res = contract.get_jetton_data().await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(&res.content).await?;
+    assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BLKC"));
+    assert_eq!(content_res.decimals, Some(8));
+
+    Ok(())
+}
 #[tokio::test]
 async fn test_get_jetton_content_ipfs_uri() -> anyhow::Result<()> {
     common::init_logging();
