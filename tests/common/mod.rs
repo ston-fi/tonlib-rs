@@ -1,4 +1,5 @@
-use std::sync::Once;
+use lazy_static::lazy_static;
+use std::{env, fs, path::Path, sync::Once};
 
 use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};
@@ -8,8 +9,39 @@ use log4rs::Config;
 use tonlib::client::ConnectionCheck;
 use tonlib::{
     client::{TonClient, TonConnectionParams},
-    config::{MAINNET_CONFIG, TESTNET_CONFIG},
+    config::TESTNET_CONFIG,
 };
+
+lazy_static! {
+    pub static ref MAINNET_CONFIG: &'static str = {
+        let maybe_local_config_flag = env::var("USE_LOCAL_TON_MAINNET_CONFIG");
+        let local_config_flag = match maybe_local_config_flag {
+            Ok(flag) => match flag.parse::<bool>() {
+                Ok(flag) => flag,
+                Err(_) => false,
+            },
+            Err(_) => false,
+        };
+
+        let config_path = if local_config_flag {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/local.config.json")
+        } else {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/global.config.json")
+        };
+
+        read_config_file(&config_path)
+    };
+}
+
+fn read_config_file(path: &Path) -> &'static str {
+    match fs::read_to_string(path) {
+        Ok(content) => Box::leak(content.into_boxed_str()),
+        Err(err) => {
+            eprintln!("Error reading config file {:?}: {}", path, err);
+            ""
+        }
+    }
+}
 
 #[allow(dead_code)]
 static LOG: Once = Once::new();
