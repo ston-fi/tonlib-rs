@@ -12,3 +12,6 @@
 .idea/
 *.iml
 .vscode/
+
+# Config
+/resources/config/local.config.json
