@@ -177,10 +177,10 @@ impl Cell {
     /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
-    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<String, Vec<u8>>, TonCellError> {
+    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
         //todo: #79 key in hashmap must be [u8;32]
         let dict_loader =
-            GenericDictLoader::new(bytes_to_decimal_string, cell_to_snake_formatted_string, 256);
+            GenericDictLoader::new(bytes_to_slice, cell_to_snake_formatted_string, 256);
         self.load_generic_dict(dict_loader)
     }
 
