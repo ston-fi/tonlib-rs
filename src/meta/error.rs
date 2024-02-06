@@ -19,4 +19,7 @@ pub enum MetaLoaderError {
 
     #[error("Transport error ({0})")]
     TransportError(#[from] reqwest::Error),
+
+    #[error("Internal error ({0})")]
+    InternalError(String),
 }

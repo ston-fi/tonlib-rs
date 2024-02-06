@@ -16,6 +16,11 @@ where
 pub fn bytes_to_decimal_string(slice: &[u8]) -> Result<String, TonCellError> {
     Ok(BigUint::from_bytes_be(&slice).to_str_radix(10))
 }
+
+pub fn bytes_to_slice(slice: &[u8]) -> Result<[u8; 32], TonCellError> {
+    TryInto::<[u8; 32]>::try_into(slice).map_err(|e| TonCellError::InternalError(e.to_string()))
+}
+
 pub fn cell_to_snake_formatted_string(cell: &Cell) -> Result<Vec<u8>, TonCellError> {
     let mut buffer = Vec::new();
     cell.reference(0)?.parse_snake_data(&mut buffer)?;

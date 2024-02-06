@@ -66,8 +66,8 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
     }
 }
 
-impl From<&HashMap<String, String>> for JettonMetaData {
-    fn from(dict: &HashMap<String, String>) -> Self {
+impl From<&HashMap<[u8; 32], String>> for JettonMetaData {
+    fn from(dict: &HashMap<[u8; 32], String>) -> Self {
         JettonMetaData {
             name: dict.get(&META_NAME.key).cloned(),
             uri: dict.get(&META_URI.key).cloned(),
