@@ -1,12 +1,10 @@
-use crate::client::{
-    ConnectionCheck, MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
-    LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
-};
-
-use crate::client::error;
 use std::sync::Arc;
 
 use super::TonConnectionCallback;
+use crate::client::{
+    error, ConnectionCheck, MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
+    LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
+};
 
 pub struct TonClientBuilder {
     pool_size: usize,

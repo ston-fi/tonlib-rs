@@ -1,8 +1,9 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use futures::FutureExt;
-use std::future::Future;
-use std::pin::Pin;
 
 use crate::address::TonAddress;
 use crate::client::{TonClientError, TonClientInterface};

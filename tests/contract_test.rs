@@ -4,7 +4,6 @@ use std::time::Duration;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
-
 use tonlib::address::TonAddress;
 use tonlib::contract::{TonContractFactory, TonContractInterface, TonContractState};
 

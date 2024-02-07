@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumDiscriminants, IntoStaticStr};
 
 use crate::client::TonClientError;

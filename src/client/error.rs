@@ -1,7 +1,8 @@
 use std::io;
 
-use crate::tl::{TlError, TonResult, TonResultDiscriminants};
 use thiserror::Error;
+
+use crate::tl::{TlError, TonResult, TonResultDiscriminants};
 
 #[derive(Error, Debug)]
 pub enum TonClientError {

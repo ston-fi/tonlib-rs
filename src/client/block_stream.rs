@@ -1,7 +1,7 @@
-use futures::future::try_join_all;
 use std::collections::HashSet;
 use std::time::Duration;
 
+use futures::future::try_join_all;
 use tokio::time;
 
 use crate::client::{TonClient, TonClientError, TonClientInterface, TonConnection};

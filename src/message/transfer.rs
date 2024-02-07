@@ -4,7 +4,6 @@ use num_bigint::BigUint;
 
 use crate::address::TonAddress;
 use crate::cell::{Cell, CellBuilder};
-
 use crate::message::{TonMessageError, ZERO_COINS};
 
 pub struct TransferMessage {

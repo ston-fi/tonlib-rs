@@ -1,8 +1,10 @@
-use crate::client::TonClientError;
-use crate::tl::{TonFunction, TonNotification, TonResult};
-use lazy_static::lazy_static;
 use std::sync::Arc;
 use std::time::Duration;
+
+use lazy_static::lazy_static;
+
+use crate::client::TonClientError;
+use crate::tl::{TonFunction, TonNotification, TonResult};
 
 /// The callback methods invoked by TonConnection
 #[allow(unused_variables)]

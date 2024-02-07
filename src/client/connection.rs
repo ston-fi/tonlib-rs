@@ -7,18 +7,15 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
+use crate::client::{
+    TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
+    TonNotificationReceiver,
+};
 use crate::tl::{
-    Config, KeyStoreType, Options, OptionsInfo, SmcRunResult, TlTonClient, TonFunction,
+    BlockId, Config, KeyStoreType, Options, OptionsInfo, SmcRunResult, TlTonClient, TonFunction,
     TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
 };
 use crate::types::TonMethodId;
-use crate::{
-    client::{
-        TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
-        TonNotificationReceiver,
-    },
-    tl::BlockId,
-};
 
 struct RequestData {
     method: &'static str,

@@ -1,5 +1,6 @@
 #[cfg(feature = "state_cache")]
 use std::sync::Arc;
+
 use thiserror::Error;
 
 use crate::address::TonAddress;
