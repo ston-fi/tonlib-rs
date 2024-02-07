@@ -1,7 +1,8 @@
+use std::hash::Hash;
+
 use num_bigint::BigUint;
 
 use crate::cell::{Cell, TonCellError};
-use std::hash::Hash;
 
 pub trait DictLoader<K, V>
 where

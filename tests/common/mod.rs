@@ -1,16 +1,14 @@
-use lazy_static::lazy_static;
-use std::{env, fs, path::Path, sync::Once};
+use std::path::Path;
+use std::sync::Once;
+use std::{env, fs};
 
+use lazy_static::lazy_static;
 use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
-
-use tonlib::client::ConnectionCheck;
-use tonlib::{
-    client::{TonClient, TonConnectionParams},
-    config::TESTNET_CONFIG,
-};
+use tonlib::client::{ConnectionCheck, TonClient, TonConnectionParams};
+use tonlib::config::TESTNET_CONFIG;
 
 lazy_static! {
     pub static ref MAINNET_CONFIG: &'static str = {

@@ -6,11 +6,12 @@ use strum::IntoStaticStr;
 use crate::address::TonAddress;
 use crate::cell::BagOfCells;
 use crate::client::TonClientInterface;
-use crate::contract::{MapCellError, MapStackError, TonContractError, TonContractState};
+use crate::contract::{
+    MapCellError, MapStackError, NftItemContract, TonContractError, TonContractInterface,
+    TonContractState,
+};
 use crate::meta::MetaDataContent;
 use crate::tl::{TvmNumber, TvmStackEntry};
-
-use crate::contract::{NftItemContract, TonContractInterface};
 
 /// Data returned by get_collection_data according to TEP-62
 #[derive(Debug, Clone)]

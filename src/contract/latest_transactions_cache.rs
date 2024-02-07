@@ -1,14 +1,13 @@
 use std::collections::LinkedList;
 use std::ops::DerefMut;
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
 use crate::client::TonClientError;
-use crate::contract::{TonClientInterface, TonContractFactory};
+use crate::contract::{TonClientInterface, TonContractError, TonContractFactory};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-
-use crate::contract::TonContractError;
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,

@@ -1,15 +1,15 @@
 mod error;
 
-pub use error::*;
+use std::cmp;
+use std::collections::HashMap;
 
+pub use error::*;
 use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
 use pbkdf2::password_hash::Output;
 use pbkdf2::{pbkdf2, Params};
 use sha2::Sha512;
-use std::cmp;
-use std::collections::HashMap;
 
 const WORDLIST_EN: &str = include_str!("mnemonic/wordlist.EN");
 const PBKDF_ITERATIONS: u32 = 100000;

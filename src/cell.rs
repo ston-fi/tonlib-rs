@@ -1,22 +1,20 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
-
-use num_bigint::BigUint;
-use num_traits::{One, ToPrimitive};
-use sha2::{Digest, Sha256};
-use std::hash::Hash;
-
 pub use bag_of_cells::*;
 use bit_string::*;
+use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 pub use builder::*;
 pub use dict_loader::*;
 pub use error::*;
+use num_bigint::BigUint;
+use num_traits::{One, ToPrimitive};
 pub use parser::*;
 pub use raw::*;
+use sha2::{Digest, Sha256};
 pub use state_init::*;
 
 mod bag_of_cells;

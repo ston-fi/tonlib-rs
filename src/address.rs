@@ -1,15 +1,13 @@
 mod error;
 
-pub use error::*;
-
-use serde::de::{Error, Visitor};
-use serde::{Deserialize, Deserializer};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use crc::Crc;
+pub use error::*;
 use lazy_static::lazy_static;
-use serde::{Serialize, Serializer};
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);

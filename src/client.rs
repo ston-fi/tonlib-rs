@@ -4,12 +4,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
-use tokio_retry::strategy::FixedInterval;
-use tokio_retry::RetryIf;
-
 pub use block_functions::*;
 pub use block_stream::*;
 pub use builder::*;
@@ -17,6 +11,11 @@ pub use callback::*;
 pub use connection::*;
 pub use error::*;
 pub use interface::*;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::RetryIf;
 pub use types::*;
 
 use crate::tl::*;

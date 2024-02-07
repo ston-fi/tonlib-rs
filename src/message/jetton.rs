@@ -1,9 +1,10 @@
-use crate::address::TonAddress;
-use crate::cell::{Cell, CellBuilder};
-use num_bigint::BigUint;
-use num_traits::Zero;
 use std::sync::Arc;
 
+use num_bigint::BigUint;
+use num_traits::Zero;
+
+use crate::address::TonAddress;
+use crate::cell::{Cell, CellBuilder};
 use crate::message::{TonMessageError, ZERO_COINS};
 
 // Constants from jetton standart

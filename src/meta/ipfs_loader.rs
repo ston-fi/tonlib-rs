@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
-use serde::{Deserialize, Serialize};
-
 pub use error::*;
+use serde::{Deserialize, Serialize};
 
 mod error;
 

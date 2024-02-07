@@ -6,13 +6,13 @@ mod builder;
 #[cfg(feature = "state_cache")]
 mod cache;
 
+#[cfg(feature = "state_cache")]
+use std::time::Duration;
+
 use crate::address::TonAddress;
 use crate::client::{TonClient, TonClientInterface};
 use crate::contract::{TonContract, TonContractError, TonContractState};
 use crate::tl::{InternalTransactionId, RawFullAccountState};
-
-#[cfg(feature = "state_cache")]
-use std::time::Duration;
 
 #[derive(Clone)]
 pub struct TonContractFactory {

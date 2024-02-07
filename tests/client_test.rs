@@ -4,18 +4,14 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 use tokio::{self};
-
+use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
-use tonlib::client::{TonBlockFunctions, TonClientInterface};
+use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface};
+use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
     BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo,
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
-};
-use tonlib::{
-    address::TonAddress,
-    client::TonClient,
-    config::{MAINNET_CONFIG, TESTNET_CONFIG},
 };
 
 mod common;

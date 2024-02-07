@@ -1,7 +1,7 @@
-use crate::address::TonAddress;
-use crate::client::{TonClientError, TonConnection};
 use async_trait::async_trait;
 
+use crate::address::TonAddress;
+use crate::client::{TonClientError, TonConnection};
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,

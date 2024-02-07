@@ -1,11 +1,12 @@
-use crate::address::TonAddress;
-use crate::cell::{Cell, CellParser};
+use std::sync::Arc;
+
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use num_bigint::BigUint;
 use num_traits::Zero;
-use std::sync::Arc;
 
+use crate::address::TonAddress;
 use crate::cell::error::{MapTonCellError, TonCellError};
+use crate::cell::{Cell, CellParser};
 
 const MAX_CELL_BITS: usize = 1023;
 const MAX_CELL_REFERENCES: usize = 4;

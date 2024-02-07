@@ -1,8 +1,6 @@
+use std::borrow::Cow;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Display, Formatter},
-};
 
 use base64::CharacterSet;
 use lazy_static::lazy_static;
@@ -10,8 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
 
 use crate::tl::stack::{TvmCell, TvmStack};
-use crate::tl::Base64Standard;
-use crate::tl::InternalTransactionIdParseError;
+use crate::tl::{Base64Standard, InternalTransactionIdParseError};
 
 // tonlib_api.tl, line 23
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
