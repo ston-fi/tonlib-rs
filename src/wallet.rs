@@ -7,33 +7,99 @@ use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
 
 lazy_static! {
-    pub static ref WALLET_V3_CODE: BagOfCells = {
-        let code = include_str!("../resources/wallet/wallet_v3_code.hex");
-        BagOfCells::parse_hex(code).unwrap()
+    pub static ref WALLET_V1R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v1r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V1R2_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v1r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V1R3_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v1r3.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V2R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v2r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V2R2_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v2r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V3R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v3r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
     };
     pub static ref WALLET_V3R2_CODE: BagOfCells = {
-        let code = include_str!("../resources/wallet/wallet_v3r2_code.hex");
-        BagOfCells::parse_hex(code).unwrap()
+        let code = include_str!("../resources/wallet/wallet_v3r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref WALLET_V4R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v4r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
     };
     pub static ref WALLET_V4R2_CODE: BagOfCells = {
-        let code = include_str!("../resources/wallet/wallet_v4r2_code.hex");
-        BagOfCells::parse_hex(code).unwrap()
+        let code = include_str!("../resources/wallet/wallet_v4r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref HIGHLOAD_V1R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/highload_v1r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref HIGHLOAD_V1R2_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/highload_v1r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref HIGHLOAD_V2_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/highload_v2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref HIGHLOAD_V2R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/highload_v2r1.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+    };
+    pub static ref HIGHLOAD_V2R2_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/highload_v2r2.code");
+        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
     };
 }
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub enum WalletVersion {
-    V3,
+    V1R1,
+    V1R2,
+    V1R3,
+    V2R1,
+    V2R2,
+    V3R1,
     V3R2,
+    V4R1,
     V4R2,
+    HighloadV1R1,
+    HighloadV1R2,
+    HighloadV2,
+    HighloadV2R1,
+    HighloadV2R2,
 }
 
 impl WalletVersion {
     pub fn code(&self) -> &'static BagOfCells {
         let code: &BagOfCells = match self {
-            WalletVersion::V3 => &WALLET_V3_CODE,
+            WalletVersion::V1R1 => &WALLET_V1R1_CODE,
+            WalletVersion::V1R2 => &WALLET_V1R2_CODE,
+            WalletVersion::V1R3 => &WALLET_V1R3_CODE,
+            WalletVersion::V2R1 => &WALLET_V2R1_CODE,
+            WalletVersion::V2R2 => &WALLET_V2R2_CODE,
+            WalletVersion::V3R1 => &WALLET_V3R1_CODE,
             WalletVersion::V3R2 => &WALLET_V3R2_CODE,
+            WalletVersion::V4R1 => &WALLET_V4R1_CODE,
             WalletVersion::V4R2 => &WALLET_V4R2_CODE,
+            WalletVersion::HighloadV1R1 => &HIGHLOAD_V1R1_CODE,
+            WalletVersion::HighloadV1R2 => &HIGHLOAD_V1R2_CODE,
+            WalletVersion::HighloadV2 => &HIGHLOAD_V2_CODE,
+            WalletVersion::HighloadV2R1 => &HIGHLOAD_V2R1_CODE,
+            WalletVersion::HighloadV2R2 => &HIGHLOAD_V2R2_CODE,
         };
         code
     }
@@ -42,18 +108,52 @@ impl WalletVersion {
         &self,
         workchain: i32,
         key_pair: &KeyPair,
+        sub_wallet_id: Option<i32>
     ) -> Result<BagOfCells, TonCellError> {
         let mut data_builder = CellBuilder::new();
-        data_builder
-            .store_u32(32, 0)?
-            // seqno
-            .store_u32(32, 698983191 + workchain as u32)?
-            //wallet_id
-            .store_slice(key_pair.public_key.as_slice())?; // public key
-        if *self == WalletVersion::V4R2 {
-            data_builder.store_bit(false)?;
-            // empty plugin dict
-        }
+
+        let wallet_id = sub_wallet_id.unwrap_or(698983191 + workchain);
+
+        match &self {
+            Self::V1R1 | Self::V1R2 | Self::V1R3 | Self::V2R1 | Self::V2R2 => {
+                data_builder
+                    // seqno
+                    .store_u32(32, 0)?
+                    .store_slice(&key_pair.public_key)?
+            }
+            Self::V3R1 | Self::V3R2 => {
+                data_builder
+                    // seqno
+                    .store_u32(32, 0)?
+                    // wallet_id
+                    .store_u32(32, wallet_id as u32)?
+                    .store_slice(&key_pair.public_key)?
+            }
+            Self::V4R1 | Self::V4R2 => {
+                data_builder
+                    // seqno
+                    .store_u32(32, 0)?
+                    // wallet_id
+                    .store_u32(32, wallet_id as u32)?
+                    .store_slice(&key_pair.public_key)?
+                    // empty plugin dict
+                    .store_bit(false)?
+            }
+            Self::HighloadV2R2 => {
+                data_builder
+                    // wallet_id
+                    .store_u32(32, wallet_id as u32)?
+                    // TODO: not sure what goes into last_cleaned_time, so I set it to 0
+                    .store_u64(64, 0)?
+                    .store_slice(&key_pair.public_key)?
+                    // empty plugin dict
+                    .store_bit(false)?
+            }
+            _ => {
+                unimplemented!("no generation for that wallet version")
+            }
+        };
+
         let data_cell = data_builder.build()?;
         Ok(BagOfCells::from_root(data_cell))
     }
@@ -82,8 +182,9 @@ impl TonWallet {
         workchain: i32,
         version: WalletVersion,
         key_pair: &KeyPair,
+        sub_wallet_id: Option<i32>,
     ) -> Result<TonWallet, TonCellError> {
-        let data = version.initial_data(workchain, key_pair)?;
+        let data = version.initial_data(workchain, key_pair, sub_wallet_id)?;
         let code = version.code();
         let state_init_hash =
             StateInit::create_account_id(code.single_root()?, data.single_root()?)?;
@@ -185,14 +286,14 @@ mod tests {
         sudden rib gather media vicious";
         let mnemonic = Mnemonic::from_str(&mnemonic_str, &None)?;
         let key_pair = mnemonic.to_key_pair()?;
-        let wallet_v3 = TonWallet::derive(0, WalletVersion::V3, &key_pair)?;
+        let wallet_v3 = TonWallet::derive(0, WalletVersion::V3R1, &key_pair, None)?;
         let expected_v3: TonAddress = "EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK".parse()?;
         assert_eq!(wallet_v3.address, expected_v3);
-        let wallet_v3r2 = TonWallet::derive(0, WalletVersion::V3R2, &key_pair)?;
+        let wallet_v3r2 = TonWallet::derive(0, WalletVersion::V3R2, &key_pair, None)?;
         let expected_v3r2: TonAddress =
             "EQA-RswW9QONn88ziVm4UKnwXDEot5km7GEEXsfie_0TFOCO".parse()?;
         assert_eq!(wallet_v3r2.address, expected_v3r2);
-        let wallet_v4r2 = TonWallet::derive(0, WalletVersion::V4R2, &key_pair)?;
+        let wallet_v4r2 = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
         let expected_v4r2: TonAddress =
             "EQCDM_QGggZ3qMa_f3lRPk4_qLDnLTqdi6OkMAV2NB9r5TG3".parse()?;
         assert_eq!(wallet_v4r2.address, expected_v4r2);
