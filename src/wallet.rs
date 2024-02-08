@@ -108,53 +108,56 @@ impl WalletVersion {
         &self,
         workchain: i32,
         key_pair: &KeyPair,
-        sub_wallet_id: Option<i32>
+        sub_wallet_id: Option<i32>,
     ) -> Result<BagOfCells, TonCellError> {
-        let mut data_builder = CellBuilder::new();
-
         let wallet_id = sub_wallet_id.unwrap_or(698983191 + workchain);
+        let public_key: [u8; 32] =
+            key_pair
+                .public_key
+                .clone()
+                .try_into()
+                .map_err(|_| TonCellError::InternalError {
+                    msg: "Invalid public key size".to_string(),
+                })?;
 
-        match &self {
-            Self::V1R1 | Self::V1R2 | Self::V1R3 | Self::V2R1 | Self::V2R2 => {
-                data_builder
-                    // seqno
-                    .store_u32(32, 0)?
-                    .store_slice(&key_pair.public_key)?
+        let data_cell: Cell = match &self {
+            WalletVersion::V1R1
+            | WalletVersion::V1R2
+            | WalletVersion::V1R3
+            | WalletVersion::V2R1
+            | WalletVersion::V2R2 => DataV1R1 {
+                seqno: 0,
+                public_key,
             }
-            Self::V3R1 | Self::V3R2 => {
-                data_builder
-                    // seqno
-                    .store_u32(32, 0)?
-                    // wallet_id
-                    .store_u32(32, wallet_id as u32)?
-                    .store_slice(&key_pair.public_key)?
+            .try_into()?,
+            WalletVersion::V3R1 | WalletVersion::V3R2 => DataV3R1 {
+                seqno: 0,
+                wallet_id: wallet_id as u32,
+                public_key,
             }
-            Self::V4R1 | Self::V4R2 => {
-                data_builder
-                    // seqno
-                    .store_u32(32, 0)?
-                    // wallet_id
-                    .store_u32(32, wallet_id as u32)?
-                    .store_slice(&key_pair.public_key)?
-                    // empty plugin dict
-                    .store_bit(false)?
+            .try_into()?,
+            WalletVersion::V4R1 | WalletVersion::V4R2 => DataV4R1 {
+                seqno: 0,
+                wallet_id: wallet_id as u32,
+                public_key,
             }
-            Self::HighloadV2R2 => {
-                data_builder
-                    // wallet_id
-                    .store_u32(32, wallet_id as u32)?
-                    // TODO: not sure what goes into last_cleaned_time, so I set it to 0
-                    .store_u64(64, 0)?
-                    .store_slice(&key_pair.public_key)?
-                    // empty plugin dict
-                    .store_bit(false)?
+            .try_into()?,
+            WalletVersion::HighloadV2R2 => DataHighloadV2R2 {
+                wallet_id: wallet_id as u32,
+                last_cleaned_time: 0,
+                public_key,
             }
-            _ => {
-                unimplemented!("no generation for that wallet version")
+            .try_into()?,
+            WalletVersion::HighloadV1R1
+            | WalletVersion::HighloadV1R2
+            | WalletVersion::HighloadV2
+            | WalletVersion::HighloadV2R1 => {
+                return Err(TonCellError::InternalError {
+                    msg: "No generation for this wallet version".to_string(),
+                });
             }
         };
 
-        let data_cell = data_builder.build()?;
         Ok(BagOfCells::from_root(data_cell))
     }
 
@@ -167,6 +170,150 @@ impl WalletVersion {
             WalletVersion::V4R2 => true,
             _ => false,
         }
+    }
+}
+
+/// WalletVersion::V1R1 | WalletVersion::V1R2 | WalletVersion::V1R3 | WalletVersion::V2R1 | WalletVersion::V2R2
+pub struct DataV1R1 {
+    pub seqno: u32,
+    pub public_key: [u8; 32],
+}
+
+impl TryFrom<&Cell> for DataV1R1 {
+    type Error = TonCellError;
+
+    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+        let mut parser = value.parser();
+        let seqno = parser.load_u32(32)?;
+        let mut public_key = [0u8; 32];
+        parser.load_slice(&mut public_key)?;
+        Ok(Self { seqno, public_key })
+    }
+}
+
+impl TryInto<Cell> for DataV1R1 {
+    type Error = TonCellError;
+
+    fn try_into(self) -> Result<Cell, Self::Error> {
+        CellBuilder::new()
+            .store_u32(32, self.seqno)?
+            .store_slice(&self.public_key)?
+            .build()
+    }
+}
+
+/// WalletVersion::V3R1 | WalletVersion::V3R2
+pub struct DataV3R1 {
+    pub seqno: u32,
+    pub wallet_id: u32,
+    pub public_key: [u8; 32],
+}
+
+impl TryFrom<&Cell> for DataV3R1 {
+    type Error = TonCellError;
+
+    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+        let mut parser = value.parser();
+        let seqno = parser.load_u32(32)?;
+        let wallet_id = parser.load_u32(32)?;
+        let mut public_key = [0u8; 32];
+        parser.load_slice(&mut public_key)?;
+        Ok(Self {
+            seqno,
+            wallet_id,
+            public_key,
+        })
+    }
+}
+
+impl TryInto<Cell> for DataV3R1 {
+    type Error = TonCellError;
+
+    fn try_into(self) -> Result<Cell, Self::Error> {
+        CellBuilder::new()
+            .store_u32(32, self.seqno)?
+            .store_u32(32, self.wallet_id)?
+            .store_slice(&self.public_key)?
+            .build()
+    }
+}
+
+/// WalletVersion::V4R1 | WalletVersion::V4R2
+pub struct DataV4R1 {
+    pub seqno: u32,
+    pub wallet_id: u32,
+    pub public_key: [u8; 32],
+}
+
+impl TryFrom<&Cell> for DataV4R1 {
+    type Error = TonCellError;
+
+    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+        let mut parser = value.parser();
+        let seqno = parser.load_u32(32)?;
+        let wallet_id = parser.load_u32(32)?;
+        let mut public_key = [0u8; 32];
+        parser.load_slice(&mut public_key)?;
+        // TODO: handle plugin dict
+        Ok(Self {
+            seqno,
+            wallet_id,
+            public_key,
+        })
+    }
+}
+
+impl TryInto<Cell> for DataV4R1 {
+    type Error = TonCellError;
+
+    fn try_into(self) -> Result<Cell, Self::Error> {
+        CellBuilder::new()
+            .store_u32(32, self.seqno)?
+            .store_u32(32, self.wallet_id)?
+            .store_slice(&self.public_key)?
+            // empty plugin dict
+            .store_bit(false)?
+            .build()
+    }
+}
+
+/// WalletVersion::HighloadV2R2
+pub struct DataHighloadV2R2 {
+    pub wallet_id: u32,
+    pub last_cleaned_time: u64,
+    pub public_key: [u8; 32],
+}
+
+impl TryFrom<&Cell> for DataHighloadV2R2 {
+    type Error = TonCellError;
+
+    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+        let mut parser = value.parser();
+        let wallet_id = parser.load_u32(32)?;
+        let last_cleaned_time = parser.load_u64(64)?;
+        let mut public_key = [0u8; 32];
+        parser.load_slice(&mut public_key)?;
+        // TODO: handle queries dict
+        Ok(Self {
+            wallet_id,
+            last_cleaned_time,
+            public_key,
+        })
+    }
+}
+
+impl TryInto<Cell> for DataHighloadV2R2 {
+    type Error = TonCellError;
+
+    fn try_into(self) -> Result<Cell, Self::Error> {
+        CellBuilder::new()
+            .store_u32(32, self.wallet_id)?
+            // TODO: not sure what goes into last_cleaned_time, so I set it to 0
+            .store_u64(64, self.last_cleaned_time)?
+            .store_slice(&self.public_key)?
+            // empty plugin dict
+            .store_bit(false)?
+            .build()
     }
 }
 
