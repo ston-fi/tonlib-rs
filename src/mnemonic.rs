@@ -26,7 +26,7 @@ lazy_static! {
     };
 }
 
-/// A Rust port of https://github.com/tonwhales/ton-crypto/blob/master/src/mnemonic/mnemonic.ts
+/// A Rust port of <https://github.com/tonwhales/ton-crypto/blob/master/src/mnemonic/mnemonic.ts>
 pub struct Mnemonic {
     words: Vec<String>,
     password: Option<String>,
