@@ -32,7 +32,7 @@ impl MetaDataField {
     fn key_from_str(k: &str) -> String {
         let mut hasher: Sha256 = Sha256::new();
         hasher.update(k);
-        let s = hex::encode(hasher.finalize()[..].to_vec());
+        let s = hex::encode(&hasher.finalize()[..]);
         BigInt::from_str_radix(s.as_str(), 16)
             .unwrap()
             .to_str_radix(10)
@@ -100,7 +100,7 @@ where
     pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
         log::trace!("Downloading metadata from {}", uri);
         let meta_str: String = if uri.starts_with("ipfs://") {
-            let path: String = uri.chars().into_iter().skip(7).collect();
+            let path: String = uri.chars().skip(7).collect();
             self.ipfs_loader.load_utf8_lossy(path.as_str()).await?
         } else {
             let resp = self.http_client.get(uri).send().await?;

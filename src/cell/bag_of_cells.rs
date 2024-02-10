@@ -115,7 +115,7 @@ impl BagOfCells {
                         in_refs.insert(r.clone(), refs);
                     }
                 }
-                Self::traverse_cell_tree(&r, all_cells, in_refs)?;
+                Self::traverse_cell_tree(r, all_cells, in_refs)?;
             }
         }
         Ok(())
@@ -126,7 +126,7 @@ impl BagOfCells {
         let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
         let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
         for r in &self.roots {
-            Self::traverse_cell_tree(&r, &mut all_cells, &mut in_refs)?;
+            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
         }
         let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
         for c in &all_cells {
@@ -161,7 +161,7 @@ impl BagOfCells {
             let refs: Vec<usize> = cell
                 .references
                 .iter()
-                .map(|c| indices.get(c).unwrap().clone())
+                .map(|c| *indices.get(c).unwrap())
                 .collect();
             let raw = RawCell {
                 data: cell.data.clone(),
@@ -174,7 +174,7 @@ impl BagOfCells {
         let roots: Vec<usize> = self
             .roots
             .iter()
-            .map(|c| indices.get(c).unwrap().clone())
+            .map(|c| *indices.get(c).unwrap())
             .collect();
         Ok(RawBagOfCells { cells, roots })
     }

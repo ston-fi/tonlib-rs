@@ -94,8 +94,7 @@ impl TonClient {
     ) -> Result<(TonConnection, TonResult), TonClientError> {
         let fi = FixedInterval::from_millis(self.inner.retry_strategy.interval_ms);
         let strategy = fi.take(self.inner.retry_strategy.max_retries);
-        let result = RetryIf::spawn(strategy, || self.do_invoke(function), retry_condition).await;
-        result
+        RetryIf::spawn(strategy, || self.do_invoke(function), retry_condition).await
     }
 
     async fn do_invoke(
@@ -116,8 +115,7 @@ impl TonClient {
             let mut rng = rand::thread_rng();
             rng.gen_range(0..self.inner.connections.len())
         };
-        let entry = &self.inner.connections[i];
-        entry
+        &self.inner.connections[i] as _
     }
 
     pub fn set_log_verbosity_level(verbosity_level: u32) {

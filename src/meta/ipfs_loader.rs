@@ -82,7 +82,7 @@ impl IpfsLoader {
             Ok(bytes)
         } else {
             const MAX_MESSAGE_SIZE: usize = 200;
-            let body = String::from_utf8_lossy(&response.bytes().await?.to_vec()).to_string();
+            let body = String::from_utf8_lossy(&response.bytes().await?).to_string();
             let message = if body.len() > MAX_MESSAGE_SIZE {
                 format!("{}...", &body[0..MAX_MESSAGE_SIZE - 3])
             } else {
