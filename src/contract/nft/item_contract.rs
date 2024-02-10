@@ -45,8 +45,6 @@ pub trait NftItemContract: TonContractInterface {
 
         let stack = self.run_get_method(method, &Vec::new()).await?.stack;
         if stack.elements.len() == NFT_DATA_STACK_ELEMENTS {
-            let method = method;
-
             let init = stack.get_i32(0).map_stack_error(method, &address)? == -1;
             let index = stack.get_biguint(1).map_stack_error(method, &address)?;
             let collection_address = stack.get_address(2).map_stack_error(method, &address)?;

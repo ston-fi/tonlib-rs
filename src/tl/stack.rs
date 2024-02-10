@@ -87,6 +87,12 @@ impl Serialize for TvmStack {
     }
 }
 
+impl Default for TvmStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TvmStack {
     pub fn new() -> TvmStack {
         TvmStack {

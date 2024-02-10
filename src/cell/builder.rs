@@ -15,6 +15,12 @@ pub struct CellBuilder {
     references: Vec<Arc<Cell>>,
 }
 
+impl Default for CellBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CellBuilder {
     pub fn new() -> CellBuilder {
         let bit_writer = BitWriter::endian(Vec::new(), BigEndian);

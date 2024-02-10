@@ -16,6 +16,12 @@ pub struct TonClientBuilder {
     archive_nodes_only: bool,
 }
 
+impl Default for TonClientBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TonClientBuilder {
     pub fn new() -> Self {
         TonClientBuilder {

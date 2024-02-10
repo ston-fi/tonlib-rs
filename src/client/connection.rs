@@ -290,10 +290,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                             // The call might only fail if there are no receivers, so just ignore the result
                             let _ = inner.notification_sender.send(Arc::new(n));
                         } else {
-                            let extra = match &maybe_extra {
-                                Some(s) => Some(s.as_str()),
-                                None => None,
-                            };
+                            let extra = maybe_extra.as_deref();
                             inner.callback.on_ton_result_parse_error(&tag, extra, &r);
                         }
                     }
