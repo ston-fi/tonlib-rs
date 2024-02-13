@@ -9,59 +9,59 @@ use crate::mnemonic::KeyPair;
 lazy_static! {
     pub static ref WALLET_V1R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v1r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V1R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v1r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V1R3_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v1r3.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V2R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v2r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V2R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v2r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V3R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v3r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V3R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v3r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V4R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v4r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref WALLET_V4R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/wallet_v4r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref HIGHLOAD_V1R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v1r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref HIGHLOAD_V1R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v1r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref HIGHLOAD_V2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref HIGHLOAD_V2R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v2r1.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
     pub static ref HIGHLOAD_V2R2_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v2r2.code");
-        BagOfCells::parse(&base64::decode(code).unwrap()).unwrap()
+        BagOfCells::parse_base64(code).unwrap()
     };
 }
 
