@@ -136,18 +136,18 @@ impl WalletVersion {
             .try_into()?,
             WalletVersion::V3R1 | WalletVersion::V3R2 => DataV3R1 {
                 seqno: 0,
-                wallet_id: wallet_id as u32,
+                wallet_id,
                 public_key,
             }
             .try_into()?,
             WalletVersion::V4R1 | WalletVersion::V4R2 => DataV4R1 {
                 seqno: 0,
-                wallet_id: wallet_id as u32,
+                wallet_id,
                 public_key,
             }
             .try_into()?,
             WalletVersion::HighloadV2R2 => DataHighloadV2R2 {
-                wallet_id: wallet_id as u32,
+                wallet_id,
                 last_cleaned_time: 0,
                 public_key,
             }
