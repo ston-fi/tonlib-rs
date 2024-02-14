@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 use num_traits::Zero;
 
 use crate::address::TonAddress;
@@ -37,6 +37,13 @@ impl CellBuilder {
         Ok(self)
     }
 
+    pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
+        Ok(self)
+    }
+
     pub fn store_u32(&mut self, bit_len: usize, val: u32) -> Result<&mut Self, TonCellError> {
         self.bit_writer
             .write(bit_len as u32, val)
@@ -44,7 +51,21 @@ impl CellBuilder {
         Ok(self)
     }
 
+    pub fn store_i32(&mut self, bit_len: usize, val: i32) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
+        Ok(self)
+    }
+
     pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
+        self.bit_writer
+            .write(bit_len as u32, val)
+            .map_cell_builder_error()?;
+        Ok(self)
+    }
+
+    pub fn store_i64(&mut self, bit_len: usize, val: i64) -> Result<&mut Self, TonCellError> {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
@@ -82,10 +103,34 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
+    pub fn store_int(&mut self, bit_len: usize, val: &BigInt) -> Result<&mut Self, TonCellError> {
+        if val.bits() as usize > bit_len {
+            return Err(TonCellError::cell_builder_error(format!(
+                "Value {} doesn't fit in {} bits",
+                val, bit_len
+            )));
+        }
+        let bytes = val.to_signed_bytes_be();
+        let num_full_bytes = bit_len / 8;
+        let num_bits_in_high_byte = bit_len % 8;
+        if bytes.len() > num_full_bytes + 1 {
+            panic!("Internal error: can't fit {} into {} bits ", val, bit_len)
+        }
+        if num_bits_in_high_byte > 0 {
+            let high_byte: u8 = if bytes.len() == num_full_bytes + 1 {
+                bytes[0]
+            } else {
+                0
+            };
+            self.store_u8(num_bits_in_high_byte, high_byte)?;
+        }
+        let num_empty_bytes = num_full_bytes - bytes.len();
+        for _ in 0..num_empty_bytes {
+            self.store_byte(0)?;
+        }
+        for b in bytes {
+            self.store_byte(b)?;
+        }
         Ok(self)
     }
 

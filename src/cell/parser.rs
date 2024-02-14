@@ -1,7 +1,7 @@
 use std::io::{Cursor, SeekFrom};
 
 use bitstream_io::{BigEndian, BitRead, BitReader};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
 use crate::address::TonAddress;
@@ -42,15 +42,33 @@ impl CellParser<'_> {
             .map_cell_parser_error()
     }
 
+    pub fn load_i8(&mut self, bit_len: usize) -> Result<i8, TonCellError> {
+        self.bit_reader
+            .read::<i8>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
     pub fn load_u32(&mut self, bit_len: usize) -> Result<u32, TonCellError> {
         self.bit_reader
             .read::<u32>(bit_len as u32)
             .map_cell_parser_error()
     }
 
+    pub fn load_i32(&mut self, bit_len: usize) -> Result<i32, TonCellError> {
+        self.bit_reader
+            .read::<i32>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
     pub fn load_u64(&mut self, bit_len: usize) -> Result<u64, TonCellError> {
         self.bit_reader
             .read::<u64>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
+    pub fn load_i64(&mut self, bit_len: usize) -> Result<i64, TonCellError> {
+        self.bit_reader
+            .read::<i64>(bit_len as u32)
             .map_cell_parser_error()
     }
 
@@ -65,6 +83,25 @@ impl CellParser<'_> {
             words[i] = word;
         }
         let big_uint = BigUint::new(words);
+        Ok(big_uint)
+    }
+
+    pub fn load_int(&mut self, bit_len: usize) -> Result<BigInt, TonCellError> {
+        let num_words = (bit_len + 31) / 32;
+        let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
+        let mut words: Vec<u32> = vec![0_u32; num_words];
+        let high_word = self.load_u32(high_word_bits)?;
+        let sign = if (high_word & (1 << 31)) == 0 {
+            Sign::Plus
+        } else {
+            Sign::Minus
+        };
+        words[num_words - 1] = high_word;
+        for i in (0..num_words - 1).rev() {
+            let word = self.load_u32(32)?;
+            words[i] = word;
+        }
+        let big_uint = BigInt::new(sign, words);
         Ok(big_uint)
     }
 
