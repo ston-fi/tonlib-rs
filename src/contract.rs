@@ -29,11 +29,10 @@ pub struct TonContract {
 
 impl TonContract {
     pub(crate) fn new(factory: &TonContractFactory, address: &TonAddress) -> TonContract {
-        let contract = TonContract {
+        TonContract {
             factory: factory.clone(),
             address: address.clone(),
-        };
-        contract
+        }
     }
 
     pub async fn get_account_state(&self) -> Result<RawFullAccountState, TonContractError> {

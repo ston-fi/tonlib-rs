@@ -71,7 +71,7 @@ impl TonContractFactoryBuilder {
     pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
         TonContractFactory::new(
             &self.client,
-            self.with_cache.clone(),
+            self.with_cache,
             self.capacity,
             self.time_to_live,
             self.presync_blocks,

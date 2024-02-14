@@ -91,3 +91,9 @@ impl TonClientBuilder {
         .await
     }
 }
+
+impl Default for TonClientBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

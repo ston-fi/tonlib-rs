@@ -105,11 +105,11 @@ impl JettonTransferMessage {
         message.store_address(
             self.response_destination
                 .as_ref()
-                .unwrap_or_else(|| &TonAddress::NULL),
+                .unwrap_or(&TonAddress::NULL),
         )?;
         if let Some(cp) = self.custom_payload.as_ref() {
             message.store_bit(true)?;
-            message.store_reference(&cp)?;
+            message.store_reference(cp)?;
         } else {
             message.store_bit(false)?;
         }

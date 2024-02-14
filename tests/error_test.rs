@@ -121,6 +121,7 @@ fn test_ton_client_error_output() {
             "Some error message"
         ))
     );
+    #[allow(invalid_from_utf8)]
     let utf8_error = std::str::from_utf8(&[0xC3, 0x28]).unwrap_err();
     log::error!(
         "{}",
@@ -143,7 +144,7 @@ fn test_ton_contract_error_output() {
             }
         }
     );
-
+    #[allow(invalid_from_utf8)]
     let utf8_error = std::str::from_utf8(&[0xC3, 0x28]).unwrap_err();
 
     log::error!(
@@ -340,6 +341,7 @@ fn test_tvm_stack_error_output() {
 #[ignore]
 fn test_tl_error_output() {
     common::init_logging();
+    #[allow(invalid_from_utf8)]
     let utf8_error = std::str::from_utf8(&[0xC3, 0x28]).unwrap_err();
 
     log::error!("{}", TlError::Utf8Error(utf8_error));

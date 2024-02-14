@@ -163,7 +163,7 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_smc_get_state_works() -> anyhow::Result<()> {
+async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";

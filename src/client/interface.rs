@@ -207,7 +207,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_code(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetCode { id: id };
+        let func = TonFunction::SmcGetCode { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
@@ -219,7 +219,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_data(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetData { id: id };
+        let func = TonFunction::SmcGetData { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
@@ -231,7 +231,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_state(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetState { id: id };
+        let func = TonFunction::SmcGetState { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),

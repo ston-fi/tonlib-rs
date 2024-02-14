@@ -90,13 +90,14 @@ impl TonClient {
     }
 
     pub fn builder() -> TonClientBuilder {
-        TonClientBuilder::new()
+        TonClientBuilder::default()
     }
 
     pub async fn default() -> Result<TonClient, TonClientError> {
         Self::builder().build().await
     }
 
+    #[allow(clippy::let_and_return)]
     async fn retrying_invoke(
         &self,
         function: &TonFunction,
@@ -120,6 +121,7 @@ impl TonClient {
         }
     }
 
+    #[allow(clippy::let_and_return)]
     fn random_item(&self) -> &PoolConnection {
         let i = {
             let mut rng = rand::thread_rng();

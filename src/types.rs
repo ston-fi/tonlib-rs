@@ -26,7 +26,7 @@ impl From<&'static str> for TonMethodId {
 
 impl From<String> for TonMethodId {
     fn from(value: String) -> Self {
-        TonMethodId::Name(Cow::Owned(value.into()))
+        TonMethodId::Name(Cow::Owned(value))
     }
 }
 
@@ -39,7 +39,7 @@ impl From<i32> for TonMethodId {
 impl From<&TonMethodId> for SmcMethodId {
     fn from(value: &TonMethodId) -> Self {
         match value {
-            TonMethodId::Number(v) => SmcMethodId::Number { number: v.clone() },
+            TonMethodId::Number(v) => SmcMethodId::Number { number: *v },
             TonMethodId::Name(v) => SmcMethodId::Name { name: v.clone() },
         }
     }

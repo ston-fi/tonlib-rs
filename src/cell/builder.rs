@@ -223,6 +223,12 @@ impl CellBuilder {
     }
 }
 
+impl Default for CellBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::address::TonAddress;
