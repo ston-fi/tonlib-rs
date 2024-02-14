@@ -6,10 +6,10 @@ pub struct DataV1R1 {
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<&Cell> for DataV1R1 {
+impl TryFrom<Cell> for DataV1R1 {
     type Error = TonCellError;
 
-    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+    fn try_from(value: Cell) -> Result<Self, Self::Error> {
         let mut parser = value.parser();
         let seqno = parser.load_u32(32)?;
         let mut public_key = [0u8; 32];
@@ -18,13 +18,13 @@ impl TryFrom<&Cell> for DataV1R1 {
     }
 }
 
-impl TryInto<Cell> for DataV1R1 {
+impl TryFrom<DataV1R1> for Cell {
     type Error = TonCellError;
 
-    fn try_into(self) -> Result<Cell, Self::Error> {
+    fn try_from(value: DataV1R1) -> Result<Self, Self::Error> {
         CellBuilder::new()
-            .store_u32(32, self.seqno)?
-            .store_slice(&self.public_key)?
+            .store_u32(32, value.seqno)?
+            .store_slice(&value.public_key)?
             .build()
     }
 }
@@ -36,10 +36,10 @@ pub struct DataV3R1 {
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<&Cell> for DataV3R1 {
+impl TryFrom<Cell> for DataV3R1 {
     type Error = TonCellError;
 
-    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+    fn try_from(value: Cell) -> Result<Self, Self::Error> {
         let mut parser = value.parser();
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
@@ -53,14 +53,14 @@ impl TryFrom<&Cell> for DataV3R1 {
     }
 }
 
-impl TryInto<Cell> for DataV3R1 {
+impl TryFrom<DataV3R1> for Cell {
     type Error = TonCellError;
 
-    fn try_into(self) -> Result<Cell, Self::Error> {
+    fn try_from(value: DataV3R1) -> Result<Self, Self::Error> {
         CellBuilder::new()
-            .store_u32(32, self.seqno)?
-            .store_i32(32, self.wallet_id)?
-            .store_slice(&self.public_key)?
+            .store_u32(32, value.seqno)?
+            .store_i32(32, value.wallet_id)?
+            .store_slice(&value.public_key)?
             .build()
     }
 }
@@ -72,10 +72,10 @@ pub struct DataV4R1 {
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<&Cell> for DataV4R1 {
+impl TryFrom<Cell> for DataV4R1 {
     type Error = TonCellError;
 
-    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+    fn try_from(value: Cell) -> Result<Self, Self::Error> {
         let mut parser = value.parser();
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
@@ -90,14 +90,14 @@ impl TryFrom<&Cell> for DataV4R1 {
     }
 }
 
-impl TryInto<Cell> for DataV4R1 {
+impl TryFrom<DataV4R1> for Cell {
     type Error = TonCellError;
 
-    fn try_into(self) -> Result<Cell, Self::Error> {
+    fn try_from(value: DataV4R1) -> Result<Self, Self::Error> {
         CellBuilder::new()
-            .store_u32(32, self.seqno)?
-            .store_i32(32, self.wallet_id)?
-            .store_slice(&self.public_key)?
+            .store_u32(32, value.seqno)?
+            .store_i32(32, value.wallet_id)?
+            .store_slice(&value.public_key)?
             // empty plugin dict
             .store_bit(false)?
             .build()
@@ -111,10 +111,10 @@ pub struct DataHighloadV2R2 {
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<&Cell> for DataHighloadV2R2 {
+impl TryFrom<Cell> for DataHighloadV2R2 {
     type Error = TonCellError;
 
-    fn try_from(value: &Cell) -> Result<Self, Self::Error> {
+    fn try_from(value: Cell) -> Result<Self, Self::Error> {
         let mut parser = value.parser();
         let wallet_id = parser.load_i32(32)?;
         let last_cleaned_time = parser.load_u64(64)?;
@@ -129,15 +129,15 @@ impl TryFrom<&Cell> for DataHighloadV2R2 {
     }
 }
 
-impl TryInto<Cell> for DataHighloadV2R2 {
+impl TryFrom<DataHighloadV2R2> for Cell {
     type Error = TonCellError;
 
-    fn try_into(self) -> Result<Cell, Self::Error> {
+    fn try_from(value: DataHighloadV2R2) -> Result<Self, Self::Error> {
         CellBuilder::new()
-            .store_i32(32, self.wallet_id)?
+            .store_i32(32, value.wallet_id)?
             // TODO: not sure what goes into last_cleaned_time, so I set it to 0
-            .store_u64(64, self.last_cleaned_time)?
-            .store_slice(&self.public_key)?
+            .store_u64(64, value.last_cleaned_time)?
+            .store_slice(&value.public_key)?
             // empty plugin dict
             .store_bit(false)?
             .build()
