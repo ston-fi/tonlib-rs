@@ -115,11 +115,14 @@ impl WalletVersion {
         sub_wallet_id: Option<i32>,
     ) -> Result<BagOfCells, TonCellError> {
         let wallet_id = sub_wallet_id.unwrap_or(698983191 + workchain);
-        let public_key: [u8; 32] = key_pair
-            .public_key
-            .clone()
-            .try_into()
-            .map_err(|_| TonCellError::InternalError("Invalid public key size".to_string()))?;
+        let public_key: [u8; 32] =
+            key_pair
+                .public_key
+                .clone()
+                .try_into()
+                .map_err(|_| TonCellError::InternalError {
+                    msg: "Invalid public key size".to_string(),
+                })?;
 
         let data_cell: Cell = match &self {
             WalletVersion::V1R1
@@ -153,9 +156,9 @@ impl WalletVersion {
             | WalletVersion::HighloadV1R2
             | WalletVersion::HighloadV2
             | WalletVersion::HighloadV2R1 => {
-                return Err(TonCellError::InternalError(
-                    "No generation for this wallet version".to_string(),
-                ));
+                return Err(TonCellError::InternalError {
+                    msg: "No generation for this wallet version".to_string(),
+                });
             }
         };
 
