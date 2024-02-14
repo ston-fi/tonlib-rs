@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use crate::cell::error::{MapTonCellError, TonCellError};
 
-
 const MAX_CELL_BITS: usize = 1023;
 const MAX_CELL_REFERENCES: usize = 4;
 
