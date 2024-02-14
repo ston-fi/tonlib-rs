@@ -85,6 +85,11 @@ impl BagOfCells {
         Self::parse(&bin)
     }
 
+    pub fn parse_base64(base64: &str) -> Result<BagOfCells, TonCellError> {
+        let bin = base64::decode(base64).map_boc_deserialization_error()?;
+        Self::parse(&bin)
+    }
+
     pub fn serialize(&self, has_crc32: bool) -> Result<Vec<u8>, TonCellError> {
         let raw = self.to_raw()?;
         raw.serialize(has_crc32)
@@ -185,7 +190,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Instant;
 
-    use crate::cell::{BagOfCells, CellBuilder, MapTonCellError, TonCellError};
+    use crate::cell::{BagOfCells, CellBuilder, TonCellError};
     use crate::message::ZERO_COINS;
 
     #[test]
@@ -279,7 +284,7 @@ mod tests {
         CONfgo+E0QI3BUIBNUFAPIUAT6AljPFgHPFszJIsjLARL0APQAywDJ+QBwdMjLAsoHy//J0M8WlHAyywHiEvQAyds8f\
         1MALHGAGMjLBVADzxZw+gISy2rMyYMG+wBA0lqA";
 
-        let boc = BagOfCells::parse(&base64::decode(raw)?)?;
+        let boc = BagOfCells::parse_base64(raw)?;
         let cell = boc.single_root()?;
 
         let jetton_wallet_code_lp = cell.reference(0)?;
@@ -329,22 +334,22 @@ mod tests {
     #[ignore]
     #[test]
     fn check_code_hash() -> Result<(), TonCellError> {
-        let raw = include_str!("../../resources/wallet/wallet_v3_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
+        let raw = include_str!("../../resources/wallet/wallet_v3r1.code");
+        let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v3_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?
         );
 
-        let raw = include_str!("../../resources/wallet/wallet_v3r2_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
+        let raw = include_str!("../../resources/wallet/wallet_v3r2.code");
+        let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v3r2_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?
         );
 
-        let raw = include_str!("../../resources/wallet/wallet_v4r2_code.hex");
-        let boc = BagOfCells::parse(&hex::decode(raw).map_boc_deserialization_error()?)?;
+        let raw = include_str!("../../resources/wallet/wallet_v4r2.code");
+        let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v4r2_code code_hash{:?}",
             boc.single_root()?.cell_hash_base64()?
