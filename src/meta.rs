@@ -11,31 +11,27 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use num_bigint::BigInt;
-use num_traits::Num;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
 use crate::cell::BagOfCells;
 
 struct MetaDataField {
-    pub(crate) key: String,
+    pub(crate) key: [u8; 32],
 }
 
 impl MetaDataField {
     fn new(name: &str) -> MetaDataField {
-        MetaDataField {
-            key: Self::key_from_str(name),
-        }
+        let key = Self::key_from_str(name).unwrap_or([0; 32]);
+        MetaDataField { key }
     }
 
-    fn key_from_str(k: &str) -> String {
+    fn key_from_str(k: &str) -> Result<[u8; 32], MetaLoaderError> {
         let mut hasher: Sha256 = Sha256::new();
         hasher.update(k);
-        let s = hex::encode(hasher.finalize()[..].to_vec());
-        BigInt::from_str_radix(s.as_str(), 16)
-            .unwrap()
-            .to_str_radix(10)
+        let slice = &hasher.finalize()[..];
+        TryInto::<[u8; 32]>::try_into(slice)
+            .map_err(|e| MetaLoaderError::InternalError(e.to_string()))
     }
 }
 
@@ -56,7 +52,7 @@ lazy_static! {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum MetaDataContent {
     External { uri: String },
-    Internal { dict: HashMap<String, String> },
+    Internal { dict: HashMap<[u8; 32], String> },
     Unsupported { boc: BagOfCells },
 }
 pub struct MetaLoader<MetaData>
@@ -87,6 +83,7 @@ where
         })
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<MetaLoader<MetaData>, MetaLoaderError> {
         let http_client = reqwest::Client::builder().build()?;
         let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?; // Replace with actual initialization
@@ -100,7 +97,7 @@ where
     pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
         log::trace!("Downloading metadata from {}", uri);
         let meta_str: String = if uri.starts_with("ipfs://") {
-            let path: String = uri.chars().into_iter().skip(7).collect();
+            let path: String = uri.chars().skip(7).collect();
             self.ipfs_loader.load_utf8_lossy(path.as_str()).await?
         } else {
             let resp = self.http_client.get(uri).send().await?;

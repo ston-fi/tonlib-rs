@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use tokio::runtime::Handle;
+
 use crate::address::TonAddress;
 use crate::client::{TonClientInterface, TonConnection};
-use crate::tl::{InternalTransactionId, SmcMethodId, SmcRunResult, TvmCell, TvmStackEntry};
-use async_trait::async_trait;
-
 use crate::contract::{TonContractError, TonContractInterface};
+use crate::tl::{InternalTransactionId, SmcRunResult, TvmCell, TvmStackEntry};
+use crate::types::TonMethodId;
 
 struct Inner {
     address: TonAddress,
     connection: TonConnection,
     state_id: i64,
+    runtime: Handle,
 }
 
 #[derive(Clone)]
@@ -28,6 +31,7 @@ impl TonContractState {
             address: address.clone(),
             connection: conn,
             state_id,
+            runtime: Handle::current(),
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
@@ -40,12 +44,13 @@ impl TonContractState {
         transaction_id: &InternalTransactionId,
     ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
-            .smc_load_by_transaction(&address, transaction_id)
+            .smc_load_by_transaction(address, transaction_id)
             .await?;
         let inner = Inner {
             address: address.clone(),
             connection: conn,
             state_id,
+            runtime: Handle::current(),
         };
         Ok(TonContractState {
             inner: Arc::new(inner),
@@ -55,6 +60,7 @@ impl TonContractState {
 
 impl Drop for Inner {
     fn drop(&mut self) {
+        let _guard = self.runtime.enter();
         let conn = self.connection.clone();
         let state_id = self.state_id;
         tokio::spawn(async move {
@@ -100,14 +106,12 @@ impl TonContractInterface for TonContractState {
         Ok(r)
     }
 
-    async fn run_get_method(
+    async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
-        method: &str,
+        method: A,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError> {
-        let method_id = SmcMethodId::Name {
-            name: String::from(method),
-        };
+        let method_id: TonMethodId = method.into();
         let result = self
             .inner
             .connection
@@ -118,7 +122,7 @@ impl TonContractInterface for TonContractState {
         } else {
             Err(TonContractError::TvmRunError {
                 gas_used: result.gas_used,
-                method: method.to_string(),
+                method: method_id.clone(),
                 stack: result.stack.elements,
                 exit_code: result.exit_code,
             })

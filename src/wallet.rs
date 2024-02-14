@@ -2,13 +2,12 @@ mod types;
 
 use lazy_static::lazy_static;
 use nacl::sign::signature;
+pub use types::*;
 
 use crate::address::TonAddress;
 use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
-
-pub use types::*;
 
 lazy_static! {
     pub static ref WALLET_V1R1_CODE: BagOfCells = {
@@ -115,14 +114,11 @@ impl WalletVersion {
         sub_wallet_id: Option<i32>,
     ) -> Result<BagOfCells, TonCellError> {
         let wallet_id = sub_wallet_id.unwrap_or(698983191 + workchain);
-        let public_key: [u8; 32] =
-            key_pair
-                .public_key
-                .clone()
-                .try_into()
-                .map_err(|_| TonCellError::InternalError {
-                    msg: "Invalid public key size".to_string(),
-                })?;
+        let public_key: [u8; 32] = key_pair
+            .public_key
+            .clone()
+            .try_into()
+            .map_err(|_| TonCellError::InternalError("Invalid public key size".to_string()))?;
 
         let data_cell: Cell = match &self {
             WalletVersion::V1R1
@@ -156,9 +152,9 @@ impl WalletVersion {
             | WalletVersion::HighloadV1R2
             | WalletVersion::HighloadV2
             | WalletVersion::HighloadV2R1 => {
-                return Err(TonCellError::InternalError {
-                    msg: "No generation for this wallet version".to_string(),
-                });
+                return Err(TonCellError::InternalError(
+                    "No generation for this wallet version".to_string(),
+                ));
             }
         };
 
@@ -170,10 +166,7 @@ impl WalletVersion {
     }
 
     pub fn has_op(&self) -> bool {
-        match self {
-            WalletVersion::V4R2 => true,
-            _ => false,
-        }
+        matches!(self, WalletVersion::V4R2)
     }
 }
 
@@ -198,9 +191,9 @@ impl TonWallet {
         let hash_part = match state_init_hash.as_slice().try_into() {
             Ok(hash_part) => hash_part,
             Err(_) => {
-                return Err(TonCellError::InternalError {
-                    msg: "StateInit returned hash pof wrong size".to_string(),
-                })
+                return Err(TonCellError::InternalError(
+                    "StateInit returned hash pof wrong size".to_string(),
+                ))
             }
         };
         let addr = TonAddress::new(workchain, &hash_part);
@@ -253,10 +246,10 @@ impl TonWallet {
     pub fn sign_external_body(&self, external_body: &Cell) -> Result<Cell, TonMessageError> {
         let message_hash = external_body.cell_hash()?;
         let sig = signature(message_hash.as_slice(), self.key_pair.secret_key.as_slice())
-            .map_err(|e| TonMessageError::NaclCryptographicError { message: e.message })?;
+            .map_err(|e| TonMessageError::NaclCryptographicError(e.message))?;
         let mut body_builder = CellBuilder::new();
         body_builder.store_slice(sig.as_slice())?;
-        body_builder.store_cell(&external_body)?;
+        body_builder.store_cell(external_body)?;
         Ok(body_builder.build()?)
     }
 

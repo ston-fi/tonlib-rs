@@ -6,18 +6,16 @@ mod serial;
 mod stack;
 mod types;
 
+use std::ffi::{c_char, CStr};
+
+use base64_serde::base64_serde_type;
 pub use error::*;
 pub use function::*;
 pub use notification::*;
 pub use result::*;
 pub use stack::*;
-pub use types::*;
-
-use base64_serde::base64_serde_type;
-
-use std::ffi::{c_char, CStr};
-
 use tonlib_sys::*;
+pub use types::*;
 
 use self::serial::*;
 
@@ -35,7 +33,7 @@ impl TlTonClient {
         let client: TlTonClient = unsafe {
             let ptr = tonlib_client_json_create();
             TlTonClient {
-                ptr: ptr,
+                ptr,
                 tag: tag.into(),
             }
         };
@@ -64,6 +62,7 @@ impl TlTonClient {
             );
             deserialize_result(c_str)
         };
+        #[allow(clippy::let_and_return)]
         result
     }
 

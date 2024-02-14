@@ -7,6 +7,8 @@ use crate::contract::{TonContractError, TonContractFactory};
 const DEFAULT_CAPACITY: u64 = 100_000;
 #[cfg(feature = "state_cache")]
 const DEFAULT_TTL: Duration = Duration::from_secs(60 * 60);
+#[cfg(feature = "state_cache")]
+const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
 
 pub struct TonContractFactoryBuilder {
     client: TonClient,
@@ -16,6 +18,8 @@ pub struct TonContractFactoryBuilder {
     capacity: u64,
     #[cfg(feature = "state_cache")]
     time_to_live: Duration,
+    #[cfg(feature = "state_cache")]
+    presync_blocks: i32,
 }
 
 impl TonContractFactoryBuilder {
@@ -26,6 +30,7 @@ impl TonContractFactoryBuilder {
             with_cache: false,
             capacity: 0,
             time_to_live: Duration::default(),
+            presync_blocks: DEFAULT_PRESYNC_BLOCKS,
         }
     }
 
@@ -66,11 +71,17 @@ impl TonContractFactoryBuilder {
     pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
         TonContractFactory::new(
             &self.client,
-            self.with_cache.clone(),
+            self.with_cache,
             self.capacity,
             self.time_to_live,
+            self.presync_blocks,
         )
         .await
+    }
+    #[cfg(feature = "state_cache")]
+    pub fn presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
+        self.presync_blocks = presync_blocks;
+        self
     }
 
     #[cfg(not(feature = "state_cache"))]

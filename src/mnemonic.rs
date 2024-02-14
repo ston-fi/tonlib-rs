@@ -1,15 +1,15 @@
 mod error;
 
-pub use error::*;
+use std::cmp;
+use std::collections::HashMap;
 
+pub use error::*;
 use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
 use pbkdf2::password_hash::Output;
 use pbkdf2::{pbkdf2, Params};
 use sha2::Sha512;
-use std::cmp;
-use std::collections::HashMap;
 
 const WORDLIST_EN: &str = include_str!("mnemonic/wordlist.EN");
 const PBKDF_ITERATIONS: u32 = 100000;
@@ -17,7 +17,7 @@ const PBKDF_ITERATIONS: u32 = 100000;
 lazy_static! {
     pub static ref WORDLIST_EN_SET: HashMap<&'static str, usize> = {
         let words: HashMap<&'static str, usize> = WORDLIST_EN
-            .split("\n")
+            .split('\n')
             .filter(|w| !w.is_empty())
             .enumerate()
             .map(|(i, w)| (w.trim(), i))
@@ -44,13 +44,11 @@ impl Mnemonic {
 
         // Check words
         if normalized_words.len() != 24 {
-            return Err(MnemonicError::UnexpectedWordCount {
-                count: normalized_words.len(),
-            });
+            return Err(MnemonicError::UnexpectedWordCount(normalized_words.len()));
         }
         for word in &normalized_words {
             if !WORDLIST_EN_SET.contains_key(word.as_str()) {
-                return Err(MnemonicError::InvalidWord { word: word.clone() });
+                return Err(MnemonicError::InvalidWord(word.clone()));
             }
         }
 
@@ -60,7 +58,7 @@ impl Mnemonic {
                 let passless_entropy = to_entropy(&normalized_words, &None)?;
                 let seed = pbkdf2_sha512(passless_entropy, "TON fast seed version", 1, 64)?;
                 if seed[0] != 1 {
-                    return Err(MnemonicError::InvalidFirstByte { byte: 1 });
+                    return Err(MnemonicError::InvalidFirstByte(seed[0]));
                 }
                 // Make that this also is not a valid passwordless mnemonic
                 let entropy = to_entropy(&normalized_words, password)?;
@@ -71,7 +69,7 @@ impl Mnemonic {
                     64,
                 )?;
                 if seed[0] == 0 {
-                    return Err(MnemonicError::InvalidFirstByte { byte: 0 });
+                    return Err(MnemonicError::InvalidFirstByte(seed[0]));
                 }
             }
             _ => {
@@ -83,7 +81,7 @@ impl Mnemonic {
                     64,
                 )?;
                 if seed[0] != 0 {
-                    return Err(MnemonicError::InvalidPasswordlessMenmonicFirstByte { byte: 0 });
+                    return Err(MnemonicError::InvalidPasswordlessMenmonicFirstByte(seed[0]));
                 }
             }
         }
@@ -97,7 +95,7 @@ impl Mnemonic {
 
     pub fn from_str(s: &str, password: &Option<String>) -> Result<Mnemonic, MnemonicError> {
         let words: Vec<&str> = s
-            .split(" ")
+            .split(' ')
             .map(|w| w.trim())
             .filter(|w| !w.is_empty())
             .collect();
@@ -115,7 +113,7 @@ impl Mnemonic {
     }
 }
 
-fn to_entropy(words: &Vec<String>, password: &Option<String>) -> Result<Vec<u8>, MnemonicError> {
+fn to_entropy(words: &[String], password: &Option<String>) -> Result<Vec<u8>, MnemonicError> {
     let mut mac = Hmac::<Sha512>::new_from_slice(words.join(" ").as_bytes())?;
     if let Some(s) = password {
         mac.update(s.as_bytes());
@@ -140,7 +138,7 @@ fn pbkdf2_sha512(
         pbkdf2::<Hmac<Sha512>>(key.as_slice(), salt.as_bytes(), params.rounds, out);
         Ok(())
     })
-    .map_err(|e| MnemonicError::PasswordHashError { e })?;
+    .map_err(MnemonicError::PasswordHashError)?;
     Ok(output.as_bytes().to_vec())
 }
 

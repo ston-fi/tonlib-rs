@@ -4,7 +4,6 @@
 /Cargo.lock
 /.cargo
 /doc
-.rustfmt.toml
 
 
 # Editors
@@ -12,3 +11,6 @@
 .idea/
 *.iml
 .vscode/
+
+# Config
+/resources/config/local.config.json

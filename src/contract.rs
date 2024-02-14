@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-
 pub use error::*;
 pub use factory::*;
 pub use interface::*;
@@ -12,6 +11,7 @@ pub use wallet::*;
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
 use crate::tl::{InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell, TvmStackEntry};
+use crate::types::TonMethodId;
 
 mod error;
 mod factory;
@@ -29,15 +29,23 @@ pub struct TonContract {
 
 impl TonContract {
     pub(crate) fn new(factory: &TonContractFactory, address: &TonAddress) -> TonContract {
-        let contract = TonContract {
+        TonContract {
             factory: factory.clone(),
             address: address.clone(),
-        };
-        contract
+        }
     }
 
     pub async fn get_account_state(&self) -> Result<RawFullAccountState, TonContractError> {
         self.factory.get_account_state(&self.address).await
+    }
+
+    pub async fn get_account_state_by_transaction(
+        &self,
+        transaction_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        self.factory
+            .get_account_state_by_transaction(&self.address, transaction_id)
+            .await
     }
 
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
@@ -85,9 +93,9 @@ impl TonContractInterface for TonContract {
         Ok(result)
     }
 
-    async fn run_get_method(
+    async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
-        method: &str,
+        method: A,
         stack: &Vec<TvmStackEntry>,
     ) -> Result<SmcRunResult, TonContractError> {
         let state = self.get_state().await?;

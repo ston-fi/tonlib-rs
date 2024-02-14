@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use crate::tl::function::TonFunction;
 use crate::tl::result::TonResult;
-
 use crate::tl::TlError;
 
 pub(crate) fn serialize_function(function: &TonFunction) -> Result<CString, TlError> {
@@ -57,7 +56,7 @@ pub(crate) unsafe fn deserialize_result_extra(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
     let result: Result<TonResult, TlError> =
-        serde_json::from_value(value).map_err(|e| TlError::SerdeJsonError(e));
+        serde_json::from_value(value).map_err(TlError::SerdeJsonError);
     (result, extra)
 }
 

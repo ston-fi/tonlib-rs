@@ -4,18 +4,14 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 use tokio::{self};
-
+use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
-use tonlib::client::{TonBlockFunctions, TonClientInterface};
+use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface};
+use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
-    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo, SmcMethodId,
+    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo,
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
-};
-use tonlib::{
-    address::TonAddress,
-    client::TonClient,
-    config::{MAINNET_CONFIG, TESTNET_CONFIG},
 };
 
 mod common;
@@ -45,7 +41,7 @@ async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let r = client
         .get_raw_account_state(&TonAddress::from_base64_url(
             "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
@@ -93,9 +89,8 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
         let (conn, id1) = client
             .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
             .await?; // pool 0.3.0
-        let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".to_string(),
-        };
+        let method_id = "get_jetton_data".into();
+
         let r = conn.smc_run_get_method(id1, &method_id, &Vec::new()).await;
         println!("{:?}", r);
         // Check that it works after cloning the connection
@@ -107,9 +102,6 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
                 .1
         };
         let stack = &Vec::new();
-        let method_id = SmcMethodId::Name {
-            name: "get_jetton_data".to_string(),
-        };
         let future = conn.smc_run_get_method(id2, &method_id, stack);
         let r = timeout(Duration::from_secs(2), future).await?;
         println!("{:?}", r);
@@ -131,7 +123,7 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
     let mut retries = 0;
     while retries < max_retries {
         retries += 1;
-        let client = common::new_archive_mainnet_client().await?;
+        let client = common::new_mainnet_client().await?;
 
         let state = client.get_raw_account_state(address).await.unwrap();
 
@@ -151,7 +143,7 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_smc_get_code_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_code(id1).await?;
@@ -162,7 +154,7 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn client_smc_get_data_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_data(id1).await?;
@@ -171,9 +163,9 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_smc_get_state_works() -> anyhow::Result<()> {
+async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_state(id1).await?;

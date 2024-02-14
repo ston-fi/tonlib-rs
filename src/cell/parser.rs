@@ -75,7 +75,7 @@ impl CellParser<'_> {
     pub fn load_uint(&mut self, bit_len: usize) -> Result<BigUint, TonCellError> {
         let num_words = (bit_len + 31) / 32;
         let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
-        let mut words: Vec<u32> = vec![0 as u32; num_words];
+        let mut words: Vec<u32> = vec![0_u32; num_words];
         let high_word = self.load_u32(high_word_bits)?;
         words[num_words - 1] = high_word;
         for i in (0..num_words - 1).rev() {
@@ -89,7 +89,7 @@ impl CellParser<'_> {
     pub fn load_int(&mut self, bit_len: usize) -> Result<BigInt, TonCellError> {
         let num_words = (bit_len + 31) / 32;
         let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
-        let mut words: Vec<u32> = vec![0 as u32; num_words];
+        let mut words: Vec<u32> = vec![0_u32; num_words];
         let high_word = self.load_u32(high_word_bits)?;
         let sign = if (high_word & (1 << 31)) == 0 {
             Sign::Plus
@@ -114,7 +114,7 @@ impl CellParser<'_> {
     }
 
     pub fn load_bytes(&mut self, num_bytes: usize) -> Result<Vec<u8>, TonCellError> {
-        let mut res = vec![0 as u8; num_bytes];
+        let mut res = vec![0_u8; num_bytes];
         self.load_slice(res.as_mut_slice())?;
         Ok(res)
     }
@@ -145,21 +145,21 @@ impl CellParser<'_> {
             2 => {
                 let _res1 = self.bit_reader.read::<u8>(1).map_cell_parser_error()?;
                 let wc = self.bit_reader.read::<u8>(8).map_cell_parser_error()?;
-                let mut hash_part = [0 as u8; 32];
+                let mut hash_part = [0_u8; 32];
                 self.bit_reader
                     .read_bytes(&mut hash_part)
                     .map_cell_parser_error()?;
                 let addr = TonAddress::new(wc as i32, &hash_part);
                 Ok(addr)
             }
-            _ => Err(TonCellError::InvalidAddressType { tp }),
+            _ => Err(TonCellError::InvalidAddressType(tp)),
         }
     }
 
     pub fn load_unary_length(&mut self) -> Result<usize, TonCellError> {
         let mut res = 0;
         while self.load_bit()? {
-            res = res + 1;
+            res += 1;
         }
         Ok(res)
     }
@@ -169,7 +169,7 @@ impl CellParser<'_> {
         if remaining_bits == 0 {
             Ok(())
         } else {
-            Err(TonCellError::NonEmptyReader { remaining_bits })
+            Err(TonCellError::NonEmptyReader(remaining_bits))
         }
     }
 }

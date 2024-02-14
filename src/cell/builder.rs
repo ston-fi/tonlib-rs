@@ -260,10 +260,16 @@ impl CellBuilder {
                 references: self.references.clone(),
             })
         } else {
-            Err(TonCellError::CellBuilderError {
-                msg: "Stream is not byte-aligned".to_string(),
-            })
+            Err(TonCellError::CellBuilderError(
+                "Stream is not byte-aligned".to_string(),
+            ))
         }
+    }
+}
+
+impl Default for CellBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

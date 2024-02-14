@@ -1,10 +1,10 @@
-use crate::address::TonAddress;
-use crate::cell::{Cell, CellBuilder};
-use crc::{Crc, CRC_32_ISO_HDLC};
-use num_bigint::BigUint;
-use num_traits::Zero;
 use std::sync::Arc;
 
+use num_bigint::BigUint;
+use num_traits::Zero;
+
+use crate::address::TonAddress;
+use crate::cell::{Cell, CellBuilder};
 use crate::message::{TonMessageError, ZERO_COINS};
 
 // Constants from jetton standart
@@ -105,11 +105,11 @@ impl JettonTransferMessage {
         message.store_address(
             self.response_destination
                 .as_ref()
-                .unwrap_or_else(|| &TonAddress::NULL),
+                .unwrap_or(&TonAddress::NULL),
         )?;
         if let Some(cp) = self.custom_payload.as_ref() {
             message.store_bit(true)?;
-            message.store_reference(&cp)?;
+            message.store_reference(cp)?;
         } else {
             message.store_bit(false)?;
         }
@@ -122,15 +122,4 @@ impl JettonTransferMessage {
         }
         Ok(message.build()?)
     }
-}
-
-#[allow(dead_code)]
-fn calc_checksum(command: &str) -> u32 {
-    let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
-    crc.checksum(command.as_bytes())
-}
-
-#[allow(dead_code)]
-fn calc_opcode(command: &str) -> u32 {
-    calc_checksum(command) & 0x7fffffff
 }

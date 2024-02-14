@@ -6,11 +6,12 @@ use strum::IntoStaticStr;
 use crate::address::TonAddress;
 use crate::cell::BagOfCells;
 use crate::client::TonClientInterface;
-use crate::contract::{MapCellError, MapStackError, TonContractError, TonContractState};
+use crate::contract::{
+    MapCellError, MapStackError, NftItemContract, TonContractError, TonContractInterface,
+    TonContractState,
+};
 use crate::meta::MetaDataContent;
 use crate::tl::{TvmNumber, TvmStackEntry};
-
-use crate::contract::{NftItemContract, TonContractInterface};
 
 /// Data returned by get_collection_data according to TEP-62
 #[derive(Debug, Clone)]
@@ -114,7 +115,13 @@ async fn read_collection_metadata_content(
                 let dict = reference
                     .load_snake_formatted_dict()
                     .map_cell_error("get_collection_data", collection_address)?;
-                Ok(MetaDataContent::Internal { dict })
+                let converted_dict = dict
+                    .into_iter()
+                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                    .collect();
+                Ok(MetaDataContent::Internal {
+                    dict: converted_dict,
+                }) //todo #79
             }
             // On-chain content layout
             // The first byte is 0x00 and the rest is key/value dictionary.

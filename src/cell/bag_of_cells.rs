@@ -44,9 +44,10 @@ impl BagOfCells {
         if root_count == 1 {
             Ok(&self.roots[0])
         } else {
-            Err(TonCellError::CellParserError {
-                msg: format!("Single root expected, got {}", root_count),
-            })
+            Err(TonCellError::CellParserError(format!(
+                "Single root expected, got {}",
+                root_count
+            )))
         }
     }
 
@@ -64,7 +65,7 @@ impl BagOfCells {
             for r in &raw_cell.references {
                 if *r <= i {
                     return Err(TonCellError::boc_deserialization_error(
-                        "References to previous cells are not supported".to_string(),
+                        "References to previous cells are not supported",
                     ));
                 }
                 cell.references.push(cells[num_cells - 1 - r].clone());
@@ -105,9 +106,9 @@ impl BagOfCells {
             all_cells.insert(cell.clone());
             for r in &cell.references {
                 if r == cell {
-                    return Err(TonCellError::BagOfCellsDeserializationError {
-                        msg: "Cell must not reference itself".to_string(),
-                    });
+                    return Err(TonCellError::BagOfCellsDeserializationError(
+                        "Cell must not reference itself".to_string(),
+                    ));
                 }
                 let maybe_refs = in_refs.get_mut(&r.clone());
                 match maybe_refs {
@@ -120,7 +121,7 @@ impl BagOfCells {
                         in_refs.insert(r.clone(), refs);
                     }
                 }
-                Self::traverse_cell_tree(&r, all_cells, in_refs)?;
+                Self::traverse_cell_tree(r, all_cells, in_refs)?;
             }
         }
         Ok(())
@@ -131,7 +132,7 @@ impl BagOfCells {
         let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
         let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
         for r in &self.roots {
-            Self::traverse_cell_tree(&r, &mut all_cells, &mut in_refs)?;
+            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
         }
         let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
         for c in &all_cells {
@@ -157,16 +158,16 @@ impl BagOfCells {
             no_in_refs.remove(&cell);
         }
         if !in_refs.is_empty() {
-            return Err(TonCellError::CellBuilderError {
-                msg: "Can't construct topological ordering: cycle detected".to_string(),
-            });
+            return Err(TonCellError::CellBuilderError(
+                "Can't construct topological ordering: cycle detected".to_string(),
+            ));
         }
         let mut cells: Vec<RawCell> = Vec::new();
         for cell in &ordered_cells {
             let refs: Vec<usize> = cell
                 .references
                 .iter()
-                .map(|c| indices.get(c).unwrap().clone())
+                .map(|c| *indices.get(c).unwrap())
                 .collect();
             let raw = RawCell {
                 data: cell.data.clone(),
@@ -179,7 +180,7 @@ impl BagOfCells {
         let roots: Vec<usize> = self
             .roots
             .iter()
-            .map(|c| indices.get(c).unwrap().clone())
+            .map(|c| *indices.get(c).unwrap())
             .collect();
         Ok(RawBagOfCells { cells, roots })
     }

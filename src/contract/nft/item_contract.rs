@@ -45,8 +45,6 @@ pub trait NftItemContract: TonContractInterface {
 
         let stack = self.run_get_method(method, &Vec::new()).await?.stack;
         if stack.elements.len() == NFT_DATA_STACK_ELEMENTS {
-            let method = method;
-
             let init = stack.get_i32(0).map_stack_error(method, &address)? == -1;
             let index = stack.get_biguint(1).map_stack_error(method, &address)?;
             let collection_address = stack.get_address(2).map_stack_error(method, &address)?;
@@ -97,9 +95,7 @@ pub trait NftItemContract: TonContractInterface {
             (TvmStackEntry::Cell {
                 cell: TvmCell {
                     bytes: individual_content.serialize(false).map_err(|e| {
-                        TonContractError::InternalError {
-                            message: format!("Serialization error: {}", e),
-                        }
+                        TonContractError::InternalError(format!("Serialization error: {}", e))
                     })?, // todo support crc32c
                 },
             }),
@@ -107,7 +103,7 @@ pub trait NftItemContract: TonContractInterface {
         let stack = self.run_get_method(method, &input_stack).await?.stack;
 
         if stack.elements.len() == 1 {
-            let boc = stack.get_boc(0).map_stack_error(method, &self.address())?;
+            let boc = stack.get_boc(0).map_stack_error(method, self.address())?;
             log::trace!("Got Boc: {:?}", boc);
             Ok(boc)
         } else {
@@ -147,7 +143,13 @@ async fn read_item_metadata_content(
                 let dict = reference
                     .load_snake_formatted_dict()
                     .map_cell_error("get_nft_data", item_address)?;
-                Ok(MetaDataContent::Internal { dict })
+                let converted_dict = dict
+                    .into_iter()
+                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                    .collect();
+                Ok(MetaDataContent::Internal {
+                    dict: converted_dict,
+                }) //todo #79s
             }
             // On-chain content layout
             // The first byte is 0x00 and the rest is key/value dictionary.

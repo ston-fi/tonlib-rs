@@ -1,15 +1,13 @@
 mod error;
 
-pub use error::*;
-
-use serde::de::{Error, Visitor};
-use serde::{Deserialize, Deserializer};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use crc::Crc;
+pub use error::*;
 use lazy_static::lazy_static;
-use serde::{Serialize, Serializer};
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -30,7 +28,7 @@ impl TonAddress {
     pub fn new(workchain: i32, hash_part: &[u8; 32]) -> TonAddress {
         TonAddress {
             workchain,
-            hash_part: hash_part.clone(),
+            hash_part: *hash_part,
         }
     }
 
@@ -39,7 +37,7 @@ impl TonAddress {
     }
 
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
-        let parts: Vec<&str> = s.split(":").collect();
+        let parts: Vec<&str> = s.split(':').collect();
 
         if parts.len() != 2 {
             return Err(TonAddressParseError::new(
@@ -48,7 +46,7 @@ impl TonAddress {
             ));
         }
 
-        let maybe_wc = i32::from_str_radix(parts[0], 10);
+        let maybe_wc = parts[0].parse::<i32>();
         let wc = match maybe_wc {
             Ok(wc) => wc,
             Err(_) => {
@@ -196,7 +194,7 @@ impl TonAddress {
                 "Invalid base64src address: CRC mismatch",
             ));
         }
-        let mut hash_part = [0 as u8; 32];
+        let mut hash_part = [0_u8; 32];
         hash_part.clone_from_slice(&bytes[2..34]);
         let addr = TonAddress {
             workchain,
@@ -216,7 +214,7 @@ impl TonAddress {
     pub fn to_base64_url_flags(&self, non_bounceable: bool, non_production: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
         self.to_base64_src(&mut buf, non_bounceable, non_production);
-        base64::encode_config(&buf, base64::URL_SAFE_NO_PAD)
+        base64::encode_config(buf, base64::URL_SAFE_NO_PAD)
     }
 
     pub fn to_base64_std(&self) -> String {
@@ -226,7 +224,7 @@ impl TonAddress {
     pub fn to_base64_std_flags(&self, non_bounceable: bool, non_production: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
         self.to_base64_src(&mut buf, non_bounceable, non_production);
-        base64::encode_config(&buf, base64::STANDARD_NO_PAD)
+        base64::encode_config(buf, base64::STANDARD_NO_PAD)
     }
 
     fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, non_production: bool) {

@@ -1,7 +1,7 @@
-use crate::address::TonAddress;
-use crate::client::{TonClientError, TonConnection};
 use async_trait::async_trait;
 
+use crate::address::TonAddress;
+use crate::client::{TonClientError, TonConnection};
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,
@@ -30,6 +30,27 @@ pub trait TonClientInterface: Send + Sync {
             account_address: AccountAddress {
                 account_address: account_address.to_hex(),
             },
+        };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::RawFullAccountState(state) => Ok(state),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::RawFullAccountState,
+                r,
+            )),
+        }
+    }
+
+    async fn get_raw_account_state_by_transaction(
+        &self,
+        account_address: &TonAddress,
+        transaction_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonClientError> {
+        let func = TonFunction::RawGetAccountStateByTransaction {
+            account_address: AccountAddress {
+                account_address: account_address.to_hex(),
+            },
+            transaction_id: transaction_id.clone(),
         };
         let result = self.invoke(&func).await?;
         match result {
@@ -186,7 +207,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_code(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetCode { id: id };
+        let func = TonFunction::SmcGetCode { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
@@ -198,7 +219,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_data(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetData { id: id };
+        let func = TonFunction::SmcGetData { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),
@@ -210,7 +231,7 @@ pub trait TonClientInterface: Send + Sync {
     }
 
     async fn smc_get_state(&self, id: i64) -> Result<TvmCell, TonClientError> {
-        let func = TonFunction::SmcGetState { id: id };
+        let func = TonFunction::SmcGetState { id };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::TvmCell(cell) => Ok(cell),

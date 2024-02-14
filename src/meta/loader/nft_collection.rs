@@ -27,7 +27,7 @@ impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
         match content {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
-                if dict.contains_key("uri") {
+                if dict.contains_key(&META_URI.key) {
                     let uri = dict.get(&META_URI.key).unwrap();
                     let external_meta = self.load_meta_from_uri(uri.as_str()).await?;
                     Ok(NftCollectionMetaData {
@@ -67,9 +67,7 @@ impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
                     })
                 }
             }
-            content => Err(MetaLoaderError::ContentLayoutUnsupported {
-                content: content.clone(),
-            }),
+            content => Err(MetaLoaderError::ContentLayoutUnsupported(content.clone())),
         }
     }
 }

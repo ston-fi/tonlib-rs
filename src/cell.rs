@@ -1,22 +1,26 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
-use num_bigint::BigInt;
-use num_traits::{Num, ToPrimitive};
-use sha2::{Digest, Sha256};
-
 pub use bag_of_cells::*;
+use bit_string::*;
+use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 pub use builder::*;
+pub use dict_loader::*;
 pub use error::*;
+use num_bigint::BigUint;
+use num_traits::{One, ToPrimitive};
 pub use parser::*;
 pub use raw::*;
+use sha2::{Digest, Sha256};
 pub use state_init::*;
 
 mod bag_of_cells;
+mod bit_string;
 mod builder;
+mod dict_loader;
 mod error;
 mod parser;
 mod raw;
@@ -29,9 +33,9 @@ pub struct Cell {
     pub references: Vec<Arc<Cell>>,
 }
 
-impl Into<Vec<Cell>> for Cell {
-    fn into(self) -> Vec<Cell> {
-        vec![self]
+impl From<Cell> for Vec<Cell> {
+    fn from(val: Cell) -> Self {
+        vec![val]
     }
 }
 
@@ -48,6 +52,7 @@ impl Cell {
         }
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -58,6 +63,7 @@ impl Cell {
         res
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -83,21 +89,21 @@ impl Cell {
                 max_level = level;
             }
         }
-        return max_level;
+        max_level
     }
 
     fn get_max_depth(&self) -> usize {
         let mut max_depth = 0;
-        if self.references.len() > 0 {
+        if !self.references.is_empty() {
             for k in &self.references {
                 let depth = k.get_max_depth();
                 if depth > max_depth {
                     max_depth = depth;
                 }
             }
-            max_depth = max_depth + 1;
+            max_depth += 1;
         }
-        return max_depth;
+        max_depth
     }
 
     fn get_refs_descriptor(&self) -> u8 {
@@ -125,7 +131,7 @@ impl Cell {
                 .write_bytes(&self.data[..data_len - 1])
                 .map_boc_serialization_error()?;
             let last_byte = self.data[data_len - 1];
-            let l = last_byte | (1 << 8 - rest_bits - 1);
+            let l = last_byte | 1 << (8 - rest_bits - 1);
             writer.write(8, l).map_boc_serialization_error()?;
         } else {
             writer
@@ -150,7 +156,7 @@ impl Cell {
             .writer()
             .ok_or_else(|| TonCellError::cell_builder_error("Stream is not byte-aligned"))
             .map(|b| b.to_vec());
-        Ok(result?)
+        result
     }
 
     pub fn cell_hash(&self) -> Result<Vec<u8>, TonCellError> {
@@ -171,13 +177,11 @@ impl Cell {
     /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
-    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<String, String>, TonCellError> {
-        let map = self.load_dict(|cell| {
-            let mut buffer = Vec::new();
-            cell.reference(0)?.parse_snake_data(&mut buffer)?;
-            Ok(buffer.to_vec())
-        })?;
-        Ok(map)
+    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
+        //todo: #79 key in hashmap must be [u8;32]
+        let dict_loader =
+            GenericDictLoader::new(bytes_to_slice, cell_to_snake_formatted_string, 256);
+        self.load_generic_dict(dict_loader)
     }
 
     pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
@@ -237,25 +241,26 @@ impl Cell {
         }
     }
 
-    pub fn load_dict<F>(&self, extractor: F) -> Result<HashMap<String, String>, TonCellError>
+    pub fn load_generic_dict<K, V, L>(&self, dict_loader: L) -> Result<HashMap<K, V>, TonCellError>
     where
-        F: Fn(&Cell) -> Result<Vec<u8>, TonCellError>,
+        K: Hash + Eq + Clone,
+        L: DictLoader<K, V>,
     {
-        let mut map: HashMap<String, String> = HashMap::new();
-        self.parse_dict("".to_string(), 256, &mut map, &extractor)?;
+        let mut map: HashMap<K, V> = HashMap::new();
+        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, &dict_loader)?;
         Ok(map)
     }
 
     ///Port of https://github.com/ton-community/ton/blob/17b7e9e6154131399d57507b0c4a178752342fd8/src/boc/dict/parseDict.ts#L55
-    fn parse_dict<F>(
+    fn dict_to_hashmap<K, V, L>(
         &self,
-        prefix: String,
-        n: usize,
-        map: &mut HashMap<String, String>,
-        extractor: &F,
+        prefix: BitString,
+        map: &mut HashMap<K, V>,
+        dict_loader: &L,
     ) -> Result<(), TonCellError>
     where
-        F: Fn(&Cell) -> Result<Vec<u8>, TonCellError>,
+        K: Hash + Eq,
+        L: DictLoader<K, V>,
     {
         let mut reader = self.parser();
 
@@ -266,59 +271,58 @@ impl Cell {
             // Short label detected
             prefix_length = reader.load_unary_length()?;
             // Read prefix
-            for _i in 0..prefix_length {
-                pp = format!("{}{}", pp, if reader.load_bit()? { '1' } else { '0' });
+            if prefix_length != 0 {
+                let val = reader.load_uint(prefix_length)?;
+                pp.shl_assign_and_add(prefix_length, val);
             }
         } else {
             let lb1 = reader.load_bit()?;
             if !lb1 {
                 // Long label detected
                 prefix_length = reader
-                    .load_uint(((n + 1) as f32).log2().ceil() as usize)?
+                    .load_uint(
+                        ((dict_loader.key_bit_len() - pp.bit_len()) as f32)
+                            .log2()
+                            .ceil() as usize,
+                    )?
                     .to_usize()
                     .unwrap();
-                for _i in 0..prefix_length {
-                    pp = format!("{}{}", pp, if reader.load_bit()? { '1' } else { '0' });
+                if prefix_length != 0 {
+                    let val = reader.load_uint(prefix_length)?;
+                    pp.shl_assign_and_add(prefix_length, val);
                 }
             } else {
                 // Same label detected
                 let bit = reader.load_bit()?;
                 prefix_length = reader
-                    .load_uint(((n + 1) as f32).log2().ceil() as usize)?
+                    .load_uint(
+                        ((dict_loader.key_bit_len() - pp.bit_len()) as f32)
+                            .log2()
+                            .ceil() as usize,
+                    )?
                     .to_usize()
                     .unwrap();
-                for _i in 0..prefix_length {
-                    pp = format!("{}{}", pp, if bit { '1' } else { '0' });
+                if bit {
+                    pp.shl_assign_and_fill(prefix_length);
+                } else {
+                    pp.shl_assign(prefix_length)
                 }
             }
         }
 
-        if n - prefix_length == 0 {
-            let r = extractor(&self)?;
-            let data = String::from_utf8_lossy(&r).to_string();
-            map.insert(
-                BigInt::from_str_radix(pp.as_str(), 2)
-                    .map_cell_parser_error()?
-                    .to_str_radix(10),
-                data,
-            );
+        if dict_loader.key_bit_len() - pp.bit_len() == 0 {
+            let bytes = pp.get_value_as_bytes();
+            let key = dict_loader.extract_key(bytes.as_slice())?;
+            let value = dict_loader.extract_value(self)?;
+            map.insert(key, value);
         } else {
             // NOTE: Left and right branches are implicitly contain prefixes '0' and '1'
             let left = self.reference(0)?;
             let right = self.reference(1)?;
-
-            left.parse_dict(
-                format!("{}{}", pp, 0),
-                n - prefix_length - 1,
-                map,
-                extractor,
-            )?;
-            right.parse_dict(
-                format!("{}{}", pp, 1),
-                n - prefix_length - 1,
-                map,
-                extractor,
-            )?;
+            pp.shl_assign(1);
+            left.dict_to_hashmap(pp.clone(), map, dict_loader)?;
+            pp = pp + BigUint::one();
+            right.dict_to_hashmap(pp, map, dict_loader)?;
         }
         Ok(())
     }

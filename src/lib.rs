@@ -9,6 +9,7 @@ pub mod message;
 pub mod meta;
 pub mod mnemonic;
 pub mod tl;
+pub mod types;
 pub mod wallet;
 
 #[doc = include_str!("../README.md")]

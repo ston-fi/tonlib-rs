@@ -34,7 +34,7 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib = "0.11"
+tonlib = "0.13"
 ```
 
 Then, in your Rust code, you can import the library with:
@@ -144,7 +144,7 @@ use tonlib::client::TonClientInterface;
 
 async fn call_blockchain_methods()-> anyhow::Result<()>{
     let client = TonClient::builder().build().await?;
-    let info: BlocksMasterchainInfo = client.get_masterchain_info().await?;
+    let (_, info) = client.get_masterchain_info().await?;
     println!("MasterchainInfo: {:?}", &info);
     let block_id = BlockId {
         workchain: info.last.workchain,
@@ -219,7 +219,7 @@ use crate::tonlib::contract::JettonWalletContract;
 
 async fn method_call() -> anyhow::Result<()> { 
     let client = TonClient::builder().build().await?;
-    let contract_factory = TonContractFactory::new(&client);
+    let contract_factory = TonContractFactory::builder(&client).build().await?;
     let master_contract = contract_factory.get_contract(
         &"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?,
     );
@@ -244,7 +244,7 @@ use tonlib::meta::LoadMeta;
 
 async fn load_meta() -> anyhow::Result<()> { 
     let client = TonClient::builder().build().await?;
-    let contract_factory = TonContractFactory::new(&client);
+    let contract_factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         contract_factory.get_contract(&"EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?); 
     let jetton_data = contract.get_jetton_data().await?;
@@ -267,7 +267,7 @@ use tonlib::contract::JettonMasterContract;
 async fn get_wallet_address() -> anyhow::Result<()> {
 
     let client = TonClient::default().await?;
-    let contract_factory = TonContractFactory::new(&client);
+    let contract_factory = TonContractFactory::builder(&client).build().await?;
     let contract =
         contract_factory.get_contract(&"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?,
     );
@@ -338,11 +338,11 @@ async fn create_jetton_transfer() -> anyhow::Result<()> {
         .unwrap();
 
     let client = TonClient::default().await?;
-        let contract_factory = TonContractFactory::new(&client);
+        let contract_factory = TonContractFactory::builder(&client).build().await?;
     let jetton_master =
         contract_factory.get_contract(&jetton_master_address);
     let self_jetton_wallet_addr = jetton_master.get_wallet_address(&self_address).await?;
-    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair)?;
+    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let src: TonAddress = "<source wallet address>".parse()?;
     let jetton_amount = BigUint::from(1000000u64);
@@ -401,7 +401,7 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
     
 
     let client = TonClient::default().await?;
-    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair)?;
+    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let value = BigUint::from(10000000u64); // 0.01 TON
     let transfer = TransferMessage::new(&dest, &value).build()?;

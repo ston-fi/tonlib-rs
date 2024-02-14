@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
+use super::SmcMethodId;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
-    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId,
-    Options, SmcMethodId,
+    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId, Options,
 };
 use crate::tl::Base64Standard;
 
@@ -25,6 +25,12 @@ pub enum TonFunction {
     #[serde(rename = "raw.getAccountState")]
     RawGetAccountState {
         account_address: AccountAddress,
+    },
+    //tonlib_api.tl, line 261
+    #[serde(rename = "raw.getAccountStateByTransaction")]
+    RawGetAccountStateByTransaction {
+        account_address: AccountAddress,
+        transaction_id: InternalTransactionId,
     },
     // tonlib_api.tl, line 262
     #[serde(rename = "raw.getTransactions")]

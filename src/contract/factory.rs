@@ -6,13 +6,13 @@ mod builder;
 #[cfg(feature = "state_cache")]
 mod cache;
 
+#[cfg(feature = "state_cache")]
+use std::time::Duration;
+
 use crate::address::TonAddress;
 use crate::client::{TonClient, TonClientInterface};
 use crate::contract::{TonContract, TonContractError, TonContractState};
 use crate::tl::{InternalTransactionId, RawFullAccountState};
-
-#[cfg(feature = "state_cache")]
-use std::time::Duration;
 
 #[derive(Clone)]
 pub struct TonContractFactory {
@@ -32,9 +32,11 @@ impl TonContractFactory {
         with_cache: bool,
         capacity: u64,
         time_to_live: Duration,
+        presync_blocks: i32,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
-            let cache = ContractFactoryCache::new(client, capacity, time_to_live).await?;
+            let cache =
+                ContractFactoryCache::new(client, capacity, time_to_live, presync_blocks).await?;
             Some(cache)
         } else {
             None
@@ -60,32 +62,44 @@ impl TonContractFactory {
         TonContract::new(self, address)
     }
 
+    pub async fn get_account_state(
+        &self,
+        address: &TonAddress,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        #[cfg(feature = "state_cache")]
+        if let Some(cache) = self.cache.as_ref() {
+            cache.get_account_state(address).await
+        } else {
+            Ok(self.client.get_raw_account_state(address).await?)
+        }
+        #[cfg(not(feature = "state_cache"))]
+        Ok(self.client.get_raw_account_state(address).await?)
+    }
+
+    pub async fn get_account_state_by_transaction(
+        &self,
+        address: &TonAddress,
+        transaction_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonContractError> {
+        let state = self
+            .client
+            .get_raw_account_state_by_transaction(address, transaction_id)
+            .await?;
+        Ok(state)
+    }
+
     pub async fn get_contract_state(
         &self,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
         #[cfg(feature = "state_cache")]
         if let Some(cache) = self.cache.as_ref() {
-            cache.get_contract_state(&self.client, address).await
+            cache.get_contract_state(address).await
         } else {
             TonContractState::load(&self.client, address).await
         }
         #[cfg(not(feature = "state_cache"))]
         TonContractState::load(&self.client, address).await
-    }
-
-    pub async fn get_account_state(
-        &self,
-        account_address: &TonAddress,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        #[cfg(feature = "state_cache")]
-        if let Some(cache) = self.cache.as_ref() {
-            cache.get_account_state(&self.client, account_address).await
-        } else {
-            Ok(self.client.get_raw_account_state(account_address).await?)
-        }
-        #[cfg(not(feature = "state_cache"))]
-        Ok(self.client.get_raw_account_state(account_address).await?)
     }
 
     pub async fn get_contract_state_by_transaction(

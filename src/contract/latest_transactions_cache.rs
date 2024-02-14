@@ -1,14 +1,13 @@
 use std::collections::LinkedList;
 use std::ops::DerefMut;
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
 use crate::client::TonClientError;
-use crate::contract::{TonClientInterface, TonContractFactory};
+use crate::contract::{TonClientInterface, TonContractError, TonContractFactory};
 use crate::tl::{InternalTransactionId, RawTransaction, NULL_TRANSACTION_ID};
-
-use crate::contract::TonContractError;
 
 pub struct LatestContractTransactionsCache {
     capacity: usize,
@@ -45,12 +44,10 @@ impl LatestContractTransactionsCache {
     /// Returned transactions are sorted from latest to earliest.
     pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         if limit > self.capacity {
-            return Err(TonContractError::IllegalArgument {
-                message: format!(
-                    "Transactions cache size requested ({}) must not exceed cache capacity ({})",
-                    limit, self.capacity
-                ),
-            });
+            return Err(TonContractError::IllegalArgument(format!(
+                "Transactions cache size requested ({}) must not exceed cache capacity ({})",
+                limit, self.capacity
+            )));
         }
         let mut lock = self.inner.lock().await;
         self.sync(lock.deref_mut()).await?;
@@ -98,7 +95,7 @@ impl LatestContractTransactionsCache {
                 Ok(txs) => txs,
                 Err(e) if self.soft_limit => match e {
                     TonClientError::TonlibError { code: 500, .. } => {
-                        batch_size = batch_size / 2;
+                        batch_size /= 2;
                         if batch_size == 0 {
                             break;
                         } else {
@@ -123,7 +120,7 @@ impl LatestContractTransactionsCache {
         }
 
         // Add loaded transactions
-        if loaded.len() > 0 {
+        if !loaded.is_empty() {
             log::trace!(
                 "Adding {} new transactions for contract {}",
                 loaded.len(),

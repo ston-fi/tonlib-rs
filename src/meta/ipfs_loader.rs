@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
-use serde::{Deserialize, Serialize};
-
 pub use error::*;
+use serde::{Deserialize, Serialize};
 
 mod error;
 
@@ -61,6 +60,7 @@ impl IpfsLoader {
         })
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<Self, IpfsLoaderError> {
         Self::new(&IpfsLoaderConfig::default())
     }
@@ -82,7 +82,7 @@ impl IpfsLoader {
             Ok(bytes)
         } else {
             const MAX_MESSAGE_SIZE: usize = 200;
-            let body = String::from_utf8_lossy(&response.bytes().await?.to_vec()).to_string();
+            let body = String::from_utf8_lossy(&response.bytes().await?).to_string();
             let message = if body.len() > MAX_MESSAGE_SIZE {
                 format!("{}...", &body[0..MAX_MESSAGE_SIZE - 3])
             } else {

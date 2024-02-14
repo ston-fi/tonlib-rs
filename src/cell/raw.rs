@@ -51,7 +51,7 @@ impl RawBagOfCells {
                 let has_crc32c = (header >> 6) & 1 == 1;
                 let has_cache_bits = (header >> 5) & 1 == 1;
                 // size:(## 3) { size <= 4 }
-                let size = (header & 0b0000_0111).into();
+                let size = header & 0b0000_0111;
 
                 (has_idx, has_crc32c, has_cache_bits, size)
             }
@@ -262,7 +262,7 @@ fn write_raw_cell(
             .write_bytes(&data[..data_len - 1])
             .map_boc_serialization_error()?;
         let last_byte = data[data_len - 1];
-        let l = last_byte | (1 << 8 - padding_bits - 1);
+        let l = last_byte | 1 << (8 - padding_bits - 1);
         writer.write(8, l).map_boc_serialization_error()?;
     } else {
         writer.write_bytes(data).map_boc_serialization_error()?;

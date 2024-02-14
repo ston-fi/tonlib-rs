@@ -115,7 +115,13 @@ fn read_jetton_metadata_content(boc: &BagOfCells) -> Result<MetaDataContent, Ton
         match content_representation {
             0 => {
                 let dict = root.reference(0)?.load_snake_formatted_dict()?;
-                Ok(MetaDataContent::Internal { dict })
+                let converted_dict = dict
+                    .into_iter()
+                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                    .collect();
+                Ok(MetaDataContent::Internal {
+                    dict: converted_dict,
+                }) //todo #79
             }
             1 => {
                 let uri = reader.load_utf8(reader.remaining_bytes())?;

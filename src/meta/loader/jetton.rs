@@ -37,40 +37,47 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
             MetaDataContent::Internal { dict } => {
                 if dict.contains_key(&META_URI.key) {
                     let uri = dict.get(&META_URI.key).unwrap();
-                    let external_meta = self.load_meta_from_uri(uri.as_str()).await?;
-                    Ok(JettonMetaData {
-                        name: external_meta.name.or(dict.get(&META_NAME.key).cloned()),
-                        uri: external_meta.uri.or(dict.get(&META_URI.key).cloned()),
-                        symbol: external_meta.symbol.or(dict.get(&META_SYMBOL.key).cloned()),
-                        description: external_meta
-                            .description
-                            .or(dict.get(&META_DESCRIPTION.key).cloned()),
-                        image: external_meta.image.or(dict.get(&META_IMAGE.key).cloned()),
-                        image_data: external_meta
-                            .image_data
-                            .or(dict.get(&META_IMAGE_DATA.key).cloned()),
-                        decimals: external_meta.decimals.or(dict
-                            .get(&META_DECIMALS.key)
-                            .and_then(|v| v.parse::<u8>().ok())),
-                    })
+                    let result = self.load_meta_from_uri(uri.as_str()).await;
+                    match result {
+                        Ok(external_meta) => Ok(JettonMetaData {
+                            name: external_meta.name.or(dict.get(&META_NAME.key).cloned()),
+                            uri: external_meta.uri.or(dict.get(&META_URI.key).cloned()),
+                            symbol: external_meta.symbol.or(dict.get(&META_SYMBOL.key).cloned()),
+                            description: external_meta
+                                .description
+                                .or(dict.get(&META_DESCRIPTION.key).cloned()),
+                            image: external_meta.image.or(dict.get(&META_IMAGE.key).cloned()),
+                            image_data: external_meta
+                                .image_data
+                                .or(dict.get(&META_IMAGE_DATA.key).cloned()),
+                            decimals: external_meta.decimals.or(dict
+                                .get(&META_DECIMALS.key)
+                                .and_then(|v| v.parse::<u8>().ok())),
+                        }),
+                        Err(_) => Ok(dict.into()),
+                    }
                 } else {
-                    Ok(JettonMetaData {
-                        name: dict.get(&META_NAME.key).cloned(),
-                        uri: dict.get(&META_URI.key).cloned(),
-                        symbol: dict.get(&META_SYMBOL.key).cloned(),
-                        description: dict.get(&META_DESCRIPTION.key).cloned(),
-                        image: dict.get(&META_IMAGE.key).cloned(),
-                        image_data: dict.get(&META_IMAGE_DATA.key).cloned(),
-                        decimals: dict
-                            .get(&META_DECIMALS.key)
-                            .and_then(|v| v.parse::<u8>().ok()),
-                    })
+                    Ok(dict.into())
                 }
             }
 
-            content => Err(MetaLoaderError::ContentLayoutUnsupported {
-                content: content.clone(),
-            }),
+            content => Err(MetaLoaderError::ContentLayoutUnsupported(content.clone())),
+        }
+    }
+}
+
+impl From<&HashMap<[u8; 32], String>> for JettonMetaData {
+    fn from(dict: &HashMap<[u8; 32], String>) -> Self {
+        JettonMetaData {
+            name: dict.get(&META_NAME.key).cloned(),
+            uri: dict.get(&META_URI.key).cloned(),
+            symbol: dict.get(&META_SYMBOL.key).cloned(),
+            description: dict.get(&META_DESCRIPTION.key).cloned(),
+            image: dict.get(&META_IMAGE.key).cloned(),
+            image_data: dict.get(&META_IMAGE_DATA.key).cloned(),
+            decimals: dict
+                .get(&META_DECIMALS.key)
+                .and_then(|v| v.parse::<u8>().ok()),
         }
     }
 }

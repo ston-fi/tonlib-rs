@@ -1,6 +1,7 @@
-use anyhow::anyhow;
 use std::sync::Arc;
 use std::{thread, time};
+
+use anyhow::anyhow;
 use tonlib::address::TonAddress;
 use tonlib::contract::{LatestContractTransactionsCache, TonContractFactory};
 use tonlib::tl::RawTransaction;

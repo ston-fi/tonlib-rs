@@ -7,17 +7,15 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::{broadcast, oneshot};
 
+use crate::client::{
+    TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
+    TonNotificationReceiver,
+};
 use crate::tl::{
-    Config, KeyStoreType, Options, OptionsInfo, SmcMethodId, SmcRunResult, TlTonClient,
-    TonFunction, TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
+    BlockId, Config, KeyStoreType, Options, OptionsInfo, SmcRunResult, TlTonClient, TonFunction,
+    TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
 };
-use crate::{
-    client::{
-        TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
-        TonNotificationReceiver,
-    },
-    tl::BlockId,
-};
+use crate::types::TonMethodId;
 
 struct RequestData {
     method: &'static str,
@@ -97,7 +95,7 @@ impl TonConnection {
         Ok(conn)
     }
 
-    pub async fn connect_to_archive(
+    pub async fn connect_archive(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
@@ -118,6 +116,30 @@ impl TonConnection {
         }
     }
 
+    pub async fn connect_healthy(
+        params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+    ) -> Result<TonConnection, TonClientError> {
+        // connect to other node until it will be able to fetch the very first block
+        loop {
+            let c = TonConnection::connect(params, callback.clone()).await?;
+            let info_result = c.get_masterchain_info().await;
+            match info_result {
+                Ok((_, info)) => {
+                    let block_result = c.get_block_header(&info.last).await;
+                    if let Err(err) = block_result {
+                        log::info!("Dropping connection to unhealthy node: {:?}", err);
+                    } else {
+                        break Ok(c);
+                    }
+                }
+                Err(err) => {
+                    log::info!("Dropping connection to unhealthy node: {:?}", err);
+                }
+            }
+        }
+    }
+
     /// Attempts to initialize an existing TonConnection
     pub async fn init(
         &self,
@@ -131,7 +153,7 @@ impl TonConnection {
             options: Options {
                 config: Config {
                     config: String::from(config),
-                    blockchain_name: blockchain_name.map(|s| String::from(s)),
+                    blockchain_name: blockchain_name.map(String::from),
                     use_callbacks_for_network,
                     ignore_cache,
                 },
@@ -142,7 +164,7 @@ impl TonConnection {
         match result {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
             r => Err(TonClientError::unexpected_ton_result(
-                TonResultDiscriminants::OptionsInfo.into(),
+                TonResultDiscriminants::OptionsInfo,
                 r,
             )),
         }
@@ -155,12 +177,12 @@ impl TonConnection {
     pub async fn smc_run_get_method(
         &self,
         id: i64,
-        method: &SmcMethodId,
-        stack: &Vec<TvmStackEntry>,
+        method: &TonMethodId,
+        stack: &[TvmStackEntry],
     ) -> Result<SmcRunResult, TonClientError> {
         let func = TonFunction::SmcRunGetMethod {
-            id: id,
-            method: method.clone(),
+            id,
+            method: method.into(),
             stack: stack.to_vec(),
         };
         let result = self.invoke(&func).await?;
@@ -212,9 +234,9 @@ impl TonClientInterface for TonConnection {
         let result = match maybe_result {
             Ok(result) => result,
             Err(_) => {
-                return Err(TonClientError::InternalError {
-                    message: "Sender dropped without sending".to_string(),
-                });
+                return Err(TonClientError::InternalError(
+                    "Sender dropped without sending".to_string(),
+                ));
             }
         };
         result.map(|r| (self.clone(), r))
@@ -272,7 +294,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                         &result,
                     );
 
-                    if let Err(_) = data.sender.send(result) {
+                    if data.sender.send(result).is_err() {
                         log::warn!(
                             "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
                             tag,
@@ -290,10 +312,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                             // The call might only fail if there are no receivers, so just ignore the result
                             let _ = inner.notification_sender.send(Arc::new(n));
                         } else {
-                            let extra = match &maybe_extra {
-                                Some(s) => Some(s.as_str()),
-                                None => None,
-                            };
+                            let extra = maybe_extra.as_deref();
                             inner.callback.on_ton_result_parse_error(&tag, extra, &r);
                         }
                     }

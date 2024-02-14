@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[error("Invalid address {address}: {message}")]
+#[error("Invalid address (Address: {address}, message: {message})")]
 pub struct TonAddressParseError {
     address: String,
     message: String,
