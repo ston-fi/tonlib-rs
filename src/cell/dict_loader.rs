@@ -15,7 +15,7 @@ where
 }
 
 pub fn bytes_to_decimal_string(slice: &[u8]) -> Result<String, TonCellError> {
-    Ok(BigUint::from_bytes_be(&slice).to_str_radix(10))
+    Ok(BigUint::from_bytes_be(slice).to_str_radix(10))
 }
 
 pub fn bytes_to_slice(slice: &[u8]) -> Result<[u8; 32], TonCellError> {

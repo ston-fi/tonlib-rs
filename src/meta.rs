@@ -22,11 +22,7 @@ struct MetaDataField {
 
 impl MetaDataField {
     fn new(name: &str) -> MetaDataField {
-        let maybe_key = Self::key_from_str(name);
-        let key = match maybe_key {
-            Ok(key) => key,
-            Err(_) => [0; 32],
-        };
+        let key = Self::key_from_str(name).unwrap_or([0; 32]);
         MetaDataField { key }
     }
 
@@ -87,6 +83,7 @@ where
         })
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<MetaLoader<MetaData>, MetaLoaderError> {
         let http_client = reqwest::Client::builder().build()?;
         let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?; // Replace with actual initialization
@@ -100,7 +97,7 @@ where
     pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
         log::trace!("Downloading metadata from {}", uri);
         let meta_str: String = if uri.starts_with("ipfs://") {
-            let path: String = uri.chars().into_iter().skip(7).collect();
+            let path: String = uri.chars().skip(7).collect();
             self.ipfs_loader.load_utf8_lossy(path.as_str()).await?
         } else {
             let resp = self.http_client.get(uri).send().await?;

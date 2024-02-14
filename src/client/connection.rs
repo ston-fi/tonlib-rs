@@ -153,7 +153,7 @@ impl TonConnection {
             options: Options {
                 config: Config {
                     config: String::from(config),
-                    blockchain_name: blockchain_name.map(|s| String::from(s)),
+                    blockchain_name: blockchain_name.map(String::from),
                     use_callbacks_for_network,
                     ignore_cache,
                 },
@@ -164,7 +164,7 @@ impl TonConnection {
         match result {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
             r => Err(TonClientError::unexpected_ton_result(
-                TonResultDiscriminants::OptionsInfo.into(),
+                TonResultDiscriminants::OptionsInfo,
                 r,
             )),
         }
@@ -178,10 +178,10 @@ impl TonConnection {
         &self,
         id: i64,
         method: &TonMethodId,
-        stack: &Vec<TvmStackEntry>,
+        stack: &[TvmStackEntry],
     ) -> Result<SmcRunResult, TonClientError> {
         let func = TonFunction::SmcRunGetMethod {
-            id: id,
+            id,
             method: method.into(),
             stack: stack.to_vec(),
         };
@@ -294,7 +294,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                         &result,
                     );
 
-                    if let Err(_) = data.sender.send(result) {
+                    if data.sender.send(result).is_err() {
                         log::warn!(
                             "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
                             tag,
@@ -312,10 +312,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                             // The call might only fail if there are no receivers, so just ignore the result
                             let _ = inner.notification_sender.send(Arc::new(n));
                         } else {
-                            let extra = match &maybe_extra {
-                                Some(s) => Some(s.as_str()),
-                                None => None,
-                            };
+                            let extra = maybe_extra.as_deref();
                             inner.callback.on_ton_result_parse_error(&tag, extra, &r);
                         }
                     }

@@ -24,9 +24,7 @@ pub trait TonWalletContract: TonContractInterface {
                 expected: 1,
             })
         } else {
-            let result = stack
-                .get_i32(0)
-                .map_stack_error(method.into(), self.address())? as u32;
+            let result = stack.get_i32(0).map_stack_error(method, self.address())? as u32;
             Ok(result)
         }
     }

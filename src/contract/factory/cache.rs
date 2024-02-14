@@ -84,7 +84,7 @@ impl ContractFactoryCache {
         tx_id_cache: &TxIdCache,
         address: &TonAddress,
     ) -> Result<RawFullAccountState, TonContractError> {
-        let maybe_tx_id = tx_id_cache.get(&address).await;
+        let maybe_tx_id = tx_id_cache.get(address).await;
         let state = if let Some(tx_id) = maybe_tx_id {
             client
                 .get_raw_account_state_by_transaction(address, &tx_id)
@@ -122,7 +122,7 @@ impl ContractFactoryCache {
         tx_id_cache: &TxIdCache,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
-        let maybe_tx_id = tx_id_cache.get(&address).await;
+        let maybe_tx_id = tx_id_cache.get(address).await;
         let state = if let Some(tx_id) = maybe_tx_id {
             TonContractState::load_by_transaction(client, address, &tx_id).await?
         } else {
@@ -139,7 +139,7 @@ impl ContractFactoryCache {
                 match masterchain_info_result {
                     Ok((_, info)) => {
                         let first_block_seqno = info.last.seqno - inner.presync_blocks;
-                        let block_stream = BlockStream::new(&client, first_block_seqno);
+                        let block_stream = BlockStream::new(client, first_block_seqno);
                         break block_stream;
                     }
                     Err(e) => {
@@ -222,8 +222,7 @@ impl Inner {
             .get_shards_tx_ids(all_shards.as_slice())
             .await?
             .into_iter()
-            .map(|(_, vec)| vec)
-            .flatten()
+            .flat_map(|(_, vec)| vec)
             .collect();
 
         let mut contract_latest_tx_id: HashMap<TonAddress, InternalTransactionId> = HashMap::new();

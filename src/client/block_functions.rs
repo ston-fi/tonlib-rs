@@ -53,7 +53,7 @@ pub trait TonBlockFunctions: TonClientInterface + Send + Sync {
         loop {
             let mode = if after.lt == 0 { 7 } else { 128 + 7 };
             let txs: BlocksTransactions = self
-                .get_block_transactions(&shard_id, mode, 256, &after)
+                .get_block_transactions(shard_id, mode, 256, &after)
                 .await?;
             if let Some(last) = txs.transactions.last() {
                 after = BlocksAccountTransactionId {

@@ -125,8 +125,8 @@ impl TvmStack {
     pub fn get_address(&self, index: usize) -> Result<TonAddress, TvmStackError> {
         self.get_boc(index)?
             .single_root()?
-            .parse_fully(|r| Ok(r.load_address()?))
-            .map_err(|e| TvmStackError::TonCellError(e))
+            .parse_fully(|r| r.load_address())
+            .map_err(TvmStackError::TonCellError)
     }
 
     fn get<T>(
@@ -251,6 +251,12 @@ impl TvmStack {
     }
 }
 
+impl Default for TvmStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -260,7 +266,7 @@ mod tests {
 
     #[test]
     fn serialize_works() {
-        let mut stack = TvmStack::new();
+        let mut stack = TvmStack::default();
         stack.elements.push(TvmStackEntry::Number {
             number: TvmNumber {
                 number: String::from("100500"),

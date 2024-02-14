@@ -33,9 +33,9 @@ pub struct Cell {
     pub references: Vec<Arc<Cell>>,
 }
 
-impl Into<Vec<Cell>> for Cell {
-    fn into(self) -> Vec<Cell> {
-        vec![self]
+impl From<Cell> for Vec<Cell> {
+    fn from(val: Cell) -> Self {
+        vec![val]
     }
 }
 
@@ -52,6 +52,7 @@ impl Cell {
         }
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -62,6 +63,7 @@ impl Cell {
         res
     }
 
+    #[allow(clippy::let_and_return)]
     pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -87,21 +89,21 @@ impl Cell {
                 max_level = level;
             }
         }
-        return max_level;
+        max_level
     }
 
     fn get_max_depth(&self) -> usize {
         let mut max_depth = 0;
-        if self.references.len() > 0 {
+        if !self.references.is_empty() {
             for k in &self.references {
                 let depth = k.get_max_depth();
                 if depth > max_depth {
                     max_depth = depth;
                 }
             }
-            max_depth = max_depth + 1;
+            max_depth += 1;
         }
-        return max_depth;
+        max_depth
     }
 
     fn get_refs_descriptor(&self) -> u8 {
@@ -129,7 +131,7 @@ impl Cell {
                 .write_bytes(&self.data[..data_len - 1])
                 .map_boc_serialization_error()?;
             let last_byte = self.data[data_len - 1];
-            let l = last_byte | (1 << 8 - rest_bits - 1);
+            let l = last_byte | 1 << (8 - rest_bits - 1);
             writer.write(8, l).map_boc_serialization_error()?;
         } else {
             writer
@@ -154,7 +156,7 @@ impl Cell {
             .writer()
             .ok_or_else(|| TonCellError::cell_builder_error("Stream is not byte-aligned"))
             .map(|b| b.to_vec());
-        Ok(result?)
+        result
     }
 
     pub fn cell_hash(&self) -> Result<Vec<u8>, TonCellError> {
@@ -300,7 +302,7 @@ impl Cell {
                     )?
                     .to_usize()
                     .unwrap();
-                if bit == true {
+                if bit {
                     pp.shl_assign_and_fill(prefix_length);
                 } else {
                     pp.shl_assign(prefix_length)
@@ -311,7 +313,7 @@ impl Cell {
         if dict_loader.key_bit_len() - pp.bit_len() == 0 {
             let bytes = pp.get_value_as_bytes();
             let key = dict_loader.extract_key(bytes.as_slice())?;
-            let value = dict_loader.extract_value(&self)?;
+            let value = dict_loader.extract_value(self)?;
             map.insert(key, value);
         } else {
             // NOTE: Left and right branches are implicitly contain prefixes '0' and '1'

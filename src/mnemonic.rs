@@ -17,7 +17,7 @@ const PBKDF_ITERATIONS: u32 = 100000;
 lazy_static! {
     pub static ref WORDLIST_EN_SET: HashMap<&'static str, usize> = {
         let words: HashMap<&'static str, usize> = WORDLIST_EN
-            .split("\n")
+            .split('\n')
             .filter(|w| !w.is_empty())
             .enumerate()
             .map(|(i, w)| (w.trim(), i))
@@ -95,7 +95,7 @@ impl Mnemonic {
 
     pub fn from_str(s: &str, password: &Option<String>) -> Result<Mnemonic, MnemonicError> {
         let words: Vec<&str> = s
-            .split(" ")
+            .split(' ')
             .map(|w| w.trim())
             .filter(|w| !w.is_empty())
             .collect();
@@ -113,7 +113,7 @@ impl Mnemonic {
     }
 }
 
-fn to_entropy(words: &Vec<String>, password: &Option<String>) -> Result<Vec<u8>, MnemonicError> {
+fn to_entropy(words: &[String], password: &Option<String>) -> Result<Vec<u8>, MnemonicError> {
     let mut mac = Hmac::<Sha512>::new_from_slice(words.join(" ").as_bytes())?;
     if let Some(s) = password {
         mac.update(s.as_bytes());
@@ -138,7 +138,7 @@ fn pbkdf2_sha512(
         pbkdf2::<Hmac<Sha512>>(key.as_slice(), salt.as_bytes(), params.rounds, out);
         Ok(())
     })
-    .map_err(|e| MnemonicError::PasswordHashError(e))?;
+    .map_err(MnemonicError::PasswordHashError)?;
     Ok(output.as_bytes().to_vec())
 }
 

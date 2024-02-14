@@ -18,6 +18,7 @@ pub trait TonContractInterface {
 
     async fn get_state_cell(&self) -> Result<TvmCell, TonContractError>;
 
+    #[allow(clippy::ptr_arg)]
     async fn run_get_method<A: Into<TonMethodId> + Send>(
         &self,
         method: A,

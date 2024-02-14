@@ -33,7 +33,7 @@ impl TlTonClient {
         let client: TlTonClient = unsafe {
             let ptr = tonlib_client_json_create();
             TlTonClient {
-                ptr: ptr,
+                ptr,
                 tag: tag.into(),
             }
         };
@@ -62,6 +62,7 @@ impl TlTonClient {
             );
             deserialize_result(c_str)
         };
+        #[allow(clippy::let_and_return)]
         result
     }
 

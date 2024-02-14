@@ -95,7 +95,7 @@ impl LatestContractTransactionsCache {
                 Ok(txs) => txs,
                 Err(e) if self.soft_limit => match e {
                     TonClientError::TonlibError { code: 500, .. } => {
-                        batch_size = batch_size / 2;
+                        batch_size /= 2;
                         if batch_size == 0 {
                             break;
                         } else {
@@ -120,7 +120,7 @@ impl LatestContractTransactionsCache {
         }
 
         // Add loaded transactions
-        if loaded.len() > 0 {
+        if !loaded.is_empty() {
             log::trace!(
                 "Adding {} new transactions for contract {}",
                 loaded.len(),

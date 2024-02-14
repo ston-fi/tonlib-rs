@@ -44,7 +44,7 @@ impl TonContractState {
         transaction_id: &InternalTransactionId,
     ) -> Result<TonContractState, TonContractError> {
         let (conn, state_id) = client
-            .smc_load_by_transaction(&address, transaction_id)
+            .smc_load_by_transaction(address, transaction_id)
             .await?;
         let inner = Inner {
             address: address.clone(),

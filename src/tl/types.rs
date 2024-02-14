@@ -119,20 +119,20 @@ impl InternalTransactionId {
         hex::encode(self.hash.as_slice())
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_formatted_string(&self) -> String {
         format!("{}:{}", self.lt, self.hash_string())
     }
 }
 
 impl Display for InternalTransactionId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.to_string().as_str())
+        f.write_str(self.to_formatted_string().as_str())
     }
 }
 
 impl Debug for InternalTransactionId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.to_string().as_str())
+        f.write_str(self.to_formatted_string().as_str())
     }
 }
 
@@ -140,7 +140,7 @@ impl FromStr for InternalTransactionId {
     type Err = InternalTransactionIdParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<_> = s.split(":").collect();
+        let parts: Vec<_> = s.split(':').collect();
         if parts.len() != 2 {
             return Err(InternalTransactionIdParseError::new(
                 s,

@@ -68,9 +68,8 @@ impl StateInit {
 mod tests {
     use std::sync::Arc;
 
-    use crate::cell::CellBuilder;
-
     use super::StateInitBuilder;
+    use crate::cell::CellBuilder;
 
     #[test]
     fn test_state_init() -> anyhow::Result<()> {
