@@ -83,7 +83,10 @@ impl CellBuilder {
         let num_full_bytes = bit_len / 8;
         let num_bits_in_high_byte = bit_len % 8;
         if bytes.len() > num_full_bytes + 1 {
-            panic!("Internal error: can't fit {} into {} bits ", val, bit_len)
+            return Err(TonCellError::cell_builder_error(format!(
+                "Internal error: can't fit {} into {} bits ",
+                val, bit_len
+            )));
         }
         if num_bits_in_high_byte > 0 {
             let high_byte: u8 = if bytes.len() == num_full_bytes + 1 {
@@ -114,7 +117,10 @@ impl CellBuilder {
         let num_full_bytes = bit_len / 8;
         let num_bits_in_high_byte = bit_len % 8;
         if bytes.len() > num_full_bytes + 1 {
-            panic!("Internal error: can't fit {} into {} bits ", val, bit_len)
+            return Err(TonCellError::cell_builder_error(format!(
+                "Internal error: can't fit {} into {} bits ",
+                val, bit_len
+            )));
         }
         if num_bits_in_high_byte > 0 {
             let high_byte: u8 = if bytes.len() == num_full_bytes + 1 {

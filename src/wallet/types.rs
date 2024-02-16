@@ -1,12 +1,12 @@
 use crate::cell::{Cell, CellBuilder, TonCellError};
 
 /// WalletVersion::V1R1 | WalletVersion::V1R2 | WalletVersion::V1R3 | WalletVersion::V2R1 | WalletVersion::V2R2
-pub struct DataV1R1 {
+pub struct WalletDataV1V2 {
     pub seqno: u32,
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<Cell> for DataV1R1 {
+impl TryFrom<Cell> for WalletDataV1V2 {
     type Error = TonCellError;
 
     fn try_from(value: Cell) -> Result<Self, Self::Error> {
@@ -18,10 +18,10 @@ impl TryFrom<Cell> for DataV1R1 {
     }
 }
 
-impl TryFrom<DataV1R1> for Cell {
+impl TryFrom<WalletDataV1V2> for Cell {
     type Error = TonCellError;
 
-    fn try_from(value: DataV1R1) -> Result<Self, Self::Error> {
+    fn try_from(value: WalletDataV1V2) -> Result<Self, Self::Error> {
         CellBuilder::new()
             .store_u32(32, value.seqno)?
             .store_slice(&value.public_key)?
@@ -30,13 +30,13 @@ impl TryFrom<DataV1R1> for Cell {
 }
 
 /// WalletVersion::V3R1 | WalletVersion::V3R2
-pub struct DataV3R1 {
+pub struct WalletDataV3 {
     pub seqno: u32,
     pub wallet_id: i32,
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<Cell> for DataV3R1 {
+impl TryFrom<Cell> for WalletDataV3 {
     type Error = TonCellError;
 
     fn try_from(value: Cell) -> Result<Self, Self::Error> {
@@ -53,10 +53,10 @@ impl TryFrom<Cell> for DataV3R1 {
     }
 }
 
-impl TryFrom<DataV3R1> for Cell {
+impl TryFrom<WalletDataV3> for Cell {
     type Error = TonCellError;
 
-    fn try_from(value: DataV3R1) -> Result<Self, Self::Error> {
+    fn try_from(value: WalletDataV3) -> Result<Self, Self::Error> {
         CellBuilder::new()
             .store_u32(32, value.seqno)?
             .store_i32(32, value.wallet_id)?
@@ -66,13 +66,13 @@ impl TryFrom<DataV3R1> for Cell {
 }
 
 /// WalletVersion::V4R1 | WalletVersion::V4R2
-pub struct DataV4R1 {
+pub struct WalletDataV4 {
     pub seqno: u32,
     pub wallet_id: i32,
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<Cell> for DataV4R1 {
+impl TryFrom<Cell> for WalletDataV4 {
     type Error = TonCellError;
 
     fn try_from(value: Cell) -> Result<Self, Self::Error> {
@@ -90,10 +90,10 @@ impl TryFrom<Cell> for DataV4R1 {
     }
 }
 
-impl TryFrom<DataV4R1> for Cell {
+impl TryFrom<WalletDataV4> for Cell {
     type Error = TonCellError;
 
-    fn try_from(value: DataV4R1) -> Result<Self, Self::Error> {
+    fn try_from(value: WalletDataV4) -> Result<Self, Self::Error> {
         CellBuilder::new()
             .store_u32(32, value.seqno)?
             .store_i32(32, value.wallet_id)?
@@ -105,13 +105,13 @@ impl TryFrom<DataV4R1> for Cell {
 }
 
 /// WalletVersion::HighloadV2R2
-pub struct DataHighloadV2R2 {
+pub struct WalletDataHighloadV2R2 {
     pub wallet_id: i32,
     pub last_cleaned_time: u64,
     pub public_key: [u8; 32],
 }
 
-impl TryFrom<Cell> for DataHighloadV2R2 {
+impl TryFrom<Cell> for WalletDataHighloadV2R2 {
     type Error = TonCellError;
 
     fn try_from(value: Cell) -> Result<Self, Self::Error> {
@@ -129,10 +129,10 @@ impl TryFrom<Cell> for DataHighloadV2R2 {
     }
 }
 
-impl TryFrom<DataHighloadV2R2> for Cell {
+impl TryFrom<WalletDataHighloadV2R2> for Cell {
     type Error = TonCellError;
 
-    fn try_from(value: DataHighloadV2R2) -> Result<Self, Self::Error> {
+    fn try_from(value: WalletDataHighloadV2R2) -> Result<Self, Self::Error> {
         CellBuilder::new()
             .store_i32(32, value.wallet_id)?
             // TODO: not sure what goes into last_cleaned_time, so I set it to 0
