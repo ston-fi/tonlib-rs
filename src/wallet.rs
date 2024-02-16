@@ -2,13 +2,12 @@ mod types;
 
 use lazy_static::lazy_static;
 use nacl::sign::signature;
+pub use types::*;
 
 use crate::address::TonAddress;
 use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
-
-pub use types::*;
 
 lazy_static! {
     pub static ref WALLET_V1R1_CODE: BagOfCells = {
@@ -126,24 +125,24 @@ impl WalletVersion {
             | WalletVersion::V1R2
             | WalletVersion::V1R3
             | WalletVersion::V2R1
-            | WalletVersion::V2R2 => DataV1R1 {
+            | WalletVersion::V2R2 => WalletDataV1V2 {
                 seqno: 0,
                 public_key,
             }
             .try_into()?,
-            WalletVersion::V3R1 | WalletVersion::V3R2 => DataV3R1 {
-                seqno: 0,
-                wallet_id,
-                public_key,
-            }
-            .try_into()?,
-            WalletVersion::V4R1 | WalletVersion::V4R2 => DataV4R1 {
+            WalletVersion::V3R1 | WalletVersion::V3R2 => WalletDataV3 {
                 seqno: 0,
                 wallet_id,
                 public_key,
             }
             .try_into()?,
-            WalletVersion::HighloadV2R2 => DataHighloadV2R2 {
+            WalletVersion::V4R1 | WalletVersion::V4R2 => WalletDataV4 {
+                seqno: 0,
+                wallet_id,
+                public_key,
+            }
+            .try_into()?,
+            WalletVersion::HighloadV2R2 => WalletDataHighloadV2R2 {
                 wallet_id,
                 last_cleaned_time: 0,
                 public_key,
