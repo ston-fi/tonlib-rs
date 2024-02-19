@@ -1,13 +1,17 @@
 mod types;
 
+use std::sync::Arc;
+
 use lazy_static::lazy_static;
 use nacl::sign::signature;
 pub use types::*;
 
 use crate::address::TonAddress;
-use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, TonCellError};
+use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, StateInitBuilder, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
+
+pub const DEFAULT_WALLET_ID: i32 = 0x29a9a317;
 
 lazy_static! {
     pub static ref WALLET_V1R1_CODE: BagOfCells = {
@@ -87,7 +91,7 @@ pub enum WalletVersion {
 }
 
 impl WalletVersion {
-    pub fn code(&self) -> &'static BagOfCells {
+    pub fn code(&self) -> Result<&Arc<Cell>, TonCellError> {
         let code: &BagOfCells = match self {
             WalletVersion::V1R1 => &WALLET_V1R1_CODE,
             WalletVersion::V1R2 => &WALLET_V1R2_CODE,
@@ -104,16 +108,14 @@ impl WalletVersion {
             WalletVersion::HighloadV2R1 => &HIGHLOAD_V2R1_CODE,
             WalletVersion::HighloadV2R2 => &HIGHLOAD_V2R2_CODE,
         };
-        code
+        code.single_root()
     }
 
     pub fn initial_data(
         &self,
-        workchain: i32,
         key_pair: &KeyPair,
-        sub_wallet_id: Option<i32>,
-    ) -> Result<BagOfCells, TonCellError> {
-        let wallet_id = sub_wallet_id.unwrap_or(698983191 + workchain);
+        wallet_id: i32,
+    ) -> Result<Arc<Cell>, TonCellError> {
         let public_key: [u8; 32] = key_pair
             .public_key
             .clone()
@@ -158,11 +160,7 @@ impl WalletVersion {
             }
         };
 
-        Ok(BagOfCells::from_root(data_cell))
-    }
-
-    pub fn wallet_id(&self) -> u32 {
-        0x29a9a317 // Same for all wallet versions
+        Ok(Arc::new(data_cell))
     }
 
     pub fn has_op(&self) -> bool {
@@ -175,6 +173,7 @@ pub struct TonWallet {
     pub key_pair: KeyPair,
     pub version: WalletVersion,
     pub address: TonAddress,
+    pub wallet_id: i32,
 }
 
 impl TonWallet {
@@ -182,12 +181,11 @@ impl TonWallet {
         workchain: i32,
         version: WalletVersion,
         key_pair: &KeyPair,
-        sub_wallet_id: Option<i32>,
+        wallet_id: i32,
     ) -> Result<TonWallet, TonCellError> {
-        let data = version.initial_data(workchain, key_pair, sub_wallet_id)?;
-        let code = version.code();
-        let state_init_hash =
-            StateInit::create_account_id(code.single_root()?, data.single_root()?)?;
+        let data = version.initial_data(key_pair, wallet_id)?;
+        let code = version.code()?;
+        let state_init_hash = StateInit::create_account_id(code, &data)?;
         let hash_part = match state_init_hash.as_slice().try_into() {
             Ok(hash_part) => hash_part,
             Err(_) => {
@@ -201,44 +199,65 @@ impl TonWallet {
             key_pair: key_pair.clone(),
             version,
             address: addr,
+            wallet_id,
         })
     }
 
-    pub fn create_external_message<T>(
+    pub fn derive_default(
+        version: WalletVersion,
+        key_pair: &KeyPair,
+    ) -> Result<TonWallet, TonCellError> {
+        let wallet_id = DEFAULT_WALLET_ID;
+        let data = version.initial_data(key_pair, wallet_id)?;
+        let code = version.code()?;
+        let state_init_hash = StateInit::create_account_id(code, &data)?;
+        let hash_part = match state_init_hash.as_slice().try_into() {
+            Ok(hash_part) => hash_part,
+            Err(_) => {
+                return Err(TonCellError::InternalError(
+                    "StateInit returned hash pof wrong size".to_string(),
+                ))
+            }
+        };
+        let addr = TonAddress::new(0, &hash_part);
+        Ok(TonWallet {
+            key_pair: key_pair.clone(),
+            version,
+            address: addr,
+            wallet_id,
+        })
+    }
+
+    pub fn create_external_message<T: AsRef<[Arc<Cell>]>>(
         &self,
         expire_at: u32,
         seqno: u32,
-        internal_message: T,
-    ) -> Result<Cell, TonMessageError>
-    where
-        T: Into<Vec<Cell>>,
-    {
-        let body = self.create_external_body(expire_at, seqno, internal_message)?;
+        internal_messages: T,
+        state_init: bool,
+    ) -> Result<Cell, TonMessageError> {
+        let body = self.create_external_body(expire_at, seqno, internal_messages)?;
         let signed = self.sign_external_body(&body)?;
-        let wrapped = self.wrap_signed_body(signed)?;
+        let wrapped = self.wrap_signed_body(signed, state_init)?;
         Ok(wrapped)
     }
 
-    pub fn create_external_body<T>(
+    pub fn create_external_body<T: AsRef<[Arc<Cell>]>>(
         &self,
         expire_at: u32,
         seqno: u32,
-        internal_message: T,
-    ) -> Result<Cell, TonCellError>
-    where
-        T: Into<Vec<Cell>>,
-    {
+        internal_messages: T,
+    ) -> Result<Cell, TonCellError> {
         let mut builder = CellBuilder::new();
         builder
-            .store_u32(32, self.version.wallet_id())?
+            .store_i32(32, self.wallet_id)?
             .store_u32(32, expire_at)?
             .store_u32(32, seqno)?;
         if self.version.has_op() {
             builder.store_u8(8, 0)?;
         }
-        for internal_message in internal_message.into() {
+        for internal_message in internal_messages.as_ref() {
             builder.store_u8(8, 3)?; // send_mode
-            builder.store_child(internal_message)?;
+            builder.store_reference(internal_message)?;
         }
         builder.build()
     }
@@ -253,23 +272,30 @@ impl TonWallet {
         Ok(body_builder.build()?)
     }
 
-    pub fn wrap_signed_body(&self, signed_body: Cell) -> Result<Cell, TonCellError> {
+    pub fn wrap_signed_body(
+        &self,
+        signed_body: Cell,
+        state_init: bool,
+    ) -> Result<Cell, TonMessageError> {
         let mut wrap_builder = CellBuilder::new();
         wrap_builder
-            .store_u8(2, 2)?
-            // No idea
-            .store_address(&TonAddress::NULL)?
-            // src
-            .store_address(&self.address)?
-            // dest
-            .store_coins(&ZERO_COINS)?
-            // import fee
-            .store_bit(false)?
-            // TODO: add state_init support
-            .store_bit(true)?
-            // signed_body is always defined
-            .store_child(signed_body)?;
-        wrap_builder.build()
+            .store_u8(2, 2)? // No idea
+            .store_address(&TonAddress::NULL)? // src
+            .store_address(&self.address)? // dest
+            .store_coins(&ZERO_COINS)?; // import fee
+        if state_init {
+            wrap_builder.store_bit(true)?; // state init present
+            wrap_builder.store_bit(true)?; // state init in ref
+            let initial_data = self.version.initial_data(&self.key_pair, self.wallet_id)?;
+            let code = WALLET_V4R2_CODE.single_root()?.clone();
+            let state_init = StateInitBuilder::new(&code, &initial_data).build()?;
+            wrap_builder.store_child(state_init)?;
+        } else {
+            wrap_builder.store_bit(false)?; // state init absent
+        }
+        wrap_builder.store_bit(true)?; // signed_body is always defined
+        wrap_builder.store_child(signed_body)?;
+        Ok(wrap_builder.build()?)
     }
 }
 
@@ -286,14 +312,14 @@ mod tests {
         sudden rib gather media vicious";
         let mnemonic = Mnemonic::from_str(&mnemonic_str, &None)?;
         let key_pair = mnemonic.to_key_pair()?;
-        let wallet_v3 = TonWallet::derive(0, WalletVersion::V3R1, &key_pair, None)?;
+        let wallet_v3 = TonWallet::derive_default(WalletVersion::V3R1, &key_pair)?;
         let expected_v3: TonAddress = "EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK".parse()?;
         assert_eq!(wallet_v3.address, expected_v3);
-        let wallet_v3r2 = TonWallet::derive(0, WalletVersion::V3R2, &key_pair, None)?;
+        let wallet_v3r2 = TonWallet::derive_default(WalletVersion::V3R2, &key_pair)?;
         let expected_v3r2: TonAddress =
             "EQA-RswW9QONn88ziVm4UKnwXDEot5km7GEEXsfie_0TFOCO".parse()?;
         assert_eq!(wallet_v3r2.address, expected_v3r2);
-        let wallet_v4r2 = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
+        let wallet_v4r2 = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
         let expected_v4r2: TonAddress =
             "EQCDM_QGggZ3qMa_f3lRPk4_qLDnLTqdi6OkMAV2NB9r5TG3".parse()?;
         assert_eq!(wallet_v4r2.address, expected_v4r2);

@@ -33,12 +33,6 @@ pub struct Cell {
     pub references: Vec<Arc<Cell>>,
 }
 
-impl From<Cell> for Vec<Cell> {
-    fn from(val: Cell) -> Self {
-        vec![val]
-    }
-}
-
 impl Cell {
     pub fn parser(&self) -> CellParser {
         let bit_len = self.bit_len;
@@ -325,5 +319,9 @@ impl Cell {
             right.dict_to_hashmap(pp, map, dict_loader)?;
         }
         Ok(())
+    }
+
+    pub fn to_arc(self) -> Arc<Cell> {
+        Arc::new(self)
     }
 }
