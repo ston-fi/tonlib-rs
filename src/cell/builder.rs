@@ -6,14 +6,14 @@ use num_traits::Zero;
 
 use crate::address::TonAddress;
 use crate::cell::error::{MapTonCellError, TonCellError};
-use crate::cell::{Cell, CellParser};
+use crate::cell::{ArcCell, Cell, CellParser};
 
 const MAX_CELL_BITS: usize = 1023;
 const MAX_CELL_REFERENCES: usize = 4;
 
 pub struct CellBuilder {
     bit_writer: BitWriter<Vec<u8>, BigEndian>,
-    references: Vec<Arc<Cell>>,
+    references: Vec<ArcCell>,
 }
 
 impl CellBuilder {
@@ -187,8 +187,8 @@ impl CellBuilder {
 
     /// Adds reference to an existing `Cell`.
     ///
-    /// The reference is passed as `Arc<Cell>` so it might be references from other cells.
-    pub fn store_reference(&mut self, cell: &Arc<Cell>) -> Result<&mut Self, TonCellError> {
+    /// The reference is passed as `ArcCell` so it might be references from other cells.
+    pub fn store_reference(&mut self, cell: &ArcCell) -> Result<&mut Self, TonCellError> {
         let ref_count = self.references.len() + 1;
         if ref_count > 4 {
             return Err(TonCellError::cell_builder_error(format!(
@@ -200,7 +200,7 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_references(&mut self, refs: &[Arc<Cell>]) -> Result<&mut Self, TonCellError> {
+    pub fn store_references(&mut self, refs: &[ArcCell]) -> Result<&mut Self, TonCellError> {
         for r in refs {
             self.store_reference(r)?;
         }

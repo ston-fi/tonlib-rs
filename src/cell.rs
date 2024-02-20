@@ -26,11 +26,13 @@ mod parser;
 mod raw;
 mod state_init;
 
+pub type ArcCell = Arc<Cell>;
+
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct Cell {
     pub data: Vec<u8>,
     pub bit_len: usize,
-    pub references: Vec<Arc<Cell>>,
+    pub references: Vec<ArcCell>,
 }
 
 impl Cell {
@@ -67,7 +69,7 @@ impl Cell {
         res
     }
 
-    pub fn reference(&self, idx: usize) -> Result<&Arc<Cell>, TonCellError> {
+    pub fn reference(&self, idx: usize) -> Result<&ArcCell, TonCellError> {
         self.references.get(idx).ok_or(TonCellError::InvalidIndex {
             idx,
             ref_count: self.references.len(),
@@ -321,7 +323,7 @@ impl Cell {
         Ok(())
     }
 
-    pub fn to_arc(self) -> Arc<Cell> {
+    pub fn to_arc(self) -> ArcCell {
         Arc::new(self)
     }
 }

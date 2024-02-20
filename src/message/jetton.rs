@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use crate::address::TonAddress;
-use crate::cell::{Cell, CellBuilder};
+use crate::cell::{ArcCell, Cell, CellBuilder};
 use crate::message::{TonMessageError, ZERO_COINS};
 
 // Constants from jetton standart
@@ -37,9 +37,9 @@ pub struct JettonTransferMessage {
     pub amount: BigUint,
     pub destination: TonAddress,
     pub response_destination: Option<TonAddress>,
-    pub custom_payload: Option<Arc<Cell>>,
+    pub custom_payload: Option<ArcCell>,
     pub forward_ton_amount: BigUint,
-    pub forward_payload: Option<Arc<Cell>>,
+    pub forward_payload: Option<ArcCell>,
 }
 
 impl JettonTransferMessage {
@@ -69,7 +69,7 @@ impl JettonTransferMessage {
         self.with_custom_payload_ref(&Arc::new(custom_payload))
     }
 
-    pub fn with_custom_payload_ref(&mut self, custom_payload_ref: &Arc<Cell>) -> &mut Self {
+    pub fn with_custom_payload_ref(&mut self, custom_payload_ref: &ArcCell) -> &mut Self {
         self.custom_payload = Some(custom_payload_ref.clone());
         self
     }
@@ -85,7 +85,7 @@ impl JettonTransferMessage {
     pub fn with_forward_ref(
         &mut self,
         forward_ton_amount: &BigUint,
-        forward_payload: &Arc<Cell>,
+        forward_payload: &ArcCell,
     ) -> &mut Self {
         self.forward_ton_amount = forward_ton_amount.clone();
         self.forward_payload = Some(forward_payload.clone());
