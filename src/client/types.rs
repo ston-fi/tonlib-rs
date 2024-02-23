@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
+use crate::client::DEFAULT_CONNECTION_LIMIT;
 use crate::config::MAINNET_CONFIG;
 use crate::tl::TonNotification;
 
@@ -16,6 +17,7 @@ pub struct TonConnectionParams {
     pub use_callbacks_for_network: bool,
     pub ignore_cache: bool,
     pub keystore_dir: Option<String>,
+    pub limit_connecions: Option<usize>,
 }
 
 impl Default for TonConnectionParams {
@@ -26,6 +28,7 @@ impl Default for TonConnectionParams {
             use_callbacks_for_network: false,
             ignore_cache: false,
             keystore_dir: None,
+            limit_connecions: Some(DEFAULT_CONNECTION_LIMIT),
         }
     }
 }

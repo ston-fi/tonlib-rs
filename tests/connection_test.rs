@@ -5,8 +5,8 @@ use std::time::Duration;
 use tonlib::address::TonAddress;
 use tonlib::client::{
     MultiConnectionCallback, TonClientError, TonClientInterface, TonConnection,
-    TonConnectionCallback, DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK,
-    NOOP_CONNECTION_CALLBACK,
+    TonConnectionCallback, DEFAULT_CONNECTION_LIMIT, DEFAULT_CONNECTION_PARAMS,
+    LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
 };
 use tonlib::tl::{
     KeyStoreType, SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState,
@@ -17,7 +17,10 @@ mod common;
 #[tokio::test]
 async fn test_connection_init() -> anyhow::Result<()> {
     common::init_logging();
-    let conn = TonConnection::new(LOGGING_CONNECTION_CALLBACK.clone())?;
+    let conn = TonConnection::new(
+        LOGGING_CONNECTION_CALLBACK.clone(),
+        Some(DEFAULT_CONNECTION_LIMIT),
+    )?;
     let r = conn
         .init(
             tonlib::config::MAINNET_CONFIG,
@@ -86,7 +89,7 @@ async fn test_connection_callback() -> anyhow::Result<()> {
         test_callback.clone(),
         LOGGING_CONNECTION_CALLBACK.clone(),
     ]));
-    let conn = TonConnection::new(multi_callback)?;
+    let conn = TonConnection::new(multi_callback, Some(DEFAULT_CONNECTION_LIMIT))?;
     let r = conn
         .init(
             tonlib::config::MAINNET_CONFIG,

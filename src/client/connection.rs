@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use dashmap::DashMap;
-use tokio::sync::{broadcast, oneshot};
+use tokio::sync::{broadcast, oneshot, Semaphore, SemaphorePermit};
 
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
@@ -16,6 +16,8 @@ use crate::tl::{
     TonNotification, TonResult, TonResultDiscriminants, TvmStackEntry,
 };
 use crate::types::TonMethodId;
+
+pub const DEFAULT_CONNECTION_LIMIT: usize = 10000;
 
 struct RequestData {
     method: &'static str,
@@ -33,6 +35,7 @@ struct Inner {
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
     _notification_receiver: TonNotificationReceiver,
+    semaphore: Option<Semaphore>,
 }
 
 pub struct TonConnection {
@@ -47,12 +50,16 @@ impl TonConnection {
     /// # Errors
     ///
     /// Returns error to capture any failure to create thread at system level
-    pub fn new(callback: Arc<dyn TonConnectionCallback>) -> Result<TonConnection, TonClientError> {
+    pub fn new(
+        callback: Arc<dyn TonConnectionCallback>,
+        limit_connections: Option<usize>,
+    ) -> Result<TonConnection, TonClientError> {
         let tag = format!(
             "ton-conn-{}",
             CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
         );
         let (sender, receiver) = broadcast::channel::<Arc<TonNotification>>(10000); // TODO: Configurable
+        let semaphore = limit_connections.map(Semaphore::new);
         let inner = Inner {
             tl_client: TlTonClient::new(tag.as_str()),
             counter: AtomicU32::new(0),
@@ -60,6 +67,7 @@ impl TonConnection {
             notification_sender: sender,
             callback,
             _notification_receiver: receiver,
+            semaphore,
         };
         let client = TonConnection {
             inner: Arc::new(inner),
@@ -75,7 +83,7 @@ impl TonConnection {
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
-        let conn = Self::new(callback)?;
+        let conn = Self::new(callback, params.limit_connecions)?;
         let keystore_type = if let Some(directory) = &params.keystore_dir {
             KeyStoreType::Directory {
                 directory: directory.clone(),
@@ -194,6 +202,19 @@ impl TonConnection {
             )),
         }
     }
+
+    async fn limit_rate(&self) -> Result<Option<SemaphorePermit>, TonClientError> {
+        Ok(if let Some(semaphore) = &self.inner.semaphore {
+            Some(
+                semaphore
+                    .acquire()
+                    .await
+                    .map_err(|_| TonClientError::InternalError("AcquireError".to_string()))?,
+            )
+        } else {
+            None
+        })
+    }
 }
 
 #[async_trait]
@@ -206,6 +227,8 @@ impl TonClientInterface for TonConnection {
         &self,
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
+        let permit = self.limit_rate().await?;
+
         let cnt = self.inner.counter.fetch_add(1, Ordering::SeqCst);
         let extra = cnt.to_string();
         let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();
@@ -239,6 +262,7 @@ impl TonClientInterface for TonConnection {
                 ));
             }
         };
+        drop(permit);
         result.map(|r| (self.clone(), r))
     }
 }
