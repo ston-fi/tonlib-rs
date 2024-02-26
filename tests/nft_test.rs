@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use tonlib::contract::{NftCollectionContract, NftItemContract, TonContractFactory};
 use tonlib::meta::*;
 

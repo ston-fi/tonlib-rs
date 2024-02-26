@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use tonlib::meta::{IpfsLoader, IpfsLoaderConfig};
 
 mod common;

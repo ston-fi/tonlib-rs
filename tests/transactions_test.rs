@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use std::sync::Arc;
 use std::{thread, time};
 

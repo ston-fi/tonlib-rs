@@ -1,26 +1,36 @@
-use std::ffi::CString;
-use std::io;
+#[cfg(feature = "interactive")] use std::ffi::CString;
+#[cfg(feature = "interactive")] use std::io;
 
 use hmac::digest::InvalidLength;
 use pbkdf2::password_hash::Error;
 use reqwest::StatusCode;
-use tonlib::address::{TonAddress, TonAddressParseError};
+#[cfg(feature = "interactive")] use tonlib::address::TonAddress;
+use tonlib::address::TonAddressParseError;
 use tonlib::cell::TonCellError;
-use tonlib::client::TonClientError;
-use tonlib::contract::TonContractError;
+#[cfg(feature = "interactive")] use tonlib::client::TonClientError;
+#[cfg(feature = "interactive")] use tonlib::contract::TonContractError;
 use tonlib::message::TonMessageError;
 use tonlib::meta::{IpfsLoaderError, MetaDataContent, MetaLoaderError};
 use tonlib::mnemonic::MnemonicError;
+#[cfg(feature = "interactive")]
 use tonlib::tl::{
     InternalTransactionIdParseError, TlError, TonResultDiscriminants, TvmCell, TvmNumber, TvmSlice,
     TvmStackEntry, TvmStackError,
 };
 
+#[cfg(feature = "interactive")]
 mod common;
+#[cfg(not(feature = "interactive"))]
+mod common {
+    pub fn init_logging() {
+        log::warn!("Logging initialized without attaching tonlib");
+    }
+}
 
 // This test is used to demonstrate all available errors.
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_all_error_output() {
     test_ton_address_error_output();
     println!("-------------------------------------------------------------\n");
@@ -93,6 +103,7 @@ fn test_ton_cell_error_output() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_ton_client_error_output() {
     common::init_logging();
     log::error!(
@@ -131,6 +142,7 @@ fn test_ton_client_error_output() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_ton_contract_error_output() {
     common::init_logging();
     log::error!(
@@ -282,6 +294,7 @@ fn test_message_error_output() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_tvm_stack_error_output() {
     common::init_logging();
     let cell_entry: TvmStackEntry = TvmStackEntry::Cell {
@@ -339,6 +352,7 @@ fn test_tvm_stack_error_output() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_tl_error_output() {
     common::init_logging();
     #[allow(invalid_from_utf8)]
@@ -356,6 +370,7 @@ fn test_tl_error_output() {
 
 #[test]
 #[ignore]
+#[cfg(feature = "interactive")]
 fn test_internal_txid_parse_error_output() {
     common::init_logging();
     log::error!(

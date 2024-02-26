@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 #[cfg(feature = "state_cache")]
 use tokio::{self};
 #[cfg(feature = "state_cache")]
