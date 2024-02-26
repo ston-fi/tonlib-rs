@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use futures::future::try_join_all;
 use rand::Rng;
 use tonlib::address::TonAddress;

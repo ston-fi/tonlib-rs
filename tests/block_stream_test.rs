@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use tonlib::client::{BlockStream, TonClientInterface};
 
 mod common;

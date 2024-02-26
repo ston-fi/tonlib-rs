@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use std::str::FromStr;
 use std::thread;
 use std::time::Duration;

@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crc::{Crc, CRC_32_ISO_HDLC};
 
-use crate::tl::SmcMethodId;
+#[cfg(feature = "interactive")] use crate::tl::SmcMethodId;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum TonMethodId {
@@ -36,6 +36,7 @@ impl From<i32> for TonMethodId {
     }
 }
 
+#[cfg(feature = "interactive")]
 impl From<&TonMethodId> for SmcMethodId {
     fn from(value: &TonMethodId) -> Self {
         match value {

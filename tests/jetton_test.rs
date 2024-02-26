@@ -1,3 +1,5 @@
+#![cfg(feature = "interactive")]
+
 use tonlib::address::TonAddress;
 use tonlib::contract::{JettonMasterContract, TonContractFactory};
 use tonlib::meta::*;
