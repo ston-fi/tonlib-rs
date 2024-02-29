@@ -5,6 +5,7 @@ pub mod cell;
 pub mod client;
 pub mod config;
 pub mod contract;
+pub mod emulator;
 pub mod message;
 pub mod meta;
 pub mod mnemonic;

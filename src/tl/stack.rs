@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -6,58 +8,86 @@ use crate::cell::BagOfCells;
 use crate::tl::error::TvmStackError;
 use crate::tl::Base64Standard;
 
-// tonlib_api.tl, line 164
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+// tonlib_api.tl, line 166
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct TvmSlice {
     #[serde(with = "Base64Standard")]
     pub bytes: Vec<u8>,
 }
 
-// tonlib_api.tl, line 165
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+impl fmt::Debug for TvmSlice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TvmSlice{{ bytes: [{}]}}",
+            self.bytes
+                .iter()
+                .map(|&byte| format!("{:02X}", byte))
+                .collect::<Vec<_>>()
+                .join(""),
+        )?;
+        Ok(())
+    }
+}
+
+// tonlib_api.tl, line 167
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct TvmCell {
     #[serde(with = "Base64Standard")]
     pub bytes: Vec<u8>,
 }
 
-// tonlib_api.tl, line 166
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TvmNumber {
-    pub number: String, // TODO: Deserialize i256
+impl fmt::Debug for TvmCell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Print bytes as a hexadecimal string
+        write!(f, "TvmCell {{ bytes: 0x")?;
+
+        for byte in &self.bytes {
+            write!(f, "{:02x}", byte)?;
+        }
+
+        write!(f, " }}")
+    }
 }
 
-// tonlib_api.tl, line 163
+// tonlib_api.tl, line 168
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TvmNumber {
+    pub number: String,
+}
+
+// tonlib_api.tl, line 169
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TvmTuple {
     pub elements: Vec<TvmStackEntry>,
 }
 
-// tonlib_api.tl, line 168
+// tonlib_api.tl, line 170
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TvmList {
     pub elements: Vec<TvmStackEntry>,
 }
 
-// tonlib_api.tl, line 170
+// tonlib_api.tl, line 172
 #[derive(Serialize, Deserialize, strum::Display, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type")]
 pub enum TvmStackEntry {
-    // tonlib_api.tl, line 170
+    // tonlib_api.tl, line 172
     #[serde(rename = "tvm.stackEntrySlice")]
+    // tonlib_api.tl, line 173
     Slice { slice: TvmSlice },
-    // tonlib_api.tl, line 171
     #[serde(rename = "tvm.stackEntryCell")]
     Cell { cell: TvmCell },
-    // tonlib_api.tl, line 172
+    // tonlib_api.tl, line 174
     #[serde(rename = "tvm.stackEntryNumber")]
     Number { number: TvmNumber },
-    // tonlib_api.tl, line 173
+    // tonlib_api.tl, line 175
     #[serde(rename = "tvm.stackEntryTuple")]
     Tuple { tuple: TvmTuple },
-    // tonlib_api.tl, line 174
+    // tonlib_api.tl, line 176
     #[serde(rename = "tvm.stackEntryList")]
     List { list: TvmList },
-    // tonlib_api.tl, line 175
+    // tonlib_api.tl, line 177
     #[serde(rename = "tvm.stackEntryUnsupported")]
     Unsupported {},
 }

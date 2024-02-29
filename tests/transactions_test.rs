@@ -24,10 +24,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
         trs.last().unwrap().transaction_id.lt
     );
     assert_eq!(4, trs.len());
-    assert_eq!(
-        true,
-        trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt
-    );
+    assert!(trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt);
     check_order(trs).expect("Invalid transactions list");
 
     let trs = trans.get(30).await?;
@@ -38,10 +35,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
         trs.last().unwrap().transaction_id.lt,
     );
     assert_eq!(30, trs.len());
-    assert_eq!(
-        true,
-        trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt
-    );
+    assert!(trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt);
     check_order(trs).expect("Invalid transactions list");
 
     thread::sleep(time::Duration::from_millis(10000));
@@ -54,10 +48,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
         trs.last().unwrap().transaction_id.lt,
     );
     assert_eq!(16, trs.len());
-    assert_eq!(
-        true,
-        trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt
-    );
+    assert!(trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt);
     check_order(trs).expect("Invalid transactions list");
 
     Ok(())
@@ -82,10 +73,7 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
             trs.first().unwrap().transaction_id.lt,
             trs.last().unwrap().transaction_id.lt
         );
-        assert_eq!(
-            true,
-            trs.first().unwrap().transaction_id.lt >= trs.last().unwrap().transaction_id.lt
-        );
+        assert!(trs.first().unwrap().transaction_id.lt >= trs.last().unwrap().transaction_id.lt);
         check_order(trs).expect("Invalid transactions list");
     }
 
@@ -99,14 +87,11 @@ async fn get_txs_for_rare_works() -> anyhow::Result<()> {
             trs.first().unwrap().transaction_id.lt,
             trs.last().unwrap().transaction_id.lt,
         );
-        assert_eq!(
-            true,
-            trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt
-        );
+        assert!(trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt);
         check_order(trs).expect("Invalid transactions list");
     }
 
-    let mut missing_hash = addr.hash_part.clone();
+    let mut missing_hash = addr.hash_part;
     missing_hash[31] += 1;
     let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
     let missing_trans = LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true);

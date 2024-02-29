@@ -5,7 +5,12 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use num_bigint::BigUint;
 use tonlib::address::TonAddress;
-use tonlib::contract::{TonContractFactory, TonContractInterface, TonContractState};
+use tonlib::contract::{
+    TonContractError, TonContractFactory, TonContractInterface, TonContractState,
+};
+use tonlib::mnemonic::Mnemonic;
+use tonlib::types::TvmSuccess;
+use tonlib::wallet::{TonWallet, WalletVersion};
 
 mod common;
 
@@ -28,43 +33,30 @@ pub struct PoolData {
 pub trait PoolContract: TonContractInterface {
     async fn get_pool_data(&self) -> anyhow::Result<PoolData> {
         let res = self.run_get_method("get_pool_data", &Vec::new()).await?;
-        if res.stack.elements.len() == 10 {
+        if res.stack.len() == 10 {
             let pool_data = PoolData {
-                reserve0: res.stack.get_biguint(0)?,
-                reserve1: res.stack.get_biguint(1)?,
-                token0_address: res
-                    .stack
-                    .get_boc(2)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                token1_address: res
-                    .stack
-                    .get_boc(3)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                lp_fee: res.stack.get_i32(4)?,
-                protocol_fee: res.stack.get_i32(5)?,
-                ref_fee: res.stack.get_i32(6)?,
-                protocol_fee_address: res
-                    .stack
-                    .get_boc(7)?
-                    .single_root()?
-                    .parse_fully(|r| r.load_address())?,
-                collected_token0_protocol_fee: res.stack.get_biguint(8)?,
-                collected_token1_protocol_fee: res.stack.get_biguint(9)?,
+                reserve0: res.stack[0].get_biguint()?,
+                reserve1: res.stack[1].get_biguint()?,
+                token0_address: res.stack[2].get_address()?,
+                token1_address: res.stack[3].get_address()?,
+                lp_fee: res.stack[4].get_i64()? as i32,
+                protocol_fee: res.stack[5].get_i64()? as i32,
+                ref_fee: res.stack[6].get_i64()? as i32,
+                protocol_fee_address: res.stack[7].get_address()?,
+                collected_token0_protocol_fee: res.stack[8].get_biguint()?,
+                collected_token1_protocol_fee: res.stack[9].get_biguint()?,
             };
             Ok(pool_data)
         } else {
             Err(anyhow!(
                 "Invalid result size: {}, expected 10",
-                res.stack.elements.len()
+                res.stack.len()
             ))
         }
     }
 
-    async fn invalid_method(&self) -> anyhow::Result<()> {
-        let _ = self.run_get_method("invalid_method", &Vec::new()).await?;
-        Ok(())
+    async fn invalid_method(&self) -> Result<TvmSuccess, TonContractError> {
+        self.run_get_method("invalid_method", &Vec::new()).await
     }
 }
 
@@ -80,7 +72,15 @@ async fn contract_get_pool_data_works() -> anyhow::Result<()> {
     let pool_data = contract.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
-    assert!(invalid_result.is_err());
+    println!("invalid_result: {:?}", invalid_result);
+
+    match invalid_result {
+        Ok(_) => panic!(),
+        Err(err) => match err {
+            TonContractError::TvmRunError { exit_code, .. } => assert_eq!(exit_code, 11),
+            _ => assert_eq!(0, 1),
+        },
+    }
     Ok(())
 }
 
@@ -95,6 +95,7 @@ async fn state_get_pool_data_works() -> anyhow::Result<()> {
     let pool_data = state.get_pool_data().await?;
     println!("pool data: {:?}", pool_data);
     let invalid_result = contract.invalid_method().await;
+    log::info!("Result of calling invalid method {:?}", invalid_result);
     assert!(invalid_result.is_err());
     Ok(())
 }
@@ -163,9 +164,9 @@ async fn test_contract_state_by_transaction() -> anyhow::Result<()> {
     let contract_state2 = contract
         .get_state_by_transaction(&account_state.last_transaction_id)
         .await?;
-    let result1 = contract_state1.run_get_method(method_name, &vec![]).await?;
-    let result2 = contract_state2.run_get_method(method_name, &vec![]).await?;
-    assert_eq!(result1, result2);
+    let result1 = contract_state1.run_get_method(method_name, vec![]).await?;
+    let result2 = contract_state2.run_get_method(method_name, vec![]).await?;
+    assert_eq!(result1.stack, result2.stack);
     Ok(())
 }
 
@@ -188,4 +189,25 @@ async fn test_state_dropping() -> anyhow::Result<()> {
 
 fn test_drop(state: TonContractState) {
     drop(state);
+}
+
+#[tokio::test]
+async fn test_derive_undeployed() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client).build().await?;
+
+    let mnemonic_str = "mechanic sudden cannon bind monkey brown moment able street pride struggle team outdoor canyon coin tourist service second crazy tank sell regret sample attitude";
+    let mnemonic = Mnemonic::from_str(mnemonic_str, &None)?;
+    let key_pair = mnemonic.to_key_pair()?;
+    let wallet_v4r2 = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
+
+    let address = wallet_v4r2.address;
+    log::info!("addr: {}", address);
+    let contract = factory.get_contract(&address);
+
+    let r = contract.run_get_method("seqno", vec![]).await;
+    log::info!("result: {:?}", r);
+    assert!(r.is_err());
+    Ok(())
 }

@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -6,20 +7,20 @@ use tokio::time::timeout;
 use tokio::{self};
 use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
-use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface};
+use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface, TxId};
 use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
-    BlockId, BlocksShards, BlocksTransactions, InternalTransactionId, LiteServerInfo,
-    NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    BlockId, BlocksShards, BlocksTransactions, BlocksTransactionsExt, InternalTransactionId,
+    LiteServerInfo, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 
 mod common;
 
 #[tokio::test]
-async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
+async fn test_client_get_account_state_of_inactive() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     for _ in 0..100 {
         let r = factory
@@ -86,20 +87,24 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
     common::init_logging();
     {
         let client = common::new_mainnet_client().await?;
-        let (conn, id1) = client
-            .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
-            .await?; // pool 0.3.0
+        let address =
+            &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+        let loaded_state = client.smc_load(address).await?; // pool 0.3.0
         let method_id = "get_jetton_data".into();
+        let conn = loaded_state.conn.clone();
 
-        let r = conn.smc_run_get_method(id1, &method_id, &Vec::new()).await;
+        let r = loaded_state
+            .conn
+            .smc_run_get_method(loaded_state.id, &method_id, &Vec::new())
+            .await;
         println!("{:?}", r);
         // Check that it works after cloning the connection
         let id2 = {
             let conn2 = conn.clone();
             conn2
-                .smc_load("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
+                .smc_load(address)
                 .await? // pool 0.3.0
-                .1
+                .id
         };
         let stack = &Vec::new();
         let future = conn.smc_run_get_method(id2, &method_id, stack);
@@ -128,8 +133,13 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
         let state = client.get_raw_account_state(address).await.unwrap();
 
         println!("TRANSACTION_ID{}", &state.last_transaction_id);
+
+        let tx_id = Arc::new(TxId {
+            address: address.clone(),
+            internal_transaction_id: internal_transaction_id.clone(),
+        });
         let res = client
-            .smc_load_by_transaction(address, &internal_transaction_id)
+            .smc_load_by_transaction(&tx_id.address, &tx_id.internal_transaction_id)
             .await;
 
         if res.is_ok() {
@@ -144,10 +154,10 @@ async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
 async fn client_smc_get_code_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
-    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (conn, id1) = client.smc_load(address).await?;
-    let cell = conn.smc_get_code(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let loaded_state = client.smc_load(address).await?;
+    let cell = loaded_state.conn.smc_get_code(loaded_state.id).await?;
+    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",base64::encode(cell.bytes));
     Ok(())
 }
 
@@ -155,10 +165,10 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
 async fn client_smc_get_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
-    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (conn, id1) = client.smc_load(address).await?;
-    let cell = conn.smc_get_data(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let loaded_state = client.smc_load(address).await?;
+    let cell = loaded_state.conn.smc_get_data(loaded_state.id).await?;
+    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",base64::encode(cell.bytes));
     Ok(())
 }
 
@@ -166,9 +176,9 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
 async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
-    let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
-    let (conn, id1) = client.smc_load(address).await?;
-    let cell = conn.smc_get_state(id1).await?;
+    let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let loaded_state = client.smc_load(address).await?;
+    let cell = loaded_state.conn.smc_get_state(loaded_state.id).await?;
     println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
     Ok(())
 }
@@ -193,27 +203,27 @@ async fn client_get_block_header_works() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let (_, info) = client.get_masterchain_info().await?;
-    println!("MasterchainInfo: {:?}", &info);
+    log::info!("MasterchainInfo: {:?}", &info);
     let block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
         seqno: info.last.seqno,
     };
     let block_id_ext = client.lookup_block(1, &block_id, 0, 0).await?;
-    println!("BlockIdExt: {:?}", &block_id_ext);
+    log::info!("BlockIdExt: {:?}", &block_id_ext);
     let block_shards: BlocksShards = client.get_block_shards(&info.last).await?;
     let mut shards = block_shards.shards.clone();
-    println!("Shards: {:?}", &block_shards);
+    log::info!("Shards: {:?}", &block_shards);
     shards.insert(0, info.last.clone());
     for shard in &shards {
-        println!("Processing shard: {:?}", shard);
+        log::info!("Processing shard: {:?}", shard);
         let workchain = shard.workchain;
         let txs: BlocksTransactions = client
-            .get_block_transactions(&shard, 7, 1024, &NULL_BLOCKS_ACCOUNT_TRANSACTION_ID)
+            .get_block_transactions(shard, 7, 1024, &NULL_BLOCKS_ACCOUNT_TRANSACTION_ID)
             .await?;
-        println!(
+        log::info!(
             "Number of transactions: {}, incomplete: {}",
             txs.transactions.len(),
             txs.incomplete
@@ -227,7 +237,44 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
                 lt: tx_id.lt,
             };
             let tx = client.get_raw_transactions_v2(&addr, &id, 1, false).await?;
-            println!("Tx: {:?}", tx.transactions[0])
+            log::info!("Tx: {:?}", tx.transactions[0])
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_client_blocks_get_transactions_ext() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let (_, info) = client.get_masterchain_info().await?;
+    log::info!("MasterchainInfo: {:?}", &info);
+    let block_id = BlockId {
+        workchain: info.last.workchain,
+        shard: info.last.shard,
+        seqno: info.last.seqno,
+    };
+    let block_id_ext = client.lookup_block(1, &block_id, 0, 0).await?;
+    log::info!("BlockIdExt: {:?}", &block_id_ext);
+    let block_shards: BlocksShards = client.get_block_shards(&info.last).await?;
+    let mut shards = block_shards.shards.clone();
+    log::info!("Shards: {:?}", &block_shards);
+    shards.insert(0, info.last.clone());
+    for shard in &shards {
+        log::info!("Processing shard: {:?}", shard);
+        let txs: BlocksTransactionsExt = client
+            .get_block_transactions_ext(shard, 7, 1024, &NULL_BLOCKS_ACCOUNT_TRANSACTION_ID)
+            .await?;
+        log::info!(
+            "Number of transactions: {}, incomplete: {}",
+            txs.transactions.len(),
+            txs.incomplete
+        );
+        for raw_tx in txs.transactions {
+            let addr = TonAddress::from_base64_url(raw_tx.address.account_address.as_str())?;
+            let id = raw_tx.transaction_id;
+            let tx = client.get_raw_transactions_v2(&addr, &id, 1, false).await?;
+            log::info!("Tx: {:?}", tx.transactions[0])
         }
     }
     Ok(())
@@ -274,7 +321,7 @@ async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
     let client = &common::new_testnet_client().await?;
     let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
-    assert!(shards.shards.len() > 0);
+    assert!(!shards.shards.is_empty());
     let ids = client.get_shard_tx_ids(&shards.shards[0]).await?;
     println!("{:?}", ids);
     Ok(())
@@ -286,7 +333,7 @@ async fn test_get_shard_transactions() -> anyhow::Result<()> {
     let client = &common::new_testnet_client().await?;
     let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
-    assert!(shards.shards.len() > 0);
+    assert!(!shards.shards.is_empty());
     let txs = client.get_shard_transactions(&shards.shards[0]).await?;
     println!("{:?}", txs);
     Ok(())
@@ -298,7 +345,7 @@ async fn test_get_shards_transactions() -> anyhow::Result<()> {
     let client = &common::new_testnet_client().await?;
     let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
-    assert!(shards.shards.len() > 0);
+    assert!(!shards.shards.is_empty());
     let shards_txs = client.get_shards_transactions(&shards.shards).await?;
     for s in shards_txs {
         println!("{:?} : {:?}", s.0, s.1);
@@ -380,10 +427,10 @@ async fn client_mainnet_works() -> anyhow::Result<()> {
     let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
     let blocks_header = client.get_block_header(&info.last).await?;
-    assert!(shards.shards.len() > 0);
+    assert!(!shards.shards.is_empty());
     let shards_txs = client.get_shards_transactions(&shards.shards).await?;
     for s in shards_txs {
-        log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1);
+        log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1.len());
     }
     log::info!(
         "MAINNET: Blocks header for  {} seqno : {:?}",
@@ -403,7 +450,7 @@ async fn client_testnet_works() -> anyhow::Result<()> {
         .await?;
     let (_, info) = client.get_masterchain_info().await?;
     let shards = client.get_block_shards(&info.last).await?;
-    assert!(shards.shards.len() > 0);
+    assert!(!shards.shards.is_empty());
     let shards_txs = client.get_shards_transactions(&shards.shards).await?;
     let blocks_header = client.get_block_header(&info.last).await?;
     for s in shards_txs {

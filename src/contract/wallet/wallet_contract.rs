@@ -16,15 +16,15 @@ pub trait TonWalletContract: TonContractInterface {
         let method: &str = WalletContractMethods::Seqno.into();
         let res = self.run_get_method("seqno", &Vec::new()).await?;
         let stack = res.stack;
-        if stack.elements.len() != 1 {
+        if stack.len() != 1 {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: 1,
             })
         } else {
-            let result = stack.get_i32(0).map_stack_error(method, self.address())? as u32;
+            let result = stack[0].get_i64().map_stack_error(method, self.address())? as u32;
             Ok(result)
         }
     }
@@ -33,16 +33,16 @@ pub trait TonWalletContract: TonContractInterface {
         let method: &str = WalletContractMethods::GetPublicKey.into();
         let res = self.run_get_method(method, &Vec::new()).await?;
         let stack = res.stack;
-        if stack.elements.len() != 1 {
+        if stack.len() != 1 {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: 1,
             })
         } else {
-            let pub_key = stack
-                .get_biguint(0)
+            let pub_key = stack[0]
+                .get_biguint()
                 .map_stack_error("get_public_key", self.address())?;
             Ok(pub_key.to_bytes_be())
         }

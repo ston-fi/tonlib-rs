@@ -312,7 +312,7 @@ mod tests {
         let mnemonic_str = "fancy carpet hello mandate penalty trial consider \
         property top vicious exit rebuild tragic profit urban major total month holiday \
         sudden rib gather media vicious";
-        let mnemonic = Mnemonic::from_str(&mnemonic_str, &None)?;
+        let mnemonic = Mnemonic::from_str(mnemonic_str, &None)?;
         let key_pair = mnemonic.to_key_pair()?;
         let wallet_v3 = TonWallet::derive_default(WalletVersion::V3R1, &key_pair)?;
         let expected_v3: TonAddress = "EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK".parse()?;

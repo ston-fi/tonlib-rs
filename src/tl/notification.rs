@@ -5,7 +5,7 @@ use crate::tl::types::UpdateSyncState;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TonNotification {
-    // tonlib_api.tl, line 188
+    // tonlib_api.tl, line 194
     UpdateSyncState(UpdateSyncState),
 }
 
