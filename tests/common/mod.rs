@@ -14,10 +14,7 @@ lazy_static! {
     pub static ref MAINNET_CONFIG: &'static str = {
         let maybe_local_config_flag = env::var("USE_LOCAL_TON_MAINNET_CONFIG");
         let local_config_flag = match maybe_local_config_flag {
-            Ok(flag) => match flag.parse::<bool>() {
-                Ok(flag) => flag,
-                Err(_) => false,
-            },
+            Ok(flag) => flag.parse::<bool>().unwrap_or(false),
             Err(_) => false,
         };
 
@@ -57,7 +54,7 @@ pub fn init_logging() {
 
         let config = Config::builder()
             .appender(Appender::builder().build("stderr", Box::new(stderr)))
-            .build(Root::builder().appender("stderr").build(LevelFilter::Trace))
+            .build(Root::builder().appender("stderr").build(LevelFilter::Debug))
             .unwrap();
 
         log4rs::init_config(config).unwrap();
@@ -66,8 +63,10 @@ pub fn init_logging() {
 
 #[allow(dead_code)]
 pub async fn new_testnet_client() -> anyhow::Result<TonClient> {
-    let mut params = TonConnectionParams::default();
-    params.config = TESTNET_CONFIG.to_string();
+    let params = TonConnectionParams {
+        config: TESTNET_CONFIG.to_string(),
+        ..Default::default()
+    };
     let client = TonClient::builder()
         .with_connection_params(&params)
         .with_pool_size(2)
@@ -80,8 +79,10 @@ pub async fn new_testnet_client() -> anyhow::Result<TonClient> {
 
 #[allow(dead_code)]
 pub async fn new_archive_testnet_client() -> anyhow::Result<TonClient> {
-    let mut params = TonConnectionParams::default();
-    params.config = TESTNET_CONFIG.to_string();
+    let params = TonConnectionParams {
+        config: TESTNET_CONFIG.to_string(),
+        ..Default::default()
+    };
     let client = TonClient::builder()
         .with_connection_params(&params)
         .with_pool_size(2)
@@ -95,10 +96,13 @@ pub async fn new_archive_testnet_client() -> anyhow::Result<TonClient> {
 
 #[allow(dead_code)]
 pub async fn new_mainnet_client() -> anyhow::Result<TonClient> {
-    let mut params = TonConnectionParams::default();
-    params.config = MAINNET_CONFIG.to_string();
+    let params = TonConnectionParams {
+        config: MAINNET_CONFIG.to_string(),
+        ..Default::default()
+    };
     let client = TonClient::builder()
         .with_connection_params(&params)
+        .with_pool_size(2)
         .with_logging_callback()
         .with_keystore_dir("./var/ton".to_string())
         .with_connection_check(ConnectionCheck::Health)
@@ -109,8 +113,11 @@ pub async fn new_mainnet_client() -> anyhow::Result<TonClient> {
 
 #[allow(dead_code)]
 pub async fn new_archive_mainnet_client() -> anyhow::Result<TonClient> {
-    let mut params = TonConnectionParams::default();
-    params.config = MAINNET_CONFIG.to_string();
+    let params = TonConnectionParams {
+        config: MAINNET_CONFIG.to_string(),
+        ..Default::default()
+    };
+
     let client = TonClient::builder()
         .with_connection_params(&params)
         .with_pool_size(2)

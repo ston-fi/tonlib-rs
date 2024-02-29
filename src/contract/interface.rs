@@ -1,27 +1,33 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
 use super::TonContractError;
 use crate::address::TonAddress;
-use crate::client::TonClientInterface;
-use crate::tl::{SmcRunResult, TvmCell, TvmStackEntry};
-use crate::types::TonMethodId;
+use crate::client::TonConnection;
+use crate::contract::TonContractFactory;
+use crate::tl::RawFullAccountState;
+use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
+
+pub struct LoadedSmcState {
+    pub conn: TonConnection,
+    pub id: i64,
+}
 
 #[async_trait]
 pub trait TonContractInterface {
-    fn client(&self) -> &dyn TonClientInterface;
+    fn factory(&self) -> &TonContractFactory;
 
     fn address(&self) -> &TonAddress;
 
-    async fn get_code_cell(&self) -> Result<TvmCell, TonContractError>;
+    async fn get_account_state(&self) -> Result<Arc<RawFullAccountState>, TonContractError>;
 
-    async fn get_data_cell(&self) -> Result<TvmCell, TonContractError>;
-
-    async fn get_state_cell(&self) -> Result<TvmCell, TonContractError>;
-
-    #[allow(clippy::ptr_arg)]
-    async fn run_get_method<A: Into<TonMethodId> + Send>(
+    async fn run_get_method<M, S>(
         &self,
-        method: A,
-        stack: &Vec<TvmStackEntry>,
-    ) -> Result<SmcRunResult, TonContractError>;
+        method: M,
+        stack: S,
+    ) -> Result<TvmSuccess, TonContractError>
+    where
+        M: Into<TonMethodId> + Send + Copy,
+        S: AsRef<[TvmStackEntry]> + Send;
 }

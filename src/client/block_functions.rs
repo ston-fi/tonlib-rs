@@ -6,41 +6,16 @@ use futures::future::try_join_all;
 use futures::FutureExt;
 
 use crate::address::TonAddress;
-use crate::client::{TonClientError, TonClientInterface};
+use crate::client::{TonClientError, TonClientInterface, TxId};
 use crate::tl::{
-    BlockIdExt, BlocksAccountTransactionId, BlocksShortTxId, BlocksTransactions,
-    InternalTransactionId, RawTransaction, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    BlockIdExt, BlocksAccountTransactionId, BlocksTransactions, RawTransaction,
+    NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 
 #[derive(Debug, Clone)]
 pub struct TxData {
     pub address: TonAddress,
     pub raw_transaction: RawTransaction,
-}
-
-#[derive(Debug, Clone)]
-pub struct TxId {
-    pub address: TonAddress,
-    pub internal_transaction_id: InternalTransactionId,
-}
-
-impl TxId {
-    pub fn new(workchain: i32, tx_id: &BlocksShortTxId) -> Result<TxId, TonClientError> {
-        let addr = TonAddress::new(
-            workchain,
-            tx_id.account.as_slice().try_into().map_err(|_| {
-                TonClientError::InternalError(format!("Invalid BlocksShortTxId: {:?}", tx_id))
-            })?,
-        );
-        let id = InternalTransactionId {
-            lt: tx_id.lt,
-            hash: tx_id.hash.clone(),
-        };
-        Ok(TxId {
-            address: addr,
-            internal_transaction_id: id,
-        })
-    }
 }
 
 /// High-level functions for working with blocks & shards

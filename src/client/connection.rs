@@ -17,7 +17,8 @@ use crate::tl::{
 };
 use crate::types::TonMethodId;
 
-pub const DEFAULT_CONNECTION_LIMIT: usize = 10000;
+pub const DEFAULT_CONNECTION_QUEUE_LENGTH: usize = 10000;
+pub const DEFAULT_CONNECTION_CONCURRENCY_LIMIT: usize = 100;
 
 struct RequestData {
     method: &'static str,
@@ -52,14 +53,19 @@ impl TonConnection {
     /// Returns error to capture any failure to create thread at system level
     pub fn new(
         callback: Arc<dyn TonConnectionCallback>,
-        limit_connections: Option<usize>,
+        params: &TonConnectionParams,
     ) -> Result<TonConnection, TonClientError> {
         let tag = format!(
             "ton-conn-{}",
             CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
         );
-        let (sender, receiver) = broadcast::channel::<Arc<TonNotification>>(10000); // TODO: Configurable
-        let semaphore = limit_connections.map(Semaphore::new);
+        let (sender, receiver) = broadcast::channel::<Arc<TonNotification>>(params.queue_length);
+        let concurrency_limit = params.concurrency_limit;
+        let semaphore = if concurrency_limit != 0 {
+            Some(Semaphore::new(params.concurrency_limit))
+        } else {
+            None
+        };
         let inner = Inner {
             tl_client: TlTonClient::new(tag.as_str()),
             counter: AtomicU32::new(0),
@@ -83,7 +89,7 @@ impl TonConnection {
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
-        let conn = Self::new(callback, params.limit_connecions)?;
+        let conn = Self::new(callback, params)?;
         let keystore_type = if let Some(directory) = &params.keystore_dir {
             KeyStoreType::Directory {
                 directory: directory.clone(),
@@ -227,8 +233,7 @@ impl TonClientInterface for TonConnection {
         &self,
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
-        let permit = self.limit_rate().await?;
-
+        self.limit_rate().await?; // take the semaphore to limit number of simultaneous invokes being processed
         let cnt = self.inner.counter.fetch_add(1, Ordering::SeqCst);
         let extra = cnt.to_string();
         let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();
@@ -262,7 +267,6 @@ impl TonClientInterface for TonConnection {
                 ));
             }
         };
-        drop(permit);
         result.map(|r| (self.clone(), r))
     }
 }

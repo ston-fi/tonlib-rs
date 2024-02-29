@@ -25,10 +25,9 @@ async fn test_ipfs_node() -> anyhow::Result<()> {
     let config = IpfsLoaderConfig::ipfs_node("http://localhost:5001");
     let loader = IpfsLoader::new(&config)?;
     let result = tokio::spawn(async move {
-        let r = loader
+        loader
             .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
-            .await;
-        r
+            .await
     })
     .await??;
     println!("{}", result);

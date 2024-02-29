@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::Hash;
 use std::io::Cursor;
 use std::ops::Deref;
@@ -15,6 +16,7 @@ use num_traits::{One, ToPrimitive};
 pub use parser::*;
 pub use raw::*;
 use sha2::{Digest, Sha256};
+pub use slice::*;
 pub use state_init::*;
 
 mod bag_of_cells;
@@ -24,11 +26,13 @@ mod dict_loader;
 mod error;
 mod parser;
 mod raw;
+mod slice;
 mod state_init;
+mod util;
 
 pub type ArcCell = Arc<Cell>;
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Cell {
     pub data: Vec<u8>,
     pub bit_len: usize,
@@ -49,6 +53,15 @@ impl Cell {
     }
 
     #[allow(clippy::let_and_return)]
+    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
+    where
+        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
+    {
+        let mut parser = self.parser();
+        let res = parse(&mut parser);
+        res
+    }
+
     pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -56,16 +69,6 @@ impl Cell {
         let mut reader = self.parser();
         let res = parse(&mut reader);
         reader.ensure_empty()?;
-        res
-    }
-
-    #[allow(clippy::let_and_return)]
-    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut reader = self.parser();
-        let res = parse(&mut reader);
         res
     }
 
@@ -174,7 +177,6 @@ impl Cell {
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
     pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
-        //todo: #79 key in hashmap must be [u8;32]
         let dict_loader =
             GenericDictLoader::new(bytes_to_slice, cell_to_snake_formatted_string, 256);
         self.load_generic_dict(dict_loader)
@@ -219,7 +221,8 @@ impl Cell {
                     "Invalid snake format",
                 ));
             }
-            let mut data = reader.load_bytes(reader.remaining_bytes())?;
+            let remaining_bytes = reader.remaining_bytes();
+            let mut data = reader.load_bytes(remaining_bytes)?;
             buffer.append(&mut data);
             match cell.references.len() {
                 0 => return Ok(()),
@@ -325,5 +328,30 @@ impl Cell {
 
     pub fn to_arc(self) -> ArcCell {
         Arc::new(self)
+    }
+}
+
+impl fmt::Debug for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Cell{{ data: [{}], bit_len: {}, references: [\n",
+            self.data
+                .iter()
+                .map(|&byte| format!("{:02X}", byte))
+                .collect::<Vec<_>>()
+                .join(""),
+            self.bit_len,
+        )?;
+
+        for reference in &self.references {
+            writeln!(
+                f,
+                "    {}\n",
+                format!("{:?}", reference).replace('\n', "\n    ")
+            )?;
+        }
+
+        write!(f, "] }}")
     }
 }
