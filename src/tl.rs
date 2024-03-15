@@ -8,6 +8,7 @@ mod types;
 
 use std::ffi::{c_char, CStr};
 
+use base64::engine::general_purpose::STANDARD;
 use base64_serde::base64_serde_type;
 pub use error::*;
 pub use function::*;
@@ -19,7 +20,7 @@ pub use types::*;
 
 use self::serial::*;
 
-base64_serde_type!(Base64Standard, base64::STANDARD);
+base64_serde_type!(Base64Standard, STANDARD);
 
 // Wrapper around ton client with support for TL data types
 

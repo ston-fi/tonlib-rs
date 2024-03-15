@@ -1,5 +1,7 @@
 use std::ffi::CString;
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use tonlib_sys::{
     tvm_emulator_create, tvm_emulator_destroy, tvm_emulator_run_get_method,
     tvm_emulator_send_external_message, tvm_emulator_send_internal_message, tvm_emulator_set_c7,
@@ -23,8 +25,8 @@ impl TvmEmulatorUnsafe {
         data: &[u8],
         vm_log_verbosity: u32,
     ) -> Result<TvmEmulatorUnsafe, TvmEmulatorError> {
-        let code = CString::new(base64::encode(code))?;
-        let data = CString::new(base64::encode(data))?;
+        let code = CString::new(URL_SAFE_NO_PAD.encode(code))?;
+        let data = CString::new(URL_SAFE_NO_PAD.encode(data))?;
 
         let emulator: TvmEmulatorUnsafe = unsafe {
             let ptr = tvm_emulator_create(code.as_ptr(), data.as_ptr(), vm_log_verbosity);
@@ -42,7 +44,7 @@ impl TvmEmulatorUnsafe {
         method_id: i32,
         stack_boc: &[u8],
     ) -> Result<String, TvmEmulatorError> {
-        let data: CString = CString::new(base64::encode(stack_boc))?;
+        let data: CString = CString::new(URL_SAFE_NO_PAD.encode(stack_boc))?;
         let c_str = unsafe { tvm_emulator_run_get_method(self.ptr, method_id, data.as_ptr()) };
 
         let json_str: &str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str()? };
@@ -56,7 +58,7 @@ impl TvmEmulatorUnsafe {
         message: &[u8],
         amount: u64,
     ) -> Result<String, TvmEmulatorError> {
-        let message_encoded = CString::new(base64::encode(message))?;
+        let message_encoded = CString::new(URL_SAFE_NO_PAD.encode(message))?;
         let c_str = unsafe {
             tvm_emulator_send_internal_message(self.ptr, message_encoded.into_raw(), amount)
         };
@@ -66,7 +68,7 @@ impl TvmEmulatorUnsafe {
     }
 
     fn _send_external_message(&mut self, message: &[u8]) -> Result<String, TvmEmulatorError> {
-        let message_encoded = CString::new(base64::encode(message))?;
+        let message_encoded = CString::new(URL_SAFE_NO_PAD.encode(message))?;
         let c_str =
             unsafe { tvm_emulator_send_external_message(self.ptr, message_encoded.into_raw()) };
         let _str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
@@ -75,7 +77,7 @@ impl TvmEmulatorUnsafe {
     }
 
     fn _set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
-        let libs_encoded = CString::new(base64::encode(libs_boc))?;
+        let libs_encoded = CString::new(URL_SAFE_NO_PAD.encode(libs_boc))?;
         let _success = unsafe { tvm_emulator_set_libraries(self.ptr, libs_encoded.into_raw()) };
         unimplemented!();
         //Ok(success)
@@ -91,7 +93,7 @@ impl TvmEmulatorUnsafe {
     ) -> Result<bool, TvmEmulatorError> {
         let address_encoded = CString::new(address)?;
         let rand_seed_hex_encoded = CString::new(rand_seed_hex)?;
-        let config_encoded = CString::new(base64::encode(config))?;
+        let config_encoded = CString::new(URL_SAFE_NO_PAD.encode(config))?;
         let success = unsafe {
             tvm_emulator_set_c7(
                 self.ptr,
