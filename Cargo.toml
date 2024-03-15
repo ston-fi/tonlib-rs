@@ -20,8 +20,8 @@ emulate_get_method = []
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.13"
-base64-serde = "0.6"
+base64 = "0.21"
+base64-serde = "0.7"
 bitstream-io = "1"
 crc = "3"
 dashmap = "5"

@@ -3,6 +3,8 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use tokio::time::timeout;
 use tokio::{self};
 use tonlib::address::TonAddress;
@@ -157,7 +159,7 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
     let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
     let loaded_state = client.smc_load(address).await?;
     let cell = loaded_state.conn.smc_get_code(loaded_state.id).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",base64::encode(cell.bytes));
+    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -168,7 +170,7 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
     let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
     let loaded_state = client.smc_load(address).await?;
     let cell = loaded_state.conn.smc_get_data(loaded_state.id).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",base64::encode(cell.bytes));
+    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -179,7 +181,7 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     let address = &TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
     let loaded_state = client.smc_load(address).await?;
     let cell = loaded_state.conn.smc_get_state(loaded_state.id).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}", cell);
     Ok(())
 }
 

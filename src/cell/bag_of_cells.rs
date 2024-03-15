@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use base64::engine::general_purpose::STANDARD;
+
 use crate::cell::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
@@ -87,7 +89,7 @@ impl BagOfCells {
     }
 
     pub fn parse_base64(base64: &str) -> Result<BagOfCells, TonCellError> {
-        let bin = base64::decode(base64).map_boc_deserialization_error()?;
+        let bin = STANDARD.decode(base64).map_boc_deserialization_error()?;
         Self::parse(&bin)
     }
 

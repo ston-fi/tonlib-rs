@@ -3,6 +3,8 @@ mod error;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
+use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
+use base64::Engine;
 use crc::Crc;
 pub use error::*;
 use lazy_static::lazy_static;
@@ -100,7 +102,7 @@ impl TonAddress {
                 "Invalid base64url address: Wrong length",
             ));
         }
-        let maybe_bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD);
+        let maybe_bytes = URL_SAFE_NO_PAD.decode(s);
         let bytes = match maybe_bytes {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -141,7 +143,8 @@ impl TonAddress {
                 "Invalid base64std address: Invalid length",
             ));
         }
-        let maybe_vec = base64::decode_config(s, base64::STANDARD_NO_PAD);
+
+        let maybe_vec = STANDARD_NO_PAD.decode(s);
         let vec = match maybe_vec {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -214,7 +217,7 @@ impl TonAddress {
     pub fn to_base64_url_flags(&self, non_bounceable: bool, non_production: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
         self.to_base64_src(&mut buf, non_bounceable, non_production);
-        base64::encode_config(buf, base64::URL_SAFE_NO_PAD)
+        URL_SAFE_NO_PAD.encode(buf)
     }
 
     pub fn to_base64_std(&self) -> String {
@@ -224,7 +227,7 @@ impl TonAddress {
     pub fn to_base64_std_flags(&self, non_bounceable: bool, non_production: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
         self.to_base64_src(&mut buf, non_bounceable, non_production);
-        base64::encode_config(buf, base64::STANDARD_NO_PAD)
+        STANDARD_NO_PAD.encode(buf)
     }
 
     fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, non_production: bool) {
