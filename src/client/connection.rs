@@ -80,7 +80,8 @@ impl TonConnection {
         };
         let client_inner: Weak<Inner> = Arc::downgrade(&client.inner);
         let thread_builder = thread::Builder::new().name(tag.clone());
-        thread_builder.spawn(|| run_loop(tag, client_inner))?;
+        let callback = client.inner.callback.clone();
+        thread_builder.spawn(|| run_loop(tag, client_inner, callback))?;
         Ok(client)
     }
 
@@ -281,8 +282,9 @@ impl Clone for TonConnection {
 static NOT_AVAILABLE: &str = "N/A";
 
 /// Client run loop
-fn run_loop(tag: String, weak_inner: Weak<Inner>) {
-    log::info!("[{}] Starting event loop", tag);
+fn run_loop(tag: String, weak_inner: Weak<Inner>, callback: Arc<dyn TonConnectionCallback>) {
+    callback.on_connection_loop_start(&tag);
+
     loop {
         if let Some(inner) = weak_inner.upgrade() {
             let recv = inner.tl_client.receive(1.0);
@@ -314,40 +316,28 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>) {
                     let request_id = maybe_request_id.unwrap(); // Can't be empty if data is not empty
                     let now = Instant::now();
                     let duration = now.duration_since(data.send_time);
-                    inner.callback.on_invoke_result(
-                        &tag,
-                        request_id,
-                        data.method,
-                        &duration,
-                        &result,
-                    );
+                    callback.on_invoke_result(&tag, request_id, data.method, &duration, &result);
 
                     if data.sender.send(result).is_err() {
-                        log::warn!(
-                            "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
-                            tag,
-                            data.method,
-                            request_id,
-                            &duration,
-                        );
+                        callback.on_cancelled_invoke(&tag, request_id, data.method, &duration);
                     }
                 } else {
                     // No request data, attempt to parse notification. Errors are ignored here.
                     if let Ok(r) = result {
                         let maybe_notification = TonNotification::from_result(&r);
                         if let Some(n) = maybe_notification {
-                            inner.callback.on_notification(&tag, &n);
+                            callback.on_notification(&tag, &n);
                             // The call might only fail if there are no receivers, so just ignore the result
                             let _ = inner.notification_sender.send(Arc::new(n));
                         } else {
                             let extra = maybe_extra.as_deref();
-                            inner.callback.on_ton_result_parse_error(&tag, extra, &r);
+                            callback.on_ton_result_parse_error(&tag, extra, &r);
                         }
                     }
                 }
             }
         } else {
-            log::info!("[{}] Exiting event loop", tag);
+            callback.on_connection_loop_exit(tag.as_str());
             break;
         }
     }

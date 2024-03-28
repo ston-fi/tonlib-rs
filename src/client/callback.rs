@@ -27,6 +27,11 @@ pub trait TonConnectionCallback: Send + Sync {
     ) {
     }
 
+    /// Method `on_cancelled_invoke` gets called when attempt to send an invoke result is failed  
+    ///
+    /// Typically this happens when the corresponding future (async fn invoke_on_connection) is cancelled  
+    fn on_cancelled_invoke(&self, tag: &str, request_id: u32, method: &str, duration: &Duration) {}
+
     /// Method `on_notification` gets called upon receiving valid notification from tonlib.
     ///
     /// A tonlib notification doesn't have corresponding request and thus no `request_id`.
@@ -44,6 +49,12 @@ pub trait TonConnectionCallback: Send + Sync {
         result: &TonResult,
     ) {
     }
+
+    /// Method `on_connection_loop_start` gets called when new connection loop starts
+    fn on_connection_loop_start(&self, tag: &str) {}
+
+    /// Method `on_connection_loop_exit` gets called when new connection loop stops and connection is dropped
+    fn on_connection_loop_exit(&self, tag: &str) {}
 }
 
 /// An implementation of TonConnectionCallback that does nothing
@@ -87,6 +98,16 @@ impl TonConnectionCallback for LoggingConnectionCallback {
         }
     }
 
+    fn on_cancelled_invoke(&self, tag: &str, request_id: u32, method: &str, duration: &Duration) {
+        log::warn!(
+            "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
+            tag,
+            method,
+            request_id,
+            duration,
+       );
+    }
+
     fn on_notification(&self, tag: &str, notification: &TonNotification) {
         log::trace!("[{}] Sending notification: {:?}", tag, notification);
     }
@@ -103,6 +124,14 @@ impl TonConnectionCallback for LoggingConnectionCallback {
             request_extra,
             result
         );
+    }
+
+    fn on_connection_loop_start(&self, tag: &str) {
+        log::info!("[{}] Starting event loop", tag);
+    }
+
+    fn on_connection_loop_exit(&self, tag: &str) {
+        log::info!("[{}] Exiting event loop", tag);
     }
 }
 
@@ -138,6 +167,12 @@ impl TonConnectionCallback for MultiConnectionCallback {
         }
     }
 
+    fn on_cancelled_invoke(&self, tag: &str, request_id: u32, method: &str, duration: &Duration) {
+        for c in self.callbacks.iter() {
+            c.on_cancelled_invoke(tag, request_id, method, duration)
+        }
+    }
+
     fn on_notification(&self, tag: &str, notification: &TonNotification) {
         for c in self.callbacks.iter() {
             c.on_notification(tag, notification)
@@ -152,6 +187,18 @@ impl TonConnectionCallback for MultiConnectionCallback {
     ) {
         for c in self.callbacks.iter() {
             c.on_ton_result_parse_error(tag, request_extra, result)
+        }
+    }
+
+    fn on_connection_loop_start(&self, tag: &str) {
+        for c in self.callbacks.iter() {
+            c.on_connection_loop_start(tag)
+        }
+    }
+
+    fn on_connection_loop_exit(&self, tag: &str) {
+        for c in self.callbacks.iter() {
+            c.on_connection_loop_exit(tag)
         }
     }
 }
