@@ -155,8 +155,9 @@ async fn read_item_metadata_content(
             // The first byte is 0x00 and the rest is key/value dictionary.
             // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
             1 => {
+                let remaining_bytes = reader.remaining_bytes();
                 let uri = reader
-                    .load_utf8(reader.remaining_bytes())
+                    .load_utf8(remaining_bytes)
                     .map_cell_error("get_nft_data", item_address)?;
                 Ok(MetaDataContent::External { uri })
             }

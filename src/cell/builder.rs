@@ -151,6 +151,17 @@ impl CellBuilder {
         Ok(self)
     }
 
+    pub fn store_bits(&mut self, bit_len: usize, slice: &[u8]) -> Result<&mut Self, TonCellError> {
+        let full_bytes = bit_len / 8;
+        self.store_slice(&slice[0..full_bytes])?;
+        let last_byte_len = bit_len % 8;
+        if last_byte_len != 0 {
+            let last_byte = slice[full_bytes] >> (8 - last_byte_len);
+            self.store_u8(last_byte_len, last_byte)?;
+        }
+        Ok(self)
+    }
+
     pub fn store_string(&mut self, val: &str) -> Result<&mut Self, TonCellError> {
         self.store_slice(val.as_bytes())
     }
@@ -293,7 +304,7 @@ mod tests {
         assert_eq!(cell.bit_len, 1);
         let mut reader = cell.parser();
         let result = reader.load_bit()?;
-        assert_eq!(result, true);
+        assert!(result);
         Ok(())
     }
 
@@ -359,7 +370,8 @@ mod tests {
             assert_eq!(cell.data, text_bytes);
             assert_eq!(cell.bit_len, text_bytes.len() * 8);
             let mut reader = cell.parser();
-            let result = reader.load_utf8(reader.remaining_bytes())?;
+            let remaining_bytes = reader.remaining_bytes();
+            let result = reader.load_utf8(remaining_bytes)?;
             assert_eq!(result, text);
         }
         Ok(())

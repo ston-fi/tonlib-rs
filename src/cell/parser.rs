@@ -1,10 +1,11 @@
-use std::io::{Cursor, SeekFrom};
+use std::io::Cursor;
 
 use bitstream_io::{BigEndian, BitRead, BitReader};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
 use crate::address::TonAddress;
+use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 
 pub struct CellParser<'a> {
@@ -13,13 +14,8 @@ pub struct CellParser<'a> {
 }
 
 impl CellParser<'_> {
-    pub fn remaining_bits(&self) -> usize {
-        let pos = self
-            .bit_reader
-            .clone()
-            .seek_bits(SeekFrom::Current(0))
-            .ok()
-            .unwrap_or_default() as usize;
+    pub fn remaining_bits(&mut self) -> usize {
+        let pos = self.bit_reader.position_in_bits().unwrap_or_default() as usize;
         if self.bit_len > pos {
             self.bit_len - pos
         } else {
@@ -28,7 +24,7 @@ impl CellParser<'_> {
     }
 
     /// Return number of full bytes remaining
-    pub fn remaining_bytes(&self) -> usize {
+    pub fn remaining_bytes(&mut self) -> usize {
         self.remaining_bits() / 8
     }
 
@@ -45,6 +41,18 @@ impl CellParser<'_> {
     pub fn load_i8(&mut self, bit_len: usize) -> Result<i8, TonCellError> {
         self.bit_reader
             .read::<i8>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
+    pub fn load_u16(&mut self, bit_len: usize) -> Result<u16, TonCellError> {
+        self.bit_reader
+            .read::<u16>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
+    pub fn load_i16(&mut self, bit_len: usize) -> Result<i16, TonCellError> {
+        self.bit_reader
+            .read::<i16>(bit_len as u32)
             .map_cell_parser_error()
     }
 
@@ -119,6 +127,22 @@ impl CellParser<'_> {
         Ok(res)
     }
 
+    pub fn load_bits_to_slice(
+        &mut self,
+        num_bits: usize,
+        slice: &mut [u8],
+    ) -> Result<(), TonCellError> {
+        self.bit_reader.read_bits(num_bits, slice)?;
+        Ok(())
+    }
+
+    pub fn load_bits(&mut self, num_bits: usize) -> Result<Vec<u8>, TonCellError> {
+        let total_bytes = (num_bits + 7) / 8;
+        let mut res = vec![0_u8; total_bytes];
+        self.load_bits_to_slice(num_bits, res.as_mut_slice())?;
+        Ok(res)
+    }
+
     pub fn load_utf8(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
         let bytes = self.load_bytes(num_bytes)?;
         String::from_utf8(bytes).map_cell_parser_error()
@@ -164,12 +188,18 @@ impl CellParser<'_> {
         Ok(res)
     }
 
-    pub fn ensure_empty(&self) -> Result<(), TonCellError> {
+    pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
         let remaining_bits = self.remaining_bits();
         if remaining_bits == 0 {
             Ok(())
         } else {
             Err(TonCellError::NonEmptyReader(remaining_bits))
         }
+    }
+
+    pub fn skip_bits(&mut self, num_bits: usize) -> Result<(), TonCellError> {
+        self.bit_reader
+            .skip(num_bits as u32)
+            .map_cell_parser_error()
     }
 }
