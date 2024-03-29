@@ -46,6 +46,16 @@ impl CellSlice {
         })
     }
 
+    pub fn new_with_offset(cell: &Cell, offset: usize) -> Result<CellSlice, TonCellError> {
+        CellSlice::new(
+            &Arc::new(cell.clone()),
+            offset,
+            cell.bit_len,
+            0,
+            cell.references.len(),
+        )
+    }
+
     pub fn full_cell(cell: Cell) -> Result<CellSlice, TonCellError> {
         let bit_len = cell.bit_len;
         let ref_count = cell.references.len();

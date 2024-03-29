@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use num_bigint::{BigInt, BigUint};
 use strum::Display;
 
 use crate::address::TonAddress;
-use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice};
+use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice, DictLoader};
 use crate::tl::{TvmCell, TvmNumber, TvmSlice, TvmStackEntry as TlTvmStackEntry};
 use crate::types::StackParseError;
 
@@ -100,6 +102,24 @@ impl TvmStackEntry {
             TvmStackEntry::Slice(slice) => slice
                 .parse_fully(|r| r.load_address())
                 .map_err(StackParseError::CellError),
+            t => Err(StackParseError::InvalidEntryType {
+                expected: "Slice".to_string(),
+                found: t.clone(),
+            }),
+        }
+    }
+
+    pub fn get_dict<K, V, L>(&self, loader: &L) -> Result<HashMap<K, V>, StackParseError>
+    where
+        K: Hash + Eq + Clone,
+        L: DictLoader<K, V>,
+    {
+        match self {
+            TvmStackEntry::Cell(cell) => {
+                let result: HashMap<K, V> = cell.load_generic_dict(loader)?;
+                Ok(result)
+            }
+
             t => Err(StackParseError::InvalidEntryType {
                 expected: "Slice".to_string(),
                 found: t.clone(),
