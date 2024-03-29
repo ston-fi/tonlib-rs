@@ -44,6 +44,18 @@ impl CellParser<'_> {
             .map_cell_parser_error()
     }
 
+    pub fn load_u16(&mut self, bit_len: usize) -> Result<u16, TonCellError> {
+        self.bit_reader
+            .read::<u16>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
+    pub fn load_i16(&mut self, bit_len: usize) -> Result<i16, TonCellError> {
+        self.bit_reader
+            .read::<i16>(bit_len as u32)
+            .map_cell_parser_error()
+    }
+
     pub fn load_u32(&mut self, bit_len: usize) -> Result<u32, TonCellError> {
         self.bit_reader
             .read::<u32>(bit_len as u32)

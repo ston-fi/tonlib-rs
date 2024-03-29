@@ -179,9 +179,12 @@ impl Cell {
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
     pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
-        let dict_loader =
-            GenericDictLoader::new(bytes_to_slice, cell_to_snake_formatted_string, 256);
-        self.load_generic_dict(dict_loader)
+        let dict_loader = GenericDictLoader::new(
+            key_extractor_256bit,
+            value_extractor_snake_formatted_string,
+            256,
+        );
+        self.load_generic_dict(&dict_loader)
     }
 
     pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
@@ -215,16 +218,16 @@ impl Cell {
         let mut cell: &Cell = self;
         let mut first_cell = true;
         loop {
-            let mut reader = cell.parser();
-            let first_byte = reader.load_uint(8)?.to_u32().unwrap();
+            let mut parser = cell.parser();
+            let first_byte = parser.load_uint(8)?.to_u32().unwrap();
 
             if first_cell && first_byte != 0 {
                 return Err(TonCellError::boc_deserialization_error(
                     "Invalid snake format",
                 ));
             }
-            let remaining_bytes = reader.remaining_bytes();
-            let mut data = reader.load_bytes(remaining_bytes)?;
+            let remaining_bytes = parser.remaining_bytes();
+            let mut data = parser.load_bytes(remaining_bytes)?;
             buffer.append(&mut data);
             match cell.references.len() {
                 0 => return Ok(()),
@@ -242,13 +245,13 @@ impl Cell {
         }
     }
 
-    pub fn load_generic_dict<K, V, L>(&self, dict_loader: L) -> Result<HashMap<K, V>, TonCellError>
+    pub fn load_generic_dict<K, V, L>(&self, dict_loader: &L) -> Result<HashMap<K, V>, TonCellError>
     where
         K: Hash + Eq + Clone,
         L: DictLoader<K, V>,
     {
         let mut map: HashMap<K, V> = HashMap::new();
-        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, &dict_loader)?;
+        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, dict_loader)?;
         Ok(map)
     }
 
@@ -263,41 +266,41 @@ impl Cell {
         K: Hash + Eq,
         L: DictLoader<K, V>,
     {
-        let mut reader = self.parser();
+        let mut parser = self.parser();
 
-        let lb0 = reader.load_bit()?;
+        let lb0 = parser.load_bit()?;
         let mut pp = prefix;
         let prefix_length;
         if !lb0 {
             // Short label detected
-            prefix_length = reader.load_unary_length()?;
+            prefix_length = parser.load_unary_length()?;
             // Read prefix
             if prefix_length != 0 {
-                let val = reader.load_uint(prefix_length)?;
+                let val = parser.load_uint(prefix_length)?;
                 pp.shl_assign_and_add(prefix_length, val);
             }
         } else {
-            let lb1 = reader.load_bit()?;
+            let lb1 = parser.load_bit()?;
             if !lb1 {
                 // Long label detected
-                prefix_length = reader
+                prefix_length = parser
                     .load_uint(
-                        ((dict_loader.key_bit_len() - pp.bit_len()) as f32)
+                        ((dict_loader.key_bit_len() - pp.bit_len() + 1) as f32)
                             .log2()
                             .ceil() as usize,
                     )?
                     .to_usize()
                     .unwrap();
                 if prefix_length != 0 {
-                    let val = reader.load_uint(prefix_length)?;
+                    let val = parser.load_uint(prefix_length)?;
                     pp.shl_assign_and_add(prefix_length, val);
                 }
             } else {
                 // Same label detected
-                let bit = reader.load_bit()?;
-                prefix_length = reader
+                let bit = parser.load_bit()?;
+                prefix_length = parser
                     .load_uint(
-                        ((dict_loader.key_bit_len() - pp.bit_len()) as f32)
+                        ((dict_loader.key_bit_len() - pp.bit_len() + 1) as f32)
                             .log2()
                             .ceil() as usize,
                     )?
@@ -314,7 +317,9 @@ impl Cell {
         if dict_loader.key_bit_len() - pp.bit_len() == 0 {
             let bytes = pp.get_value_as_bytes();
             let key = dict_loader.extract_key(bytes.as_slice())?;
-            let value = dict_loader.extract_value(self)?;
+            let offset = self.bit_len - parser.remaining_bits();
+            let cell_slice = CellSlice::new_with_offset(self, offset)?;
+            let value = dict_loader.extract_value(&cell_slice)?;
             map.insert(key, value);
         } else {
             // NOTE: Left and right branches are implicitly contain prefixes '0' and '1'
