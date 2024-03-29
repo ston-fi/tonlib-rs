@@ -39,9 +39,9 @@ impl DictLoader<u8, FarmDataParameters> for FarmDataParametersLoader {
         let mut parser = data_cell.parser();
         let admin_fee = parser.load_u16(16)?;
         let nanorewards_per_24h = parser.load_uint(150)?;
-        let unrestricted_deposit_rewards = if parser.load_u8(8)? == 0 { true } else { false };
+        let unrestricted_deposit_rewards = parser.load_bit()?;
         let reward_token_wallet = parser.load_address()?;
-        let can_change_fee = if parser.load_u8(8)? == 0 { true } else { false };
+        let can_change_fee = parser.load_bit()?;
         let status = parser.load_u8(8)?;
         let result = FarmDataParameters {
             admin_fee,
