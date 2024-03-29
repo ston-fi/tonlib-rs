@@ -109,7 +109,7 @@ impl TonConnectionCallback for LoggingConnectionCallback {
     }
 
     fn on_notification(&self, tag: &str, notification: &TonNotification) {
-        log::trace!("[{}] Sending notification: {:?}", tag, notification);
+        log::info!("[{}] Sending notification: {:?}", tag, notification);
     }
 
     fn on_ton_result_parse_error(
