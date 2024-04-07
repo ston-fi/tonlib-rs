@@ -336,6 +336,8 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>, callback: Arc<dyn TonConnectio
                         }
                     }
                 }
+            } else {
+                callback.on_idle(tag.as_str())
             }
         } else {
             callback.on_connection_loop_exit(tag.as_str());
