@@ -8,7 +8,7 @@ use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
 use pbkdf2::password_hash::Output;
-use pbkdf2::{pbkdf2, Params};
+use pbkdf2::{pbkdf2_hmac, Params};
 use sha2::Sha512;
 
 const WORDLIST_EN: &str = include_str!("mnemonic/wordlist.EN");
@@ -135,7 +135,7 @@ fn pbkdf2_sha512(
     };
 
     let output = Output::init_with(params.output_length, |out| {
-        pbkdf2::<Hmac<Sha512>>(key.as_slice(), salt.as_bytes(), params.rounds, out);
+        pbkdf2_hmac::<Sha512>(key.as_slice(), salt.as_bytes(), params.rounds, out);
         Ok(())
     })
     .map_err(MnemonicError::PasswordHashError)?;
