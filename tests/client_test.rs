@@ -2,6 +2,8 @@ use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
@@ -148,7 +150,7 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_code(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -159,7 +161,7 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_data(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -170,7 +172,7 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_state(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",STANDARD.encode(cell.bytes));
     Ok(())
 }
 

@@ -6,6 +6,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 pub use bag_of_cells::*;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use bit_string::*;
 use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
 pub use builder::*;
@@ -167,7 +169,7 @@ impl Cell {
     }
 
     pub fn cell_hash_base64(&self) -> Result<String, TonCellError> {
-        Ok(base64::encode(self.cell_hash()?))
+        Ok(URL_SAFE_NO_PAD.encode(self.cell_hash()?))
     }
 
     ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
@@ -252,7 +254,7 @@ impl Cell {
         L: DictLoader<K, V>,
     {
         let mut map: HashMap<K, V> = HashMap::new();
-        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, &dict_loader)?;
+        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, dict_loader)?;
         Ok(map)
     }
 

@@ -2,7 +2,10 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
-use base64::CharacterSet;
+use base64::alphabet::{STANDARD, URL_SAFE};
+use base64::engine::general_purpose::{NO_PAD, PAD};
+use base64::engine::GeneralPurpose;
+use base64::Engine;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
@@ -89,13 +92,17 @@ impl InternalTransactionId {
             }
         } else {
             let char_set = if hash_str.contains('-') || hash_str.contains('_') {
-                CharacterSet::UrlSafe
+                URL_SAFE
             } else {
-                CharacterSet::Standard
+                STANDARD
             };
             let pad = hash_str.len() == 44;
-            let config = base64::Config::new(char_set, pad);
-            match base64::decode_config(hash_str, config) {
+
+            let config = if pad { PAD } else { NO_PAD };
+
+            let engine = GeneralPurpose::new(&char_set, config);
+
+            match engine.decode(hash_str) {
                 Ok(hash) => hash,
                 Err(_) => {
                     return Err(InternalTransactionIdParseError::new(
