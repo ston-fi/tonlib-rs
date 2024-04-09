@@ -193,6 +193,12 @@ impl TonConnectionCallback for MultiConnectionCallback {
         }
     }
 
+    fn on_idle(&self, tag: &str) {
+        for c in self.callbacks.iter() {
+            c.on_idle(tag)
+        }
+    }
+
     fn on_connection_loop_start(&self, tag: &str) {
         for c in self.callbacks.iter() {
             c.on_connection_loop_start(tag)
