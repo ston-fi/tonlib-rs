@@ -190,6 +190,8 @@ impl PoolConnection {
         match guard.deref() {
             Some((conn, join_handle)) => {
                 if join_handle.is_finished() {
+                    // TODO: This is temporary implementation. At the moment, only report dead connections,
+                    // in the future need to recover
                     log::warn!("Returning dead connection");
                 }
                 Ok(conn.clone())
