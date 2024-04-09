@@ -14,6 +14,7 @@ pub use error::*;
 pub use interface::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::os::unix::thread::JoinHandleExt;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
