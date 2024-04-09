@@ -14,6 +14,7 @@ pub use error::*;
 pub use interface::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::os::unix::thread::JoinHandleExt;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
@@ -209,9 +210,9 @@ impl PoolConnection {
                     }
                 };
                 log::info!(
-                    "Created connection: {}, thread_id: {:?}",
+                    "Created connection: {}, thread_id: {}",
                     conn.tag(),
-                    join_handle.thread().id()
+                    join_handle.as_pthread_t()
                 );
                 *guard = Some((conn.clone(), join_handle));
                 Ok(conn)
