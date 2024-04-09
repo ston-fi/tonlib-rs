@@ -209,9 +209,9 @@ impl PoolConnection {
                     }
                 };
                 log::info!(
-                    "Created connection: {}, thread_id: {:?}",
+                    "Created connection: {}, thread_id: {}",
                     conn.tag(),
-                    join_handle.thread().id()
+                    join_handle.as_pthread_t()
                 );
                 *guard = Some((conn.clone(), join_handle));
                 Ok(conn)
