@@ -14,7 +14,6 @@ pub use error::*;
 pub use interface::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::os::unix::thread::JoinHandleExt;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
@@ -193,7 +192,7 @@ impl PoolConnection {
                 if join_handle.is_finished() {
                     // TODO: This is temporary implementation.
                     // At the moment, only report dead connections, in the future need to recover
-                    log::warn!("Returning dead connection: {:?}", join_handle.thread().id());
+                    log::warn!("Returning dead connection: {:?}", conn.tag());
                 }
                 Ok(conn.clone())
             }
@@ -209,11 +208,6 @@ impl PoolConnection {
                         TonConnection::connect_archive(&self.params, self.callback.clone()).await?
                     }
                 };
-                log::info!(
-                    "Created connection: {}, thread_id: {}",
-                    conn.tag(),
-                    join_handle.as_pthread_t()
-                );
                 *guard = Some((conn.clone(), join_handle));
                 Ok(conn)
             }
