@@ -208,6 +208,11 @@ impl PoolConnection {
                         TonConnection::connect_archive(&self.params, self.callback.clone()).await?
                     }
                 };
+                log::info!(
+                    "Created connection: {}, thread_id: {:?}",
+                    conn.tag(),
+                    join_handle.thread().id()
+                );
                 *guard = Some((conn.clone(), join_handle));
                 Ok(conn)
             }

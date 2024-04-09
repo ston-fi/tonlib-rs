@@ -59,6 +59,10 @@ impl TonConnection {
         Self::new_joinable(callback, params).map(|r| r.0)
     }
 
+    pub fn tag(&self) -> &str {
+        self.inner.tl_client.get_tag()
+    }
+
     /// Creates a new uninitialized TonConnection together with its `JoinHandle`.
     ///
     /// # Errors
