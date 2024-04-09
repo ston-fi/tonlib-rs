@@ -47,7 +47,7 @@ pub struct TonConnection {
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl TonConnection {
-    /// Creates a new uninitialized TonConnection together with its `JoinHandle`.
+    /// Creates a new uninitialized TonConnection.
     ///
     /// # Errors
     ///
@@ -59,7 +59,7 @@ impl TonConnection {
         Self::new_joinable(callback, params).map(|r| r.0)
     }
 
-    /// Creates a new uninitialized TonConnection
+    /// Creates a new uninitialized TonConnection together with its `JoinHandle`.
     ///
     /// # Errors
     ///
