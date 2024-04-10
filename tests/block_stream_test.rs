@@ -1,4 +1,7 @@
-use tonlib::client::{BlockStream, TonBlockFunctions, TonClient, TonClientInterface};
+use tonlib::client::{
+    BlockStream, TonBlockFunctions, TonClientInterface, TonConnection, TonConnectionParams,
+    LOGGING_CONNECTION_CALLBACK,
+};
 
 mod common;
 
@@ -42,28 +45,38 @@ const CONFIG_N03: &str = include_str!("../resources/config/stonfi-n03.json");
 #[ignore]
 async fn test_connection_hang() -> anyhow::Result<()> {
     common::init_logging();
-    let client = TonClient::builder()
-        .with_config(CONFIG_N03)
-        .with_pool_size(1)
-        .build()
-        .await?;
+    let params = TonConnectionParams {
+        config: CONFIG_N03.to_string(),
+        ..Default::default()
+    };
+    let client = TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await?;
     let seqno = client.get_masterchain_info().await?.1.last.seqno;
     let mut block_stream = BlockStream::new(&client, seqno);
     let mut current = seqno;
     let until = seqno + 10;
+    const MAX_STATES_PER_BLOCK: u32 = 30;
     while current < until {
         let item = block_stream.next().await?;
+        let mut states_processed = 0;
         log::info!("Received item: {}", item.master_shard.seqno);
         current = item.master_shard.seqno;
         for shard_id in item.shards.iter() {
             let txs = client.get_shard_tx_ids(shard_id).await?;
             for tx in txs {
-                //let _ = client.smc_load_by_transaction(&tx.address, &tx.internal_transaction_id).await?;
-                let r = client
-                    .get_raw_account_state_by_transaction(&tx.address, &tx.internal_transaction_id)
-                    .await;
-                if let Err(e) = r {
-                    log::warn!("Error retrieving state of {}: {:?}", &tx.address, e);
+                if states_processed < MAX_STATES_PER_BLOCK {
+                    // let r = client
+                    //     .smc_load_by_transaction(&tx.address, &tx.internal_transaction_id)
+                    //     .await;
+                    let r = client
+                        .get_raw_account_state_by_transaction(
+                            &tx.address,
+                            &tx.internal_transaction_id,
+                        )
+                        .await;
+                    if let Err(e) = r {
+                        log::warn!("Error retrieving state of {}: {:?}", &tx.address, e);
+                    }
+                    states_processed += 1;
                 }
             }
         }
