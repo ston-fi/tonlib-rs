@@ -1,15 +1,14 @@
-use std::future::Future;
-use std::pin::Pin;
-
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use futures::FutureExt;
 
-use crate::address::TonAddress;
-use crate::client::{TonClientError, TonClientInterface};
 use crate::tl::{
     BlockIdExt, BlocksAccountTransactionId, BlocksShortTxId, BlocksTransactions,
     InternalTransactionId, RawTransaction, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+};
+use crate::{
+    address::TonAddress,
+    client::{TonClientError, TonClientInterface},
 };
 
 #[derive(Debug, Clone)]
@@ -88,22 +87,32 @@ pub trait TonBlockFunctions: TonClientInterface + Send + Sync {
     async fn get_shard_transactions(
         &self,
         shard_id: &BlockIdExt,
-    ) -> Result<Vec<TxData>, TonClientError> {
-        let tx_ids = self.get_shard_tx_ids(shard_id).await?;
-        let futures: Vec<Pin<Box<dyn Future<Output = Result<TxData, TonClientError>> + Send>>> =
-            tx_ids
-                .iter()
-                .map(|tx_id| load_raw_tx(self, tx_id).boxed())
-                .collect();
-        let txs: Vec<TxData> = try_join_all(futures).await?;
-        Ok(txs)
+    ) -> Result<Vec<RawTransaction>, TonClientError> {
+        let mut after: BlocksAccountTransactionId = NULL_BLOCKS_ACCOUNT_TRANSACTION_ID.clone();
+        let mut raw_txs: Vec<RawTransaction> = Vec::new();
+        loop {
+            let mode = if after.lt == 0 { 7 } else { 128 + 7 };
+            let txs = self
+                .get_block_transactions_ext(shard_id, mode, 256, &after)
+                .await?;
+            if let Some(last) = txs.transactions.last() {
+                let account = last.address.account_address.clone().into();
+                let lt = last.transaction_id.lt;
+                after = BlocksAccountTransactionId { account, lt };
+            }
+            raw_txs.reserve(txs.transactions.len());
+            raw_txs.extend(txs.transactions);
+            if !txs.incomplete {
+                break;
+            }
+        }
+        Ok(raw_txs)
     }
-
     /// Returns all transactions from specified shards
     async fn get_shards_transactions(
         &self,
         shards: &[BlockIdExt],
-    ) -> Result<Vec<(BlockIdExt, Vec<TxData>)>, TonClientError> {
+    ) -> Result<Vec<(BlockIdExt, Vec<RawTransaction>)>, TonClientError> {
         let f = shards.iter().map(|shard| {
             self.get_shard_transactions(shard)
                 .map(move |res| res.map(|txs| (shard.clone(), txs)))
@@ -114,26 +123,3 @@ pub trait TonBlockFunctions: TonClientInterface + Send + Sync {
 }
 
 impl<T> TonBlockFunctions for T where T: TonClientInterface + Send + Sync {}
-
-async fn load_raw_tx<T: TonClientInterface + Send + Sync + ?Sized>(
-    client: &T,
-    tx_id: &TxId,
-) -> Result<TxData, TonClientError> {
-    let tx_result = client
-        .get_raw_transactions_v2(&tx_id.address, &tx_id.internal_transaction_id, 1, false)
-        .await?;
-    let tx = if tx_result.transactions.len() == 1 {
-        tx_result.transactions[0].clone()
-    } else {
-        return Err(TonClientError::InternalError(format!(
-            "Expected 1 tx, got {}, query: {:?}/{:?}",
-            tx_result.transactions.len(),
-            tx_id.address,
-            tx_id.internal_transaction_id
-        )));
-    };
-    Ok(TxData {
-        address: tx_id.address.clone(),
-        raw_transaction: tx,
-    })
-}
