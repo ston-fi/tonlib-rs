@@ -47,7 +47,7 @@ static LOG: Once = Once::new();
 #[allow(dead_code)]
 pub fn init_logging() {
     LOG.call_once(|| {
-        TonClient::set_log_verbosity_level(2);
+        TonClient::set_log_verbosity_level(1);
         let stderr = ConsoleAppender::builder()
             .target(Target::Stderr)
             .encoder(Box::new(log4rs::encode::pattern::PatternEncoder::new(
