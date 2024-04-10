@@ -4,9 +4,9 @@ use crate::address::TonAddress;
 use crate::client::{TonClientError, TonConnection};
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
-    BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo, FullAccountState,
-    InternalTransactionId, LiteServerInfo, RawFullAccountState, RawTransactions, TonFunction,
-    TonResult, TonResultDiscriminants, TvmCell,
+    BlocksMasterchainInfo, BlocksShards, BlocksTransactions, BlocksTransactionsExt, ConfigInfo,
+    FullAccountState, InternalTransactionId, LiteServerInfo, RawFullAccountState, RawTransactions,
+    TonFunction, TonResult, TonResultDiscriminants, TvmCell,
 };
 
 #[async_trait]
@@ -178,7 +178,6 @@ pub trait TonClientInterface: Send + Sync {
             )),
         }
     }
-
     async fn smc_load_by_transaction(
         &self,
         account_address: &TonAddress,
@@ -330,6 +329,29 @@ pub trait TonClientInterface: Send + Sync {
         }
     }
 
+    async fn get_block_transactions_ext(
+        &self,
+        block_id: &BlockIdExt,
+        mode: u32,
+        count: u32,
+        after: &BlocksAccountTransactionId,
+    ) -> Result<BlocksTransactionsExt, TonClientError> {
+        let func = TonFunction::BlocksGetTransactionsExt {
+            id: block_id.clone(),
+            mode,
+            count,
+            after: after.clone(),
+        };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::BlocksTransactionsExt(result) => Ok(result),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::BlocksTransactionsExt,
+                r,
+            )),
+        }
+    }
+
     async fn lite_server_get_info(&self) -> Result<LiteServerInfo, TonClientError> {
         let func = TonFunction::LiteServerGetInfo {};
         let result = self.invoke(&func).await?;
@@ -361,6 +383,18 @@ pub trait TonClientInterface: Send + Sync {
 
     async fn get_config_param(&self, mode: u32, param: u32) -> Result<ConfigInfo, TonClientError> {
         let func = TonFunction::GetConfigParam { mode, param };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::ConfigInfo(result) => Ok(result),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::ConfigInfo,
+                r,
+            )),
+        }
+    }
+
+    async fn get_config_all(&self, mode: u32) -> Result<ConfigInfo, TonClientError> {
+        let func = TonFunction::GetConfigAll { mode };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::ConfigInfo(result) => Ok(result),
