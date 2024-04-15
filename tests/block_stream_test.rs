@@ -2,6 +2,7 @@ use tonlib::client::{
     BlockStream, TonBlockFunctions, TonClientInterface, TonConnection, TonConnectionParams,
     LOGGING_CONNECTION_CALLBACK,
 };
+use tonlib::tl::InternalTransactionId;
 
 mod common;
 
@@ -67,6 +68,12 @@ async fn test_connection_hang() -> anyhow::Result<()> {
                     // let r = client
                     //     .smc_load_by_transaction(&tx.address, &tx.internal_transaction_id)
                     //     .await;
+                    log::info!(
+                        "Requesting {} {}:{}",
+                        tx.address,
+                        tx.internal_transaction_id.lt,
+                        hex::encode(tx.internal_transaction_id.hash.as_slice())
+                    );
                     let r = client
                         .get_raw_account_state_by_transaction(
                             &tx.address,
@@ -74,12 +81,38 @@ async fn test_connection_hang() -> anyhow::Result<()> {
                         )
                         .await;
                     if let Err(e) = r {
-                        log::warn!("Error retrieving state of {}: {:?}", &tx.address, e);
+                        log::error!(
+                            "Error retrieving state of {}:{} {:?}",
+                            &tx.address,
+                            tx.internal_transaction_id,
+                            e
+                        );
                     }
                     states_processed += 1;
                 }
             }
         }
     }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_connection_hang_tx() -> anyhow::Result<()> {
+    common::init_logging();
+    let params = TonConnectionParams {
+        config: CONFIG_N03.to_string(), // MAINNET_CONFIG.to_string(), //
+        ..Default::default()
+    };
+    let client = TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await?;
+    let addr = "EQCqNjAPkigLdS5gxHiHitWuzF3ZN-gX7MlX4Qfy2cGS3FWx".parse()?;
+    let tx_id = InternalTransactionId {
+        lt: 45790671000001,
+        hash: hex::decode("cb4a301e3aa15ca8eaad9c999d380fa7f6715976c7cb456e5a93fd8ebd3fb7f2")?,
+    };
+    client
+        .get_raw_account_state_by_transaction(&addr, &tx_id)
+        .await?;
+    // client.smc_load_by_transaction(&addr, &tx_id).await?;
     Ok(())
 }
