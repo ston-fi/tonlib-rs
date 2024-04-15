@@ -2,7 +2,6 @@ use tonlib::client::{
     BlockStream, TonBlockFunctions, TonClientInterface, TonConnection, TonConnectionParams,
     LOGGING_CONNECTION_CALLBACK,
 };
-use tonlib::config::MAINNET_CONFIG;
 use tonlib::tl::InternalTransactionId;
 
 mod common;
@@ -69,7 +68,12 @@ async fn test_connection_hang() -> anyhow::Result<()> {
                     // let r = client
                     //     .smc_load_by_transaction(&tx.address, &tx.internal_transaction_id)
                     //     .await;
-                    log::info!("Requesting {} {}:{}", tx.address, tx.internal_transaction_id.lt, hex::encode(tx.internal_transaction_id.hash.as_slice()));
+                    log::info!(
+                        "Requesting {} {}:{}",
+                        tx.address,
+                        tx.internal_transaction_id.lt,
+                        hex::encode(tx.internal_transaction_id.hash.as_slice())
+                    );
                     let r = client
                         .get_raw_account_state_by_transaction(
                             &tx.address,
@@ -77,7 +81,12 @@ async fn test_connection_hang() -> anyhow::Result<()> {
                         )
                         .await;
                     if let Err(e) = r {
-                        log::error!("Error retrieving state of {}:{} {:?}", &tx.address, tx.internal_transaction_id, e);
+                        log::error!(
+                            "Error retrieving state of {}:{} {:?}",
+                            &tx.address,
+                            tx.internal_transaction_id,
+                            e
+                        );
                     }
                     states_processed += 1;
                 }
@@ -101,7 +110,9 @@ async fn test_connection_hang_tx() -> anyhow::Result<()> {
         lt: 45790671000001,
         hash: hex::decode("cb4a301e3aa15ca8eaad9c999d380fa7f6715976c7cb456e5a93fd8ebd3fb7f2")?,
     };
-    client.get_raw_account_state_by_transaction(&addr, &tx_id).await?;
+    client
+        .get_raw_account_state_by_transaction(&addr, &tx_id)
+        .await?;
     // client.smc_load_by_transaction(&addr, &tx_id).await?;
     Ok(())
 }
