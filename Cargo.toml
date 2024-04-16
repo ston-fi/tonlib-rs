@@ -45,7 +45,8 @@ reqwest = "0.11"
 thiserror = "1"
 tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
-tonlib-sys = "=2024.3.1"
+tonlib-sys = { git = "https://ston-read:-sFs4_H5GsRZTbvFCCqE@git.stonfi.net/ston-fi/oss/tonlib-sys.git", rev = "bd744bfe2272c6cf3af14d7bf0619e45a52763ed"}  # Current 0.14 + sys
+
 
 [dev-dependencies]
 anyhow = "1"
