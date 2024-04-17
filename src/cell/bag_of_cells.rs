@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use base64::engine::general_purpose::STANDARD;
+
 use crate::cell::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct BagOfCells {
-    pub roots: Vec<Arc<Cell>>,
+    pub roots: Vec<ArcCell>,
 }
 
 impl BagOfCells {
-    pub fn new(roots: &[Arc<Cell>]) -> BagOfCells {
+    pub fn new(roots: &[ArcCell]) -> BagOfCells {
         BagOfCells {
             roots: roots.to_vec(),
         }
@@ -29,7 +31,7 @@ impl BagOfCells {
         self.roots.len()
     }
 
-    pub fn root(&self, idx: usize) -> Result<&Arc<Cell>, TonCellError> {
+    pub fn root(&self, idx: usize) -> Result<&ArcCell, TonCellError> {
         self.roots.get(idx).ok_or_else(|| {
             TonCellError::boc_deserialization_error(format!(
                 "Invalid root index: {}, BoC contains {} roots",
@@ -39,7 +41,7 @@ impl BagOfCells {
         })
     }
 
-    pub fn single_root(&self) -> Result<&Arc<Cell>, TonCellError> {
+    pub fn single_root(&self) -> Result<&ArcCell, TonCellError> {
         let root_count = self.roots.len();
         if root_count == 1 {
             Ok(&self.roots[0])
@@ -54,7 +56,7 @@ impl BagOfCells {
     pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
-        let mut cells: Vec<Arc<Cell>> = Vec::new();
+        let mut cells: Vec<ArcCell> = Vec::new();
         for i in (0..num_cells).rev() {
             let raw_cell = &raw.cells[i];
             let mut cell = Cell {
@@ -72,7 +74,7 @@ impl BagOfCells {
             }
             cells.push(Arc::new(cell));
         }
-        let roots: Vec<Arc<Cell>> = raw
+        let roots: Vec<ArcCell> = raw
             .roots
             .iter()
             .map(|r| cells[num_cells - 1 - r].clone())
@@ -87,7 +89,7 @@ impl BagOfCells {
     }
 
     pub fn parse_base64(base64: &str) -> Result<BagOfCells, TonCellError> {
-        let bin = base64::decode(base64).map_boc_deserialization_error()?;
+        let bin = STANDARD.decode(base64).map_boc_deserialization_error()?;
         Self::parse(&bin)
     }
 
@@ -98,9 +100,9 @@ impl BagOfCells {
 
     /// Traverses all cells, fills all_cells set and inbound references map.
     fn traverse_cell_tree(
-        cell: &Arc<Cell>,
-        all_cells: &mut HashSet<Arc<Cell>>,
-        in_refs: &mut HashMap<Arc<Cell>, HashSet<Arc<Cell>>>,
+        cell: &ArcCell,
+        all_cells: &mut HashSet<ArcCell>,
+        in_refs: &mut HashMap<ArcCell, HashSet<ArcCell>>,
     ) -> Result<(), TonCellError> {
         if !all_cells.contains(cell) {
             all_cells.insert(cell.clone());
@@ -116,7 +118,7 @@ impl BagOfCells {
                         refs.insert(cell.clone());
                     }
                     None => {
-                        let mut refs: HashSet<Arc<Cell>> = HashSet::new();
+                        let mut refs: HashSet<ArcCell> = HashSet::new();
                         refs.insert(cell.clone());
                         in_refs.insert(r.clone(), refs);
                     }
@@ -129,19 +131,19 @@ impl BagOfCells {
 
     /// Constructs raw representation of BagOfCells
     pub(crate) fn to_raw(&self) -> Result<RawBagOfCells, TonCellError> {
-        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
-        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
+        let mut all_cells: HashSet<ArcCell> = HashSet::new();
+        let mut in_refs: HashMap<ArcCell, HashSet<ArcCell>> = HashMap::new();
         for r in &self.roots {
             Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
         }
-        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
+        let mut no_in_refs: HashSet<ArcCell> = HashSet::new();
         for c in &all_cells {
             if !in_refs.contains_key(c) {
                 no_in_refs.insert(c.clone());
             }
         }
-        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
-        let mut indices: HashMap<Arc<Cell>, usize> = HashMap::new();
+        let mut ordered_cells: Vec<ArcCell> = Vec::new();
+        let mut indices: HashMap<ArcCell, usize> = HashMap::new();
         while !no_in_refs.is_empty() {
             let cell = no_in_refs.iter().next().unwrap().clone();
             ordered_cells.push(cell.clone());

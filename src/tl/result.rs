@@ -6,9 +6,10 @@ use strum::{Display, EnumDiscriminants, IntoStaticStr};
 use crate::client::TonClientError;
 use crate::tl::stack::TvmCell;
 use crate::tl::types::{
-    BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions, ConfigInfo,
-    FullAccountState, LiteServerInfo, LogVerbosityLevel, OptionsInfo, RawExtMessageInfo,
-    RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult, UpdateSyncState,
+    BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
+    BlocksTransactionsExt, ConfigInfo, FullAccountState, LiteServerInfo, LogVerbosityLevel,
+    OptionsInfo, RawExtMessageInfo, RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult,
+    UpdateSyncState,
 };
 
 #[derive(
@@ -39,42 +40,45 @@ pub enum TonResult {
     // tonlib_api.tl, line 58
     #[serde(rename = "raw.extMessageInfo")]
     RawExtMessageInfo(RawExtMessageInfo),
-    // tonlib_api.tl, line 88
+    // tonlib_api.tl, line 90
     #[serde(rename = "fullAccountState")]
     FullAccountState(FullAccountState),
-    // tonlib_api.tl, line 177
+    // tonlib_api.tl, line 167
+    #[serde(rename = "tvm.cell")]
+    TvmCell(TvmCell),
+    // tonlib_api.tl, line 179
     #[serde(rename = "smc.info")]
     SmcInfo(SmcInfo),
-    // tonlib_api.tl, line 182
+    // tonlib_api.tl, line 184
     #[serde(rename = "smc.runResult")]
     SmcRunResult(SmcRunResult),
-    // tonlib_api.tl, line 188
+    // tonlib_api.tl, line 194
     #[serde(rename = "updateSyncState")]
     UpdateSyncState(UpdateSyncState),
     // tonlib_api.tl, line 203
     #[serde(rename = "liteServer.info")]
     LiteServerInfo(LiteServerInfo),
-    // tonlib_api.tl, line 210
+    // tonlib_api.tl, line 216
     #[serde(rename = "logVerbosityLevel")]
     LogVerbosityLevel(LogVerbosityLevel),
-    // tonlib_api.tl, line 213
+    // tonlib_api.tl, line 219
     #[serde(rename = "blocks.masterchainInfo")]
     BlocksMasterchainInfo(BlocksMasterchainInfo),
-    // tonlib_api.tl, line 214
+    // tonlib_api.tl, line 220
     #[serde(rename = "blocks.shards")]
     BlocksShards(BlocksShards),
-    // tonlib_api.tl, line 217
+    // tonlib_api.tl, line 223
     #[serde(rename = "blocks.transactions")]
     BlocksTransactions(BlocksTransactions),
-    // tonlib_api.tl, line 218
+    // tonlib_api.tl, line 224
+    #[serde(rename = "blocks.transactionsExt")]
+    BlocksTransactionsExt(BlocksTransactionsExt),
+    // tonlib_api.tl, line 225
     #[serde(rename = "blocks.header")]
     BlocksHeader(BlocksHeader),
-    // tonlib_api.tl, line 228
+    // tonlib_api.tl, line 243
     #[serde(rename = "configInfo")]
     ConfigInfo(ConfigInfo),
-
-    #[serde(rename = "tvm.cell")]
-    TvmCell(TvmCell),
 }
 
 impl TonResult {
@@ -160,6 +164,14 @@ impl fmt::Display for TonResult {
             TonResult::BlocksShards(_) => write!(f, "TonResult::BlocksShards"),
 
             TonResult::BlocksTransactions(blocks_trasnactions) => write!(
+                f,
+                "TonResult::BlocksTransactions: {}:{}, seqno{}",
+                blocks_trasnactions.id.workchain,
+                blocks_trasnactions.id.shard,
+                blocks_trasnactions.id.seqno
+            ),
+
+            TonResult::BlocksTransactionsExt(blocks_trasnactions) => write!(
                 f,
                 "TonResult::BlocksTransactions: {}:{}, seqno{}",
                 blocks_trasnactions.id.workchain,

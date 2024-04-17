@@ -124,7 +124,8 @@ fn read_jetton_metadata_content(boc: &BagOfCells) -> Result<MetaDataContent, Ton
                 }) //todo #79
             }
             1 => {
-                let uri = reader.load_utf8(reader.remaining_bytes())?;
+                let remaining_bytes = reader.remaining_bytes();
+                let uri = reader.load_utf8(remaining_bytes)?;
                 Ok(MetaDataContent::External { uri })
             }
             _ => Ok(MetaDataContent::Unsupported { boc: boc.clone() }),

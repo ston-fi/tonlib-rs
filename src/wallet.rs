@@ -7,7 +7,9 @@ use nacl::sign::signature;
 pub use types::*;
 
 use crate::address::TonAddress;
-use crate::cell::{BagOfCells, Cell, CellBuilder, StateInit, StateInitBuilder, TonCellError};
+use crate::cell::{
+    ArcCell, BagOfCells, Cell, CellBuilder, StateInit, StateInitBuilder, TonCellError,
+};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
 
@@ -91,7 +93,7 @@ pub enum WalletVersion {
 }
 
 impl WalletVersion {
-    pub fn code(&self) -> Result<&Arc<Cell>, TonCellError> {
+    pub fn code(&self) -> Result<&ArcCell, TonCellError> {
         let code: &BagOfCells = match self {
             WalletVersion::V1R1 => &WALLET_V1R1_CODE,
             WalletVersion::V1R2 => &WALLET_V1R2_CODE,
@@ -115,7 +117,7 @@ impl WalletVersion {
         &self,
         key_pair: &KeyPair,
         wallet_id: i32,
-    ) -> Result<Arc<Cell>, TonCellError> {
+    ) -> Result<ArcCell, TonCellError> {
         let public_key: [u8; 32] = key_pair
             .public_key
             .clone()
@@ -228,7 +230,7 @@ impl TonWallet {
         })
     }
 
-    pub fn create_external_message<T: AsRef<[Arc<Cell>]>>(
+    pub fn create_external_message<T: AsRef<[ArcCell]>>(
         &self,
         expire_at: u32,
         seqno: u32,
@@ -241,7 +243,7 @@ impl TonWallet {
         Ok(wrapped)
     }
 
-    pub fn create_external_body<T: AsRef<[Arc<Cell>]>>(
+    pub fn create_external_body<T: AsRef<[ArcCell]>>(
         &self,
         expire_at: u32,
         seqno: u32,

@@ -3,14 +3,14 @@ use std::sync::Arc;
 use num_bigint::BigUint;
 
 use crate::address::TonAddress;
-use crate::cell::{Cell, CellBuilder};
+use crate::cell::{ArcCell, Cell, CellBuilder};
 use crate::message::{TonMessageError, ZERO_COINS};
 
 pub struct TransferMessage {
     pub dest: TonAddress,
     pub value: BigUint,
-    pub state_init: Option<Arc<Cell>>,
-    pub data: Option<Arc<Cell>>,
+    pub state_init: Option<ArcCell>,
+    pub data: Option<ArcCell>,
 }
 
 impl TransferMessage {
@@ -27,7 +27,7 @@ impl TransferMessage {
         self.with_state_init_ref(&Arc::new(state_init))
     }
 
-    pub fn with_state_init_ref(&mut self, state_init: &Arc<Cell>) -> &mut Self {
+    pub fn with_state_init_ref(&mut self, state_init: &ArcCell) -> &mut Self {
         self.state_init = Some(state_init.clone());
         self
     }
@@ -36,7 +36,7 @@ impl TransferMessage {
         self.with_data_ref(&Arc::new(data))
     }
 
-    pub fn with_data_ref(&mut self, data: &Arc<Cell>) -> &mut Self {
+    pub fn with_data_ref(&mut self, data: &ArcCell) -> &mut Self {
         self.data = Some(data.clone());
         self
     }

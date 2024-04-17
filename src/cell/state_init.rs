@@ -1,21 +1,20 @@
-use std::sync::Arc;
-
+use super::ArcCell;
 use crate::cell::{Cell, CellBuilder, TonCellError};
 
 pub struct StateInitBuilder {
-    code: Option<Arc<Cell>>,
-    data: Option<Arc<Cell>>,
+    code: Option<ArcCell>,
+    data: Option<ArcCell>,
     split_depth: bool,
     tick_tock: bool,
     library: bool,
 }
 pub struct StateInit {
-    pub code: Option<Arc<Cell>>,
-    pub data: Option<Arc<Cell>>,
+    pub code: Option<ArcCell>,
+    pub data: Option<ArcCell>,
 }
 
 impl StateInitBuilder {
-    pub fn new(code: &Arc<Cell>, data: &Arc<Cell>) -> StateInitBuilder {
+    pub fn new(code: &ArcCell, data: &ArcCell) -> StateInitBuilder {
         StateInitBuilder {
             code: Some(code.clone()),
             data: Some(data.clone()),
@@ -59,7 +58,7 @@ impl StateInitBuilder {
 }
 
 impl StateInit {
-    pub fn create_account_id(code: &Arc<Cell>, data: &Arc<Cell>) -> Result<Vec<u8>, TonCellError> {
+    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<Vec<u8>, TonCellError> {
         StateInitBuilder::new(code, data).build()?.cell_hash()
     }
 }

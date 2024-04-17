@@ -2,6 +2,9 @@ use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
 use tonlib::address::TonAddress;
@@ -19,7 +22,7 @@ mod common;
 #[tokio::test]
 async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     for _ in 0..100 {
         let r = factory
@@ -147,7 +150,7 @@ async fn client_smc_get_code_works() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_code(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -158,7 +161,7 @@ async fn client_smc_get_data_works() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_data(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}",STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -169,7 +172,7 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
     let (conn, id1) = client.smc_load(address).await?;
     let cell = conn.smc_get_state(id1).await?;
-    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",cell);
+    println!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}",STANDARD.encode(cell.bytes));
     Ok(())
 }
 
@@ -415,5 +418,54 @@ async fn client_testnet_works() -> anyhow::Result<()> {
         info.last.seqno,
         blocks_header
     );
+    Ok(())
+}
+
+// This test fails on tonlib 2023.6, 2024.1 and 2024.3 either with:
+//   error: test failed, to rerun pass `-p tonlib --test client_test`
+//     Caused by:
+//     process didn't exit successfully: `../target/debug/deps/client_test-a6ec52f42b3d3962 dropping_invoke_test --exact --nocapture --ignored`
+//    (signal: 6, SIGABRT: process abort signal)
+//  or:
+//   error: test failed, to rerun pass `-p tonlib --test client_test`
+//     Caused by:
+//     process didn't exit successfully: `../target/debug/deps/client_test-a6ec52f42b3d3962 dropping_invoke_test --exact --nocapture --ignored`
+//     (signal: 11, SIGSEGV: invalid memory reference)
+#[ignore]
+#[tokio::test]
+async fn dropping_invoke_test() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let address = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    client.get_raw_account_state(&address).await?;
+
+    let f = [
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(100)),
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(200)),
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(500)),
+    ];
+
+    join_all(f).await;
+
+    Ok(())
+}
+
+async fn abort_batch_invoke_get_raw_account_state(
+    client: &TonClient,
+    dt: Duration,
+) -> anyhow::Result<()> {
+    let address = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let addresses = vec![address; 100];
+
+    let futures = addresses
+        .iter()
+        .map(|a| timeout(dt, client.get_raw_account_state(a)))
+        .collect::<Vec<_>>();
+
+    let result = join_all(futures).await;
+
+    let res = result.iter().map(|r| r.is_ok()).collect::<Vec<_>>();
+    log::info!("{:?}", res);
+
     Ok(())
 }
