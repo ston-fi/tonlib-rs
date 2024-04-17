@@ -22,7 +22,7 @@ lazy_static! {
         };
 
         let config_path = if local_config_flag {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/local.config.json")
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/local/local.config.json")
         } else {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/global.config.json")
         };

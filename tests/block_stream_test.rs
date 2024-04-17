@@ -40,16 +40,11 @@ pub async fn block_listener_get_block_header() -> anyhow::Result<()> {
     Ok(())
 }
 
-const CONFIG_N03: &str = include_str!("../resources/config/stonfi-n03.json");
-
 #[tokio::test]
 #[ignore]
 async fn test_connection_hang() -> anyhow::Result<()> {
     common::init_logging();
-    let params = TonConnectionParams {
-        config: CONFIG_N03.to_string(),
-        ..Default::default()
-    };
+    let params = TonConnectionParams::default();
     let client = TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await?;
     let seqno = client.get_masterchain_info().await?.1.last.seqno;
     let mut block_stream = BlockStream::new(&client, seqno);
@@ -100,10 +95,7 @@ async fn test_connection_hang() -> anyhow::Result<()> {
 #[ignore]
 async fn test_connection_hang_tx() -> anyhow::Result<()> {
     common::init_logging();
-    let params = TonConnectionParams {
-        config: CONFIG_N03.to_string(), // MAINNET_CONFIG.to_string(), //
-        ..Default::default()
-    };
+    let params = TonConnectionParams::default();
     let client = TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await?;
     let addr = "EQCqNjAPkigLdS5gxHiHitWuzF3ZN-gX7MlX4Qfy2cGS3FWx".parse()?;
     let tx_id = InternalTransactionId {
