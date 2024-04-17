@@ -22,7 +22,7 @@ mod common;
 #[tokio::test]
 async fn client_get_account_state_of_inactive_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     for _ in 0..100 {
         let r = factory
