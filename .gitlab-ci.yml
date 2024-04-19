@@ -16,7 +16,8 @@ variables:
   FF_USE_FASTZIP: 1
   CACHE_COMPRESSION_LEVEL: "fastest"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings -C target-cpu=znver2"
+  TARGET_CPU_MARCH: "znver2"
 
 cache:
   key: shared-cache
