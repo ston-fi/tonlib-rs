@@ -34,7 +34,7 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib = "0.13"
+tonlib = "0.14"
 ```
 
 Then, in your Rust code, you can import the library with:
@@ -418,6 +418,9 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+
+## Cross-compilation
+In order to cross-compile for specific cpu microachitecture set environment variable `TARGET_CPU_MARCH` to the required. Supported values are listen in https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
 ## Contributing
 
