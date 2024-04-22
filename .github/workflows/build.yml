@@ -19,7 +19,7 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsodium-dev libsecp256k1-dev
+          sudo apt-get install -y libsodium-dev libsecp256k1-dev liblz4-dev
       - run: cargo fmt --check
       - run: cargo clippy
       - run: cargo build --features "state_cache" --verbose 

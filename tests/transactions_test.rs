@@ -13,7 +13,7 @@ async fn get_txs_for_frequent_works() -> anyhow::Result<()> {
     common::init_logging();
     let validator: &TonAddress = &"Ef9VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVbxn".parse()?;
 
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let trans = LatestContractTransactionsCache::new(&factory, validator, 100, true);
     let trs = trans.get(4).await?;
@@ -106,7 +106,7 @@ async fn get_txs_for_empty_works() -> anyhow::Result<()> {
     common::init_logging();
     let addr: &TonAddress = &"EQAjJIyYzKc4bww1zo3_fAqHWZdYCJHwhs84wtU8smO_Hr3i".parse()?;
 
-    let client = common::new_archive_mainnet_client().await?;
+    let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true);
     let trs = trans.get(4).await?;

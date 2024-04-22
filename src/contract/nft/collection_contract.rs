@@ -92,8 +92,8 @@ async fn read_collection_metadata_content(
     collection_address: &TonAddress,
     cell: ArcCell,
 ) -> Result<MetaDataContent, TonContractError> {
-    let mut reader = cell.parser();
-    let content_representation = reader
+    let mut parser = cell.parser();
+    let content_representation = parser
         .load_byte()
         .map_cell_error("get_collection_data", collection_address)?;
     match content_representation {
@@ -120,8 +120,8 @@ async fn read_collection_metadata_content(
         // The first byte is 0x00 and the rest is key/value dictionary.
         // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
         1 => {
-            let remaining_bytes = reader.remaining_bytes();
-            let uri = reader
+            let remaining_bytes = parser.remaining_bytes();
+            let uri = parser
                 .load_utf8(remaining_bytes)
                 .map_cell_error("get_collection_data", collection_address)?;
             Ok(MetaDataContent::External { uri })

@@ -1,4 +1,7 @@
 #[cfg(feature = "state_cache")]
+use std::time::Duration;
+
+#[cfg(feature = "state_cache")]
 use tokio::{self};
 #[cfg(feature = "state_cache")]
 use tonlib::address::TonAddress;
@@ -21,7 +24,7 @@ async fn cache_get_raw_account_state_works() -> anyhow::Result<()> {
                 "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
             )?)
             .await;
-        log::info!("{:?}", r);
+        tokio::time::sleep(Duration::from_millis(20)).await;
         assert!(r.is_ok());
     }
 

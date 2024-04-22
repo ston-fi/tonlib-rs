@@ -13,4 +13,4 @@
 .vscode/
 
 # Config
-/resources/config/local.config.json
+/resources/config/local

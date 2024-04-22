@@ -1,10 +1,13 @@
-use std::fmt::{self, Debug};
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::{Debug, Formatter};
+use std::hash::Hash;
 
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::address::TonAddress;
-use crate::cell::BagOfCells;
+use crate::cell::{BagOfCells, DictLoader};
 use crate::tl::error::TvmStackError;
 use crate::tl::Base64Standard;
 
@@ -15,8 +18,8 @@ pub struct TvmSlice {
     pub bytes: Vec<u8>,
 }
 
-impl fmt::Debug for TvmSlice {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for TvmSlice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "TvmSlice{{ bytes: [{}]}}",
@@ -37,8 +40,8 @@ pub struct TvmCell {
     pub bytes: Vec<u8>,
 }
 
-impl fmt::Debug for TvmCell {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for TvmCell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Print bytes as a hexadecimal string
         write!(f, "TvmCell {{ bytes: 0x")?;
 
@@ -157,6 +160,20 @@ impl TvmStack {
             .single_root()?
             .parse_fully(|r| r.load_address())
             .map_err(TvmStackError::TonCellError)
+    }
+
+    pub fn get_dict<K, V, L>(
+        &self,
+        index: usize,
+        loader: &L,
+    ) -> Result<HashMap<K, V>, TvmStackError>
+    where
+        K: Hash + Eq + Clone,
+        L: DictLoader<K, V>,
+    {
+        let boc = self.get_boc(index)?;
+        let cell = boc.single_root()?;
+        Ok(cell.load_generic_dict(loader)?)
     }
 
     fn get<T>(

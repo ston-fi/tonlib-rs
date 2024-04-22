@@ -104,7 +104,7 @@ async fn test_connection_callback() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_connection_sync() -> anyhow::Result<()> {
     common::init_logging();
-    let conn = TonConnection::connect_healthy(
+    let conn = TonConnection::connect(
         &DEFAULT_CONNECTION_PARAMS,
         LOGGING_CONNECTION_CALLBACK.clone(),
     )

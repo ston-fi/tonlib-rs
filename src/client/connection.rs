@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Weak};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -17,7 +18,7 @@ use crate::tl::{
 };
 use crate::types::TonMethodId;
 
-pub const DEFAULT_CONNECTION_QUEUE_LENGTH: usize = 10000;
+pub const DEFAULT_NOTIFICATION_QUEUE_LENGTH: usize = 10000;
 pub const DEFAULT_CONNECTION_CONCURRENCY_LIMIT: usize = 100;
 
 struct RequestData {
@@ -46,7 +47,7 @@ pub struct TonConnection {
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl TonConnection {
-    /// Creates a new uninitialized TonConnection
+    /// Creates a new uninitialized TonConnection.
     ///
     /// # Errors
     ///
@@ -55,11 +56,28 @@ impl TonConnection {
         callback: Arc<dyn TonConnectionCallback>,
         params: &TonConnectionParams,
     ) -> Result<TonConnection, TonClientError> {
+        Self::new_joinable(callback, params).map(|r| r.0)
+    }
+
+    pub fn tag(&self) -> &str {
+        self.inner.tl_client.get_tag()
+    }
+
+    /// Creates a new uninitialized TonConnection together with its `JoinHandle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns error to capture any failure to create thread at system level
+    pub(crate) fn new_joinable(
+        callback: Arc<dyn TonConnectionCallback>,
+        params: &TonConnectionParams,
+    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
         let tag = format!(
             "ton-conn-{}",
             CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
         );
-        let (sender, receiver) = broadcast::channel::<Arc<TonNotification>>(params.queue_length);
+        let (sender, receiver) =
+            broadcast::channel::<Arc<TonNotification>>(params.notification_queue_length);
         let concurrency_limit = params.concurrency_limit;
         let semaphore = if concurrency_limit != 0 {
             Some(Semaphore::new(params.concurrency_limit))
@@ -75,14 +93,13 @@ impl TonConnection {
             _notification_receiver: receiver,
             semaphore,
         };
-        let client = TonConnection {
-            inner: Arc::new(inner),
-        };
-        let client_inner: Weak<Inner> = Arc::downgrade(&client.inner);
+        let inner_arc = Arc::new(inner);
+        let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
         let thread_builder = thread::Builder::new().name(tag.clone());
-        let callback = client.inner.callback.clone();
-        thread_builder.spawn(|| run_loop(tag, client_inner, callback))?;
-        Ok(client)
+        let callback = inner_arc.callback.clone();
+        let join_handle = thread_builder.spawn(|| run_loop(tag, inner_weak, callback))?;
+        let conn = TonConnection { inner: inner_arc };
+        Ok((conn, join_handle))
     }
 
     /// Creates a new initialized TonConnection
@@ -90,7 +107,15 @@ impl TonConnection {
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
     ) -> Result<TonConnection, TonClientError> {
-        let conn = Self::new(callback, params)?;
+        Self::connect_joinable(params, callback).await.map(|r| r.0)
+    }
+
+    /// Creates a new initialized TonConnection
+    pub async fn connect_joinable(
+        params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
+        let (conn, join_handle) = Self::new_joinable(callback, params)?;
         let keystore_type = if let Some(directory) = &params.keystore_dir {
             KeyStoreType::Directory {
                 directory: directory.clone(),
@@ -107,45 +132,46 @@ impl TonConnection {
                 keystore_type,
             )
             .await?;
-        Ok(conn)
+        Ok((conn, join_handle))
     }
 
-    pub async fn connect_archive(
+    pub(crate) async fn connect_archive(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<TonConnection, TonClientError> {
+    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
         // connect to other node until it will be able to fetch the very first block
         loop {
-            let c = TonConnection::connect(params, callback.clone()).await?;
+            let (conn, join_handle) = Self::connect_joinable(params, callback.clone()).await?;
             let info = BlockId {
                 workchain: -1,
                 shard: i64::MIN,
                 seqno: 1,
             };
-            let r = c.lookup_block(1, &info, 0, 0).await;
+            let r = conn.lookup_block(1, &info, 0, 0).await;
             if r.is_ok() {
-                break Ok(c);
+                break Ok((conn, join_handle));
             } else {
                 log::info!("Dropping connection to non-archive node");
             }
         }
     }
 
-    pub async fn connect_healthy(
+    pub(crate) async fn connect_healthy(
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<TonConnection, TonClientError> {
+    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
         // connect to other node until it will be able to fetch the very first block
         loop {
-            let c = TonConnection::connect(params, callback.clone()).await?;
-            let info_result = c.get_masterchain_info().await;
+            let (conn, join_handle) =
+                TonConnection::connect_joinable(params, callback.clone()).await?;
+            let info_result = conn.get_masterchain_info().await;
             match info_result {
                 Ok((_, info)) => {
-                    let block_result = c.get_block_header(&info.last).await;
+                    let block_result = conn.get_block_header(&info.last).await;
                     if let Err(err) = block_result {
                         log::info!("Dropping connection to unhealthy node: {:?}", err);
                     } else {
-                        break Ok(c);
+                        break Ok((conn, join_handle));
                     }
                 }
                 Err(err) => {
@@ -335,6 +361,8 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>, callback: Arc<dyn TonConnectio
                         }
                     }
                 }
+            } else {
+                callback.on_idle(tag.as_str())
             }
         } else {
             callback.on_connection_loop_exit(tag.as_str());

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
 use std::ops::Deref;
@@ -20,6 +21,7 @@ pub use raw::*;
 use sha2::{Digest, Sha256};
 pub use slice::*;
 pub use state_init::*;
+pub use util::*;
 
 mod bag_of_cells;
 mod bit_string;
@@ -338,8 +340,8 @@ impl Cell {
     }
 }
 
-impl fmt::Debug for Cell {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for Cell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "Cell{{ data: [{}], bit_len: {}, references: [\n",

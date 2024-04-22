@@ -19,7 +19,7 @@ lazy_static! {
         };
 
         let config_path = if local_config_flag {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/local.config.json")
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/local/local.config.json")
         } else {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/config/global.config.json")
         };
@@ -44,7 +44,7 @@ static LOG: Once = Once::new();
 #[allow(dead_code)]
 pub fn init_logging() {
     LOG.call_once(|| {
-        TonClient::set_log_verbosity_level(2);
+        TonClient::set_log_verbosity_level(1);
         let stderr = ConsoleAppender::builder()
             .target(Target::Stderr)
             .encoder(Box::new(log4rs::encode::pattern::PatternEncoder::new(

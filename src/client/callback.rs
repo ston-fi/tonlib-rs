@@ -50,6 +50,9 @@ pub trait TonConnectionCallback: Send + Sync {
     ) {
     }
 
+    /// Method `on_idle` gets called when polling tonlib returns `None`.
+    fn on_idle(&self, tag: &str) {}
+
     /// Method `on_connection_loop_start` gets called when new connection loop starts
     fn on_connection_loop_start(&self, tag: &str) {}
 
@@ -187,6 +190,12 @@ impl TonConnectionCallback for MultiConnectionCallback {
     ) {
         for c in self.callbacks.iter() {
             c.on_ton_result_parse_error(tag, request_extra, result)
+        }
+    }
+
+    fn on_idle(&self, tag: &str) {
+        for c in self.callbacks.iter() {
+            c.on_idle(tag)
         }
     }
 

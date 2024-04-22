@@ -89,8 +89,8 @@ pub trait JettonMasterContract: TonContractInterface {
 impl<T> JettonMasterContract for T where T: TonContractInterface {}
 
 fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCellError> {
-    let mut reader = cell.parser();
-    let content_representation = reader.load_byte()?;
+    let mut parser = cell.parser();
+    let content_representation = parser.load_byte()?;
     match content_representation {
         0 => {
             let dict = cell.reference(0)?.load_snake_formatted_dict()?;
@@ -103,8 +103,8 @@ fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCel
             }) //todo #79
         }
         1 => {
-            let remaining_bytes = reader.remaining_bytes();
-            let uri = reader.load_utf8(remaining_bytes)?;
+            let remaining_bytes = parser.remaining_bytes();
+            let uri = parser.load_utf8(remaining_bytes)?;
             Ok(MetaDataContent::External { uri })
         }
         _ => Ok(MetaDataContent::Unsupported {
