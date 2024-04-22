@@ -182,7 +182,6 @@ pub trait TonClientInterface: Send + Sync {
             )),
         }
     }
-
     async fn smc_load_by_transaction(
         &self,
         address: &TonAddress,

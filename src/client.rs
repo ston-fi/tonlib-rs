@@ -2,6 +2,7 @@ use std::fs;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
+use std::thread::JoinHandle;
 
 use async_trait::async_trait;
 pub use block_functions::*;
@@ -179,7 +180,7 @@ fn retry_condition(error: &TonClientError) -> bool {
 struct PoolConnection {
     params: TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    conn: Mutex<Option<TonConnection>>,
+    conn: Mutex<Option<(TonConnection, JoinHandle<()>)>>,
     connection_check: ConnectionCheck,
 }
 
@@ -187,11 +188,18 @@ impl PoolConnection {
     async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
         let mut guard = self.conn.lock().await;
         match guard.deref() {
-            Some(conn) => Ok(conn.clone()),
+            Some((conn, join_handle)) => {
+                if join_handle.is_finished() {
+                    // TODO: This is temporary implementation.
+                    // At the moment, only report dead connections, in the future need to recover
+                    log::warn!("Returning dead connection: {:?}", conn.tag());
+                }
+                Ok(conn.clone())
+            }
             None => {
-                let conn = match self.connection_check {
+                let (conn, join_handle) = match self.connection_check {
                     ConnectionCheck::None => {
-                        TonConnection::connect(&self.params, self.callback.clone()).await?
+                        TonConnection::connect_joinable(&self.params, self.callback.clone()).await?
                     }
                     ConnectionCheck::Health => {
                         TonConnection::connect_healthy(&self.params, self.callback.clone()).await?
@@ -200,7 +208,7 @@ impl PoolConnection {
                         TonConnection::connect_archive(&self.params, self.callback.clone()).await?
                     }
                 };
-                *guard = Some(conn.clone());
+                *guard = Some((conn.clone(), join_handle));
                 Ok(conn)
             }
         }

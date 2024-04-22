@@ -4,9 +4,11 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
-use super::{DEFAULT_CONNECTION_CONCURRENCY_LIMIT, DEFAULT_CONNECTION_QUEUE_LENGTH};
+use super::{
+    BlocksShortTxId, TonClientError, DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
+    DEFAULT_NOTIFICATION_QUEUE_LENGTH,
+};
 use crate::address::TonAddress;
-use crate::client::{BlocksShortTxId, TonClientError};
 use crate::config::MAINNET_CONFIG;
 use crate::tl::{InternalTransactionId, TonNotification};
 
@@ -48,9 +50,9 @@ pub struct TonConnectionParams {
     pub ignore_cache: bool,
     #[serde(default)]
     pub keystore_dir: Option<String>,
-    #[serde(default)]
-    pub queue_length: usize,
-    #[serde(default)]
+    #[serde(default = "default_notification_queue_length")]
+    pub notification_queue_length: usize,
+    #[serde(default = "default_connection_concurrency_limit")]
     pub concurrency_limit: usize,
 }
 
@@ -62,10 +64,17 @@ impl Default for TonConnectionParams {
             use_callbacks_for_network: false,
             ignore_cache: false,
             keystore_dir: None,
-            queue_length: DEFAULT_CONNECTION_QUEUE_LENGTH,
+            notification_queue_length: DEFAULT_NOTIFICATION_QUEUE_LENGTH,
             concurrency_limit: DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
         }
     }
+}
+fn default_notification_queue_length() -> usize {
+    DEFAULT_NOTIFICATION_QUEUE_LENGTH
+}
+
+fn default_connection_concurrency_limit() -> usize {
+    DEFAULT_CONNECTION_CONCURRENCY_LIMIT
 }
 
 lazy_static! {

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
 use tonlib::address::TonAddress;
@@ -464,5 +465,54 @@ async fn client_testnet_works() -> anyhow::Result<()> {
         info.last.seqno,
         blocks_header
     );
+    Ok(())
+}
+
+// This test fails on tonlib 2023.6, 2024.1 and 2024.3 either with:
+//   error: test failed, to rerun pass `-p tonlib --test client_test`
+//     Caused by:
+//     process didn't exit successfully: `../target/debug/deps/client_test-a6ec52f42b3d3962 dropping_invoke_test --exact --nocapture --ignored`
+//    (signal: 6, SIGABRT: process abort signal)
+//  or:
+//   error: test failed, to rerun pass `-p tonlib --test client_test`
+//     Caused by:
+//     process didn't exit successfully: `../target/debug/deps/client_test-a6ec52f42b3d3962 dropping_invoke_test --exact --nocapture --ignored`
+//     (signal: 11, SIGSEGV: invalid memory reference)
+#[ignore]
+#[tokio::test]
+async fn dropping_invoke_test() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let address = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    client.get_raw_account_state(&address).await?;
+
+    let f = [
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(100)),
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(200)),
+        abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(500)),
+    ];
+
+    join_all(f).await;
+
+    Ok(())
+}
+
+async fn abort_batch_invoke_get_raw_account_state(
+    client: &TonClient,
+    dt: Duration,
+) -> anyhow::Result<()> {
+    let address = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let addresses = vec![address; 100];
+
+    let futures = addresses
+        .iter()
+        .map(|a| timeout(dt, client.get_raw_account_state(a)))
+        .collect::<Vec<_>>();
+
+    let result = join_all(futures).await;
+
+    let res = result.iter().map(|r| r.is_ok()).collect::<Vec<_>>();
+    log::info!("{:?}", res);
+
     Ok(())
 }

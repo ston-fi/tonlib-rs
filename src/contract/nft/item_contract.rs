@@ -126,8 +126,8 @@ async fn read_item_metadata_content(
     item_address: &TonAddress,
     cell: ArcCell,
 ) -> Result<MetaDataContent, TonContractError> {
-    let mut reader = cell.parser();
-    let content_representation = reader
+    let mut parser = cell.parser();
+    let content_representation = parser
         .load_byte()
         .map_cell_error("get_nft_data", item_address)?;
     match content_representation {
@@ -154,8 +154,8 @@ async fn read_item_metadata_content(
         // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
         //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
         1 => {
-            let remaining_bytes = reader.remaining_bytes();
-            let uri = reader
+            let remaining_bytes = parser.remaining_bytes();
+            let uri = parser
                 .load_utf8(remaining_bytes)
                 .map_cell_error("get_nft_data", item_address)?;
             Ok(MetaDataContent::External { uri })
