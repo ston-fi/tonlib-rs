@@ -176,7 +176,7 @@ async fn test_state_dropping() -> anyhow::Result<()> {
     let client = common::new_mainnet_client().await?;
     let factory = TonContractFactory::builder(&client).build().await?;
     let state = factory
-        .get_contract_state(&"EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt".parse()?)
+        .get_latest_contract_state(&"EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt".parse()?)
         .await?;
     let thread_builder = thread::Builder::new().name("test_drop".to_string());
     let handle = thread_builder.spawn(move || test_drop(state))?;

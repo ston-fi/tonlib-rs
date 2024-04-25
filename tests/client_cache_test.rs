@@ -20,7 +20,7 @@ async fn cache_get_raw_account_state_works() -> anyhow::Result<()> {
         .await?;
     for _ in 0..100 {
         let r = factory
-            .get_account_state(&TonAddress::from_base64_url(
+            .get_latest_account_state(&TonAddress::from_base64_url(
                 "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
             )?)
             .await;

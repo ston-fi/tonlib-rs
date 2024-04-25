@@ -109,7 +109,7 @@ impl TonContractFactory {
     }
 
     #[cfg(feature = "state_cache")]
-    pub async fn get_account_state(
+    pub async fn get_latest_account_state(
         &self,
         address: &TonAddress,
     ) -> Result<Arc<RawFullAccountState>, TonContractError> {
@@ -123,7 +123,7 @@ impl TonContractFactory {
     }
 
     #[cfg(not(feature = "state_cache"))]
-    pub async fn get_account_state(
+    pub async fn get_latest_account_state(
         &self,
         address: &TonAddress,
     ) -> Result<Arc<RawFullAccountState>, TonContractError> {
@@ -177,11 +177,11 @@ impl TonContractFactory {
         ))
     }
 
-    pub async fn get_contract_state(
+    pub async fn get_latest_contract_state(
         &self,
         address: &TonAddress,
     ) -> Result<TonContractState, TonContractError> {
-        let account_state = Arc::new(self.get_account_state(address).await?);
+        let account_state = Arc::new(self.get_latest_account_state(address).await?);
         let contract_state = TonContractState::new(self, address, &account_state);
         Ok(contract_state)
     }
