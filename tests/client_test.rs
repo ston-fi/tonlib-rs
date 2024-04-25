@@ -27,7 +27,7 @@ async fn test_client_get_account_state_of_inactive() -> anyhow::Result<()> {
     let factory = TonContractFactory::builder(&client).build().await?;
     for _ in 0..100 {
         let r = factory
-            .get_account_state(&TonAddress::from_base64_url(
+            .get_latest_account_state(&TonAddress::from_base64_url(
                 "EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH",
             )?)
             .await;

@@ -47,7 +47,10 @@ impl TonContract {
     }
 
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
-        let r = self.factory.get_contract_state(&self.address).await?;
+        let r = self
+            .factory
+            .get_latest_contract_state(&self.address)
+            .await?;
         Ok(r)
     }
 
@@ -74,7 +77,7 @@ impl TonContractInterface for TonContract {
     }
 
     async fn get_account_state(&self) -> Result<Arc<RawFullAccountState>, TonContractError> {
-        self.factory.get_account_state(self.address()).await
+        self.factory.get_latest_account_state(self.address()).await
     }
 
     async fn run_get_method<M, S>(
