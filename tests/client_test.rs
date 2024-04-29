@@ -64,7 +64,7 @@ async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
     let mut retries = 0;
     while retries < max_retries {
         retries += 1;
-        let client = common::new_archive_mainnet_client().await?;
+        let client = common::new_mainnet_client().await?;
         let state = client.get_raw_account_state(address).await.unwrap();
         let r = client
             .get_raw_transactions(address, &state.last_transaction_id)
