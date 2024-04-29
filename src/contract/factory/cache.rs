@@ -9,14 +9,13 @@ use moka::future::Cache;
 
 use crate::address::TonAddress;
 use crate::client::{
-    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientInterface, TxId,
+    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientInterface,
 };
 use crate::contract::{LoadedSmcState, TonContractError};
 use crate::tl::{InternalTransactionId, RawFullAccountState};
 
 type TxIdCache = Cache<TonAddress, Arc<InternalTransactionId>>;
 type AccountStateCache = Cache<TonAddress, Arc<RawFullAccountState>>;
-type SmcStateCache = Cache<TxId, Arc<LoadedSmcState>>;
 
 const DELAY_ON_TON_FAILURE: u64 = 100;
 
@@ -31,8 +30,6 @@ impl ContractFactoryCache {
         client: &TonClient,
         account_state_cache_capacity: u64,
         account_state_cache_time_to_live: Duration,
-        smc_state_cache_capacity: u64,
-        smc_state_cache_ttl: Duration,
         txid_cache_capacity: u64,
         txid_state_cache_time_to_live: Duration,
         presync_blocks: i32,
@@ -44,17 +41,13 @@ impl ContractFactoryCache {
                 .max_capacity(account_state_cache_capacity)
                 .time_to_live(account_state_cache_time_to_live)
                 .build(),
-            smc_state_cache: Cache::builder()
-                .max_capacity(smc_state_cache_capacity)
-                .time_to_live(smc_state_cache_ttl)
-                .build(),
             tx_id_cache: Cache::builder()
                 .max_capacity(txid_cache_capacity)
                 .time_to_live(txid_state_cache_time_to_live)
                 .build(),
             presync_blocks,
             account_state_cache_counters: ContractFactoryCacheCounters::default(),
-            smc_state_cache_counters: ContractFactoryCacheCounters::default(),
+
             tx_id_cache_counters: ContractFactoryCacheCounters::default(),
         };
 
@@ -71,43 +64,8 @@ impl ContractFactoryCache {
         &self,
         address: &TonAddress,
     ) -> Result<Arc<LoadedSmcState>, TonContractError> {
-        let internal_transaction_id = if let Some(tx_id) = self.inner.tx_id_cache.get(address).await
-        {
-            self.inner
-                .tx_id_cache_counters
-                .hits
-                .fetch_add(1, Ordering::Relaxed);
-
-            tx_id.as_ref().clone()
-        } else {
-            self.inner
-                .tx_id_cache_counters
-                .misses
-                .fetch_add(1, Ordering::Relaxed);
-            let account_state = self.get_account_state(address).await?;
-            account_state.as_ref().last_transaction_id.clone()
-        };
-        let tx_id = TxId {
-            address: address.clone(),
-            internal_transaction_id: internal_transaction_id.clone(),
-        };
-        self.inner
-            .smc_state_cache_counters
-            .hits
-            .fetch_add(1, Ordering::Relaxed);
-        let smc_state_result = self
-            .inner
-            .smc_state_cache
-            .try_get_with(
-                tx_id,
-                self.load_smc_state_by_tx_id(address, &internal_transaction_id),
-            )
-            .await;
-
-        match smc_state_result {
-            Ok(state) => Ok(state),
-            Err(e) => Err(TonContractError::CacheError(e.clone())),
-        }
+        let loaded_state = self.inner.client.smc_load(address).await?;
+        Ok(Arc::new(loaded_state))
     }
 
     pub async fn get_smc_state_by_transaction(
@@ -115,45 +73,13 @@ impl ContractFactoryCache {
         address: &TonAddress,
         transaction_id: &InternalTransactionId,
     ) -> Result<Arc<LoadedSmcState>, TonContractError> {
-        let tx_id = TxId {
-            address: address.clone(),
-            internal_transaction_id: transaction_id.clone(),
-        };
-        self.inner
-            .smc_state_cache_counters
-            .hits
-            .fetch_add(1, Ordering::Relaxed);
-        let smc_state_result = self
-            .inner
-            .smc_state_cache
-            .try_get_with(tx_id, self.load_smc_state_by_tx_id(address, transaction_id))
-            .await;
-
-        match smc_state_result {
-            Ok(state) => Ok(state),
-            Err(e) => Err(TonContractError::CacheError(e.clone())),
-        }
-    }
-
-    async fn load_smc_state_by_tx_id(
-        &self,
-        address: &TonAddress,
-        transaction_id: &InternalTransactionId,
-    ) -> Result<Arc<LoadedSmcState>, TonContractError> {
-        self.inner
-            .smc_state_cache_counters
-            .misses
-            .fetch_add(1, Ordering::Relaxed);
-        self.inner
-            .smc_state_cache_counters
-            .hits
-            .fetch_sub(1, Ordering::Relaxed);
-        let state = self
+        let loaded_state = self
             .inner
             .client
             .smc_load_by_transaction(address, transaction_id)
             .await?;
-        Ok(Arc::new(state))
+
+        Ok(Arc::new(loaded_state))
     }
 
     pub async fn get_account_state(
@@ -278,17 +204,6 @@ impl ContractFactoryCache {
                 .misses
                 .load(Ordering::Relaxed),
             tx_id_cache_entry_count: self.inner.tx_id_cache.entry_count(),
-            smc_state_cache_hits: self
-                .inner
-                .smc_state_cache_counters
-                .hits
-                .load(Ordering::Relaxed),
-            smc_state_cache_misses: self
-                .inner
-                .smc_state_cache_counters
-                .misses
-                .load(Ordering::Relaxed),
-            smc_state_cache_entry_count: self.inner.smc_state_cache.entry_count(),
             account_state_cache_hits: self
                 .inner
                 .account_state_cache_counters
@@ -308,10 +223,8 @@ struct Inner {
     client: TonClient,
     tx_id_cache: TxIdCache,
     account_state_cache: AccountStateCache,
-    smc_state_cache: SmcStateCache,
     presync_blocks: i32,
     tx_id_cache_counters: ContractFactoryCacheCounters,
-    smc_state_cache_counters: ContractFactoryCacheCounters,
     account_state_cache_counters: ContractFactoryCacheCounters,
 }
 
@@ -368,9 +281,6 @@ pub struct ContractFactoryCacheStats {
     pub tx_id_cache_hits: u64,
     pub tx_id_cache_misses: u64,
     pub tx_id_cache_entry_count: u64,
-    pub smc_state_cache_hits: u64,
-    pub smc_state_cache_misses: u64,
-    pub smc_state_cache_entry_count: u64,
     pub account_state_cache_hits: u64,
     pub account_state_cace_misses: u64,
     pub account_state_cache_entry_count: u64,
