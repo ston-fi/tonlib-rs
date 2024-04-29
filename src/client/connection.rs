@@ -147,6 +147,7 @@ impl TonConnection {
                 shard: i64::MIN,
                 seqno: 1,
             };
+            conn.sync().await?;
             let r = conn.lookup_block(1, &info, 0, 0).await;
             if r.is_ok() {
                 break Ok((conn, join_handle));
