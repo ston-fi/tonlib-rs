@@ -1,3 +1,5 @@
+use std::fs::create_dir_all;
+use std::path::Path;
 use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
@@ -9,7 +11,7 @@ use tokio::time::timeout;
 use tokio::{self};
 use tonlib::address::TonAddress;
 use tonlib::cell::BagOfCells;
-use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface};
+use tonlib::client::{TonBlockFunctions, TonClient, TonClientBuilder, TonClientInterface};
 use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::TonContractFactory;
 use tonlib::tl::{
@@ -467,5 +469,22 @@ async fn abort_batch_invoke_get_raw_account_state(
     let res = result.iter().map(|r| r.is_ok()).collect::<Vec<_>>();
     log::info!("{:?}", res);
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn archive_node_client_test() -> anyhow::Result<()> {
+    let tonlib_work_dir = "./var/tonlib";
+    create_dir_all(Path::new(tonlib_work_dir)).unwrap();
+    TonClient::set_log_verbosity_level(2);
+
+    let mut client_builder = TonClientBuilder::new();
+    client_builder
+        .with_config(MAINNET_CONFIG)
+        .with_keystore_dir(String::from(tonlib_work_dir))
+        .with_connection_check(tonlib::client::ConnectionCheck::Archive);
+    let client = client_builder.build().await.unwrap();
+    let (_, master_info) = client.get_masterchain_info().await.unwrap();
+    println!("master_info: {:?}", master_info);
     Ok(())
 }
