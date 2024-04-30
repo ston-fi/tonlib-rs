@@ -1,3 +1,4 @@
+use crate::address::TonAddress;
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use futures::FutureExt;
@@ -62,7 +63,12 @@ pub trait TonBlockFunctions: TonClientInterface + Send + Sync {
                 .get_block_transactions_ext(shard_id, mode, 256, &after)
                 .await?;
             if let Some(last) = txs.transactions.last() {
-                let account = last.address.account_address.clone().into();
+                let account = last
+                    .address
+                    .account_address
+                    .parse::<TonAddress>()?
+                    .hash_part
+                    .to_vec();
                 let lt = last.transaction_id.lt;
                 after = BlocksAccountTransactionId { account, lt };
             }
