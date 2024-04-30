@@ -6,7 +6,6 @@ use thiserror::Error;
 use crate::address::TonAddress;
 use crate::cell::TonCellError;
 use crate::client::TonClientError;
-#[cfg(feature = "emulate_get_method")]
 use crate::emulator::TvmEmulatorError;
 use crate::tl::TvmStackError;
 use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
@@ -22,7 +21,6 @@ pub enum TonContractError {
     #[error("TonClientError ({0})")]
     ClientError(#[from] TonClientError),
 
-    #[cfg(feature = "emulate_get_method")]
     #[error("Emulator error (Method: {method}, address: {address}, error {error}")]
     EmulatorError {
         method: String,

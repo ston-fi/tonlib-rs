@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use crate::address::TonAddress;
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
-#[cfg(feature = "emulate_get_method")]
 use crate::emulator::{TvmEmulator, TvmEmulatorC7Builder};
 use crate::tl::RawFullAccountState;
 use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
@@ -72,7 +71,6 @@ impl TonContractState {
         self.tonlib_run_get_method(method, stack).await
     }
 
-    #[cfg(feature = "emulate_get_method")]
     pub async fn emulate_get_method<M, S>(
         &self,
         method: M,
