@@ -1,5 +1,4 @@
 mod common;
-#[cfg(feature = "emulate_get_method")]
 mod contract_emulator_tests {
     use anyhow::bail;
     use tonlib::address::TonAddress;
@@ -70,7 +69,6 @@ mod contract_emulator_tests {
         }
     }
 
-    #[cfg(feature = "emulate_get_method")]
     #[tokio::test]
     async fn test_emulator_get_wallet_address() -> anyhow::Result<()> {
         common::init_logging();

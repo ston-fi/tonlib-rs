@@ -4,7 +4,6 @@ use tonlib::contract::{JettonMasterContract, TonContractFactory, TonContractInte
 
 mod common;
 
-#[cfg(feature = "emulate_get_method")]
 mod contract_emulator_tests {
     use std::ops::Neg;
 

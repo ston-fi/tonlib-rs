@@ -1,8 +1,8 @@
 use std::io;
 
-use crate::address::TonAddressParseError;
 use thiserror::Error;
 
+use crate::address::TonAddressParseError;
 use crate::tl::{TlError, TonResult, TonResultDiscriminants};
 
 #[derive(Error, Debug)]

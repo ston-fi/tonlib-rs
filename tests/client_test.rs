@@ -11,15 +11,15 @@ use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
 use tokio_test::assert_ok;
+use tonlib::address::TonAddress;
 use tonlib::cell::{key_extractor_256bit, value_extractor_cell, BagOfCells, GenericDictLoader};
-use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface, TxId};
+use tonlib::client::{TonBlockFunctions, TonClient, TonClientBuilder, TonClientInterface, TxId};
 use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::{TonContractFactory, TonContractInterface};
 use tonlib::tl::{
     BlockId, BlockIdExt, BlocksShards, BlocksTransactions, BlocksTransactionsExt,
     InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
-use tonlib::{address::TonAddress, client::TonClientBuilder};
 
 mod common;
 
