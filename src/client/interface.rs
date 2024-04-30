@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{SmcLibraryQueryExt, SmcLibraryResult, SmcLibraryResultExt};
+use super::{SmcLibraryQueryExt, SmcLibraryResult, SmcLibraryResultExt, TonLibraryId};
 use crate::address::TonAddress;
 use crate::client::{TonClientError, TonConnection};
 use crate::contract::LoadedSmcState;
@@ -251,7 +251,7 @@ pub trait TonClientInterface: Send + Sync {
 
     async fn smc_get_libraries(
         &self,
-        library_list: &[String],
+        library_list: &[TonLibraryId],
     ) -> Result<SmcLibraryResult, TonClientError> {
         let func = TonFunction::SmcGetLibraries {
             library_list: library_list.to_vec(),

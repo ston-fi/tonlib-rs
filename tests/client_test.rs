@@ -18,7 +18,8 @@ use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::{TonContractFactory, TonContractInterface};
 use tonlib::tl::{
     BlockId, BlockIdExt, BlocksShards, BlocksTransactions, BlocksTransactionsExt,
-    InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, TonLibraryId,
+    NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 
 mod common;
@@ -496,8 +497,11 @@ async fn client_smc_get_libraries() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await?;
     let library_hash_str = "TwFxJywhW4v4/urEaoV2iKS2X0/mH4IoYx9ifQ7anQA=";
+    let library_hash = TonLibraryId {
+        id: STANDARD.decode(library_hash_str)?,
+    };
 
-    let library_list = &[library_hash_str.to_string()];
+    let library_list = &[library_hash];
     let smc_library_result = client.smc_get_libraries(library_list).await?;
 
     log::info!(
@@ -539,7 +543,10 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
 
     assert_eq!(1, smc_libraries_ext_result.libs_ok.len());
     assert_eq!(0, smc_libraries_ext_result.libs_not_found.len());
-    assert_eq!(smc_libraries_ext_result.libs_ok[0].as_str(), library_hash);
+    assert_eq!(
+        smc_libraries_ext_result.libs_ok[0].id,
+        STANDARD.decode(library_hash)?
+    );
 
     let boc = BagOfCells::parse(&smc_libraries_ext_result.dict_boc)?;
     let cell = boc.single_root()?;

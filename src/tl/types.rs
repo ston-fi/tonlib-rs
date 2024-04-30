@@ -10,6 +10,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
 
+use super::TonLibraryId;
 use crate::tl::stack::{TvmCell, TvmStack};
 use crate::tl::{Base64Standard, InternalTransactionIdParseError};
 
@@ -510,8 +511,8 @@ pub enum SmcLibraryQueryExt {
 pub struct SmcLibraryResultExt {
     #[serde(with = "Base64Standard")]
     pub dict_boc: Vec<u8>,
-    pub libs_ok: Vec<String>,
-    pub libs_not_found: Vec<String>,
+    pub libs_ok: Vec<TonLibraryId>,
+    pub libs_not_found: Vec<TonLibraryId>,
 }
 
 // tonlib_api.tl, line 194
