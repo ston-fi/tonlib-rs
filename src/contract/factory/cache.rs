@@ -60,14 +60,6 @@ impl ContractFactoryCache {
         Ok(cache)
     }
 
-    pub async fn get_smc_state(
-        &self,
-        address: &TonAddress,
-    ) -> Result<Arc<LoadedSmcState>, TonContractError> {
-        let loaded_state = self.inner.client.smc_load(address).await?;
-        Ok(Arc::new(loaded_state))
-    }
-
     pub async fn get_smc_state_by_transaction(
         &self,
         address: &TonAddress,

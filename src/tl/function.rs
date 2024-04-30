@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
-use super::SmcMethodId;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
-    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId, Options,
+    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId,
+    Options, SmcLibraryQueryExt, SmcMethodId,
 };
 use crate::tl::Base64Standard;
 
@@ -132,6 +132,18 @@ pub enum TonFunction {
         id: i64,
         method: SmcMethodId,
         stack: Vec<TvmStackEntry>,
+    },
+
+    // tonlib_api.tl, line 314
+    #[serde(rename = "smc.getLibraries")]
+    SmcGetLibraries {
+        library_list: Vec<String>,
+    },
+
+    // tonlib_api.tl, line 315
+    #[serde(rename = "smc.getLibrariesExt")]
+    SmcGetLibrariesExt {
+        list: Vec<SmcLibraryQueryExt>,
     },
 
     // tonlib_api.tl, line 316

@@ -110,6 +110,7 @@ impl CellSlice {
         let slice = reader.load_bits(significant_bits);
         CellBuilder::new()
             .store_bits(significant_bits, slice?.as_slice())?
+            .store_references(&self.cell.references)?
             .build()
     }
 

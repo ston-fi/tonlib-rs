@@ -476,6 +476,44 @@ pub struct SmcRunResult {
     pub exit_code: i32,
 }
 
+// tonlib_api.tl, line 186
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SmcLibraryEntry {
+    #[serde(with = "Base64Standard")]
+    pub hash: Vec<u8>,
+    #[serde(with = "Base64Standard")]
+    pub data: Vec<u8>,
+}
+
+// tonlib_api.tl, line 187
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SmcLibraryResult {
+    pub result: Vec<SmcLibraryEntry>,
+}
+// tonlib_api.tl, line 189
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(tag = "@type", rename_all = "camelCase")]
+pub enum SmcLibraryQueryExt {
+    #[serde(rename = "smc.libraryQueryExt.one")]
+    One { hash: [u8; 32] },
+
+    // tonlib_api.tl, line 190
+    #[serde(rename = "smc.libraryQueryExt.scanBoc")]
+    ScanBoc {
+        #[serde(with = "Base64Standard")]
+        boc: Vec<u8>,
+        max_libs: i32,
+    },
+}
+// tonlib_api.tl, line 191
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SmcLibraryResultExt {
+    #[serde(with = "Base64Standard")]
+    pub dict_boc: Vec<u8>,
+    pub libs_ok: Vec<String>,
+    pub libs_not_found: Vec<String>,
+}
+
 // tonlib_api.tl, line 194
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UpdateSyncState {

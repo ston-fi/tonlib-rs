@@ -10,15 +10,15 @@ use base64::Engine;
 use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
-use tonlib::address::TonAddress;
-use tonlib::cell::BagOfCells;
+use tonlib::cell::{key_extractor_256bit, value_extractor_cell, BagOfCells, GenericDictLoader};
 use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface, TxId};
 use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
-use tonlib::contract::TonContractFactory;
+use tonlib::contract::{TonContractFactory, TonContractInterface};
 use tonlib::tl::{
     BlockId, BlocksShards, BlocksTransactions, BlocksTransactionsExt, InternalTransactionId,
-    LiteServerInfo, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    LiteServerInfo, SmcLibraryQueryExt, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
+use tonlib::{address::TonAddress, client::TonClientBuilder};
 
 mod common;
 
@@ -467,6 +467,69 @@ async fn client_testnet_works() -> anyhow::Result<()> {
         info.last.seqno,
         blocks_header
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_get_libraries() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let library_hash_str = "TwFxJywhW4v4/urEaoV2iKS2X0/mH4IoYx9ifQ7anQA=";
+
+    let library_list = &[library_hash_str.to_string()];
+    let smc_library_result = client.smc_get_libraries(library_list).await?;
+
+    log::info!(
+        "smc_library_result {:?}",
+        STANDARD.encode(smc_library_result.result[0].hash.clone())
+    );
+    assert_eq!(
+        STANDARD.encode(smc_library_result.result[0].hash.clone()),
+        library_hash_str
+    );
+
+    // we just test that library code is a valid boc:
+    let boc = BagOfCells::parse(smc_library_result.result[0].data.as_slice())?;
+    log::info!("smc_library_result {:?}", boc);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
+    common::init_logging();
+
+    let client = common::new_mainnet_client().await?;
+
+    let address = TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let contract = factory.get_contract(&address);
+    let code = &contract.get_account_state().await?.code;
+    let library_query = SmcLibraryQueryExt::ScanBoc {
+        boc: code.clone(),
+        max_libs: 10,
+    };
+
+    let library_hash = "TwFxJywhW4v4/urEaoV2iKS2X0/mH4IoYx9ifQ7anQA=";
+
+    let smc_libraries_ext_result = client.smc_get_libraries_ext(vec![library_query]).await?;
+
+    log::info!("smc_libraries_ext_result {:?}", smc_libraries_ext_result);
+
+    assert_eq!(1, smc_libraries_ext_result.libs_ok.len());
+    assert_eq!(0, smc_libraries_ext_result.libs_not_found.len());
+    assert_eq!(smc_libraries_ext_result.libs_ok[0].as_str(), library_hash);
+
+    let boc = BagOfCells::parse(&smc_libraries_ext_result.dict_boc)?;
+    let cell = boc.single_root()?;
+    let dict_loader = GenericDictLoader::new(key_extractor_256bit, value_extractor_cell, 256);
+    let dict = cell.load_generic_dict(&dict_loader)?;
+
+    log::info!("DICT: {:?}", dict);
+
+    assert_eq!(dict.len(), 1);
+    assert!(dict.contains_key(STANDARD.decode(library_hash)?.as_slice()));
+
     Ok(())
 }
 
