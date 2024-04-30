@@ -142,6 +142,14 @@ impl TvmEmulator {
         let stack_boc = Self::build_stack_boc(stack)?;
         let run_result = self.emulator.run_get_method(method.to_id(), &stack_boc)?;
         let response = TvmEmulatorResponse::from_json(run_result.as_str())?;
+
+        // Should we hangle it here or level above?
+        if let Some(missing_lib) = response.missing_library {
+            let a = TonAddress::from_hex_str(missing_lib.as_str());
+
+            panic!("{:?}", a)
+        }
+
         Ok(response)
     }
 

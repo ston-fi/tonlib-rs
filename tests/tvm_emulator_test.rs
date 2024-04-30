@@ -1,3 +1,7 @@
+use tonlib::address::TonAddress;
+use tonlib::client::TonClientInterface;
+use tonlib::contract::{JettonMasterContract, TonContractFactory, TonContractInterface};
+
 mod common;
 
 #[cfg(feature = "emulate_get_method")]
@@ -5,6 +9,8 @@ mod contract_emulator_tests {
     use std::ops::Neg;
 
     use anyhow::{anyhow, bail};
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
     use lazy_static::lazy_static;
     use num_bigint::{BigInt, BigUint};
     use tokio::{self};
@@ -220,7 +226,7 @@ mod contract_emulator_tests {
         let account_state = contract.get_account_state().await?;
 
         let code = &account_state.code;
-        log::info!("code cell: {}", base64::encode(code.as_slice()));
+        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
         let data = &account_state.data;
 
         let blockchain_data = contract.get_jetton_data().await?;
@@ -249,9 +255,9 @@ mod contract_emulator_tests {
         let account_state = contract.get_account_state().await?;
 
         let code = &account_state.code;
-        log::info!("code cell: {}", base64::encode(code.as_slice()));
+        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
         let data = &account_state.data;
-        log::info!("data cell: {}", base64::encode(data.as_slice()));
+        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
         let blockchain_data = contract.get_jetton_data().await?;
         let emulated_data = emulate_get_jetton_data(&code, &data)?;
 
@@ -314,8 +320,8 @@ mod contract_emulator_tests {
         let info = client.get_config_all(0).await?;
         let config_data = info.config.bytes;
 
-        log::info!("code cell: {}", base64::encode(state.code.as_slice()));
-        log::info!("data cell: {}", base64::encode(state.data.as_slice()));
+        log::info!("code cell: {}", STANDARD.encode(state.code.as_slice()));
+        log::info!("data cell: {}", STANDARD.encode(state.data.as_slice()));
         let emulated_result = emulate_get_wallet_address(
             &state.code,
             &state.data,
@@ -364,7 +370,7 @@ mod contract_emulator_tests {
 
         let pool_address = "EQDtZHOtVWaf9UIU6rmjLPNLTGxNLNogvK5xUZlMRgZwQ4Gt".parse()?;
         let factory = TonContractFactory::builder(&client).build().await?;
-        let account_state = factory.get_account_state(&pool_address).await?;
+        let account_state = factory.get_latest_account_state(&pool_address).await?;
         let code = account_state.code.as_slice();
         let data = account_state.data.as_slice();
         let (addr1, addr2) = emulate_get_pool_data(code, data)?;
@@ -431,4 +437,113 @@ mod contract_emulator_tests {
         let result = emulator_result.stack[0].get_biguint()?;
         Ok(result)
     }
+}
+
+#[tokio::test]
+async fn test_convert_lib_addr() -> anyhow::Result<()> {
+    common::init_logging();
+    let hex_addr = TonAddress::from_hex_str(
+        "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
+    );
+
+    log::info!("addr {:?}", hex_addr);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_lib_cells() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+    let factory = TonContractFactory::builder(&client).build().await?;
+
+    let minter_lib_address =
+        TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+
+    let minter_lib = factory
+        .get_contract(&minter_lib_address)
+        .get_account_state()
+        .await?;
+
+    log::info! {"{:?}", minter_lib};
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_emulator_contract_with_library() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await?;
+
+    let address = TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let contract = factory.get_contract(&address);
+    let state = factory.client().smc_load(&address).await?;
+
+    let code = state.conn.smc_get_code(state.id).await?;
+    let data = state.conn.smc_get_data(state.id).await?;
+    let blockchain_data = contract.get_jetton_data().await?;
+
+    log::info! {"Code cell: {:?}", code};
+    log::info! {"Data cell:{:?}", data};
+
+    log::info! {"Jetton data: {:?}", blockchain_data};
+
+    // let other_lib_address =
+    //     TonAddress::from_base64_url("EQBPAXEnLCFbi_j-6sRqhXaIpLZfT-YfgihjH2J9DtqdAInN")?;
+    // let other_lib = factory
+    //     .get_contract(&other_lib_address)
+    //     .get_code_cell()
+    //     .await?;
+
+    // let minter_lib_address =
+    //     TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+    // let minter_lib = factory
+    //     .get_contract(&minter_lib_address)
+    //     .get_code_cell()
+    //     .await?;
+
+    // let minter_lib_data = factory
+    //     .get_contract(&minter_lib_address)
+    //     .get_data_cell()
+    //     .await?;
+
+    //     log::error!("MINTER CODE {:?}",minter_lib );
+
+    //     log::error!("MINTER DATA {:?}",minter_lib_data );
+    // let wallet_lib_address =
+    //     TonAddress::from_base64_url("Ef-jvwR2OmH6ZF3xtg6cAx5Q4sFOAboZEoYI3vdVmqGLHziX")?;
+    // let wallet_lib = factory
+    //     .get_contract(&wallet_lib_address)
+    //     .get_code_cell()
+    //     .await?;
+    // let wallet_lib_data = factory
+    //     .get_contract(&wallet_lib_address)
+    //     .get_data_cell()
+    //     .await?;
+
+    //     log::error!("WALLET CODE {:?}",wallet_lib );
+
+    //     log::error!("WALLET DATA {:?}",wallet_lib_data );
+
+    // let mut emulator: TvmEmulator = TvmEmulator::new(&code, &data)?;
+    // emulator.set_libraries(wallet_lib)?;
+    // emulator.set_libraries(minter_lib)?;
+
+    // let method = "get_jetton_data";
+
+    // let emulator_result = emulator.run_get_method(method, None)?;
+
+    // log::info!("{:?}", emulator_result);
+
+    //    let emulated_data = emulate_get_jetton_data(&code, &data)?;
+
+    // log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+
+    // assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
+    // assert_eq!(blockchain_data.mintable, emulated_data.mintable);
+    // assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
+    // assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
+    // assert_eq!(blockchain_data.content, emulated_data.content);
+
+    Ok(())
 }

@@ -12,7 +12,8 @@ include = [
 ]
 
 [features]
-default=[]
+default=["emulate_get_method"]
+#default=[]
 state_cache = []
 emulate_get_method = []
 
