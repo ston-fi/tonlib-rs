@@ -10,13 +10,14 @@ use base64::Engine;
 use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
+use tokio_test::assert_ok;
 use tonlib::cell::{key_extractor_256bit, value_extractor_cell, BagOfCells, GenericDictLoader};
 use tonlib::client::{TonBlockFunctions, TonClient, TonClientInterface, TxId};
 use tonlib::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib::contract::{TonContractFactory, TonContractInterface};
 use tonlib::tl::{
-    BlockId, BlocksShards, BlocksTransactions, BlocksTransactionsExt, InternalTransactionId,
-    LiteServerInfo, SmcLibraryQueryExt, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    BlockId, BlockIdExt, BlocksShards, BlocksTransactions, BlocksTransactionsExt,
+    InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib::{address::TonAddress, client::TonClientBuilder};
 
@@ -333,13 +334,33 @@ async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_get_shard_transactions() -> anyhow::Result<()> {
+async fn test_get_shard_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
-    let client = &common::new_testnet_client().await?;
-    let (_, info) = client.get_masterchain_info().await?;
-    let shards = client.get_block_shards(&info.last).await?;
+    let client = &assert_ok!(common::new_testnet_client().await);
+    let (_, info) = assert_ok!(client.get_masterchain_info().await);
+    let shards = assert_ok!(client.get_block_shards(&info.last).await);
     assert!(!shards.shards.is_empty());
-    let txs = client.get_shard_transactions(&shards.shards[0]).await?;
+    let txs = assert_ok!(client.get_shard_transactions(&shards.shards[0]).await);
+    assert!(txs.len() > 0);
+    println!("{:?}", txs);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_shard_transactions_parse_address_correctly() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = &assert_ok!(common::new_mainnet_client().await);
+    assert_ok!(client.sync().await);
+    // manually selected block with particular addresses format in transactions
+    let block_shard = BlockIdExt {
+        workchain: 0,
+        shard: -4611686018427387904,
+        seqno: 43256197,
+        root_hash: "yEteKr1hD3d20O/ZL+Y7AB2YD9xL1NZ9r0fXPwYlbYA=".to_string(),
+        file_hash: "VrzW8+EtGDYiaSiYQEou9N5+YWF2CeBzxmAMXUOZ5mE=".to_string(),
+    };
+    let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
+    assert!(txs.len() > 0);
     println!("{:?}", txs);
     Ok(())
 }
