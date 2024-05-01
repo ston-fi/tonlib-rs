@@ -44,7 +44,7 @@ mod contract_emulator_tests {
         let config = factory.get_config_cell_serial().await?;
         let c7 = TvmEmulatorC7Builder::new(address, config, account_state.balance as u64).build();
         emulator.set_c7(&c7)?;
-        let result = emulator.run_get_method(&"get_jetton_data".into(), &vec![])?;
+        let result = emulator.run_get_method(&"get_jetton_data".into(), &[])?;
 
         if !result.exit_success() {
             bail!("Unsuccessful exit: {:?}", result)

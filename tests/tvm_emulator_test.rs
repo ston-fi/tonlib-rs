@@ -1,7 +1,3 @@
-use tonlib::address::TonAddress;
-use tonlib::client::TonClientInterface;
-use tonlib::contract::{JettonMasterContract, TonContractFactory, TonContractInterface};
-
 mod common;
 
 mod contract_emulator_tests {
@@ -21,6 +17,7 @@ mod contract_emulator_tests {
         TonContractInterface,
     };
     use tonlib::emulator::{TvmEmulator, TvmEmulatorC7Builder};
+    use tonlib::message::JettonTransferMessage;
     use tonlib::meta::MetaDataContent;
     use tonlib::types::TvmStackEntry;
 
@@ -86,8 +83,7 @@ mod contract_emulator_tests {
             8238056bc75e2d63100000824adf0ab5a80a22c61ab5a700a98401822056bc75\
             e2d631aa17a001020120201f0063a46410e0804c45896c678b00d180ef381038\
             c70a023d5486531812d40950025503815210e0002298731819d5016780e4e840\
-            0005d17c126e3e0998"
-                .to_string(),
+            0005d17c126e3e0998",
         )
         .ok()
         .unwrap();
@@ -103,12 +99,11 @@ mod contract_emulator_tests {
         1ab5a7008238056bc75e2d63100000a984de21822056bc75e2d631aa16be8e26\
         01822056bc75e2d631aa16a10182403f1fce3da636ea5cf8508238056bc75e2d\
         63100000a984de21823815af1d78b58c400000bee300210e0902f482380ad78e\
-        bc5ac6200000be8e260182380ad78ebc5ac6200000"
-                .to_string(),
+        bc5ac6200000be8e260182380ad78ebc5ac6200000",
         )
         .ok()
         .unwrap();
-        pub static ref EMPTY: Vec<u8> = hex::decode("".to_string(),).ok().unwrap();
+        pub static ref EMPTY: Vec<u8> = hex::decode("",).ok().unwrap();
         pub static ref TEST_CONTRACT_DATA: Vec<u8> =
             BagOfCells::from_root(CellBuilder::new().build().ok().unwrap())
                 .serialize(false)
@@ -161,7 +156,7 @@ mod contract_emulator_tests {
         bigint_multiplier(&BigInt::from(1), &BigInt::from(0x1234567890ABCDEFu64).neg())?;
         // bigint_multiplier(&BigInt::from(-1), &BigInt::from(0x1234567890ABCDEFu64))?; // Doesn't work, but might be a bug in contract
         bigint_multiplier(
-            &BigInt::from(1_000_0000_000i64),
+            &BigInt::from(10_000_000_000_i64),
             &BigInt::from(0x1234567890ABCDEFu64),
         )?;
         Ok(())
@@ -191,7 +186,7 @@ mod contract_emulator_tests {
         i64_multiplier(1, 0x1234567890ABCDEFi64)?;
         i64_multiplier(1, -0x1234567890ABCDEFi64)?;
         i64_multiplier(-1, 0x1234567890ABCDEFi64)?;
-        i64_multiplier(1_000_0000_000i64, 0x1234567890ABCDEFi64)?;
+        i64_multiplier(10_000_000_000_i64, 0x1234567890ABCDEFi64)?;
         Ok(())
     }
 
@@ -229,7 +224,7 @@ mod contract_emulator_tests {
         let data = &account_state.data;
 
         let blockchain_data = contract.get_jetton_data().await?;
-        let emulated_data = emulate_get_jetton_data(&code, &data)?;
+        let emulated_data = emulate_get_jetton_data(code, data)?;
 
         log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
 
@@ -258,7 +253,7 @@ mod contract_emulator_tests {
         let data = &account_state.data;
         log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
         let blockchain_data = contract.get_jetton_data().await?;
-        let emulated_data = emulate_get_jetton_data(&code, &data)?;
+        let emulated_data = emulate_get_jetton_data(code, data)?;
 
         log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
 
@@ -339,7 +334,7 @@ mod contract_emulator_tests {
         data: &[u8],
         self_address: &TonAddress,
         owner_address: &TonAddress,
-        config_data: &Vec<u8>,
+        config_data: &[u8],
     ) -> anyhow::Result<TonAddress> {
         let mut emulator = TvmEmulator::new(code, data)?;
 
@@ -436,113 +431,170 @@ mod contract_emulator_tests {
         let result = emulator_result.stack[0].get_biguint()?;
         Ok(result)
     }
-}
 
-#[tokio::test]
-async fn test_convert_lib_addr() -> anyhow::Result<()> {
-    common::init_logging();
-    let hex_addr = TonAddress::from_hex_str(
-        "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
-    );
+    #[tokio::test]
+    async fn emulate_external_transfer_message() -> anyhow::Result<()> {
+        common::init_logging();
+        let client = common::new_mainnet_client().await?;
 
-    log::info!("addr {:?}", hex_addr);
+        let address =
+            TonAddress::from_base64_url("EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-")?; //jetton master
+        let factory = TonContractFactory::builder(&client).build().await?;
+        let contract = factory.get_contract(&address);
+        let account_state = contract.get_account_state().await?;
 
-    Ok(())
-}
+        let code = &account_state.code;
+        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+        let data = &account_state.data;
+        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
 
-#[tokio::test]
-async fn test_get_lib_cells() -> anyhow::Result<()> {
-    common::init_logging();
-    let client = common::new_mainnet_client().await?;
-    let factory = TonContractFactory::builder(&client).build().await?;
+        let address =
+            TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+        let msg = JettonTransferMessage::new(&address, &BigUint::from(1u32)).build()?;
 
-    let minter_lib_address =
-        TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+        let mut emulator = TvmEmulator::new(code, data)?;
+        let r = emulator.send_external_message(msg)?;
+        log::info!("RES: {:?}", r);
+        assert_eq!(r.gas_used, 270);
+        assert_eq!(r.vm_exit_code, 11);
+        Ok(())
+    }
 
-    let minter_lib = factory
-        .get_contract(&minter_lib_address)
-        .get_account_state()
-        .await?;
+    #[tokio::test]
+    async fn emulate_internal_transfer_message() -> anyhow::Result<()> {
+        common::init_logging();
+        let client = common::new_mainnet_client().await?;
 
-    log::info! {"{:?}", minter_lib};
-    Ok(())
-}
+        let address =
+            TonAddress::from_base64_url("EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-")?; //jetton master
+        let factory = TonContractFactory::builder(&client).build().await?;
+        let contract = factory.get_contract(&address);
+        let account_state = contract.get_account_state().await?;
 
-#[tokio::test]
-async fn test_emulator_contract_with_library() -> anyhow::Result<()> {
-    common::init_logging();
-    let client = common::new_mainnet_client().await?;
+        let code = &account_state.code;
+        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+        let data = &account_state.data;
+        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
 
-    let address = TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
-    let factory = TonContractFactory::builder(&client).build().await?;
-    let contract = factory.get_contract(&address);
-    let state = factory.client().smc_load(&address).await?;
+        let address =
+            TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+        let msg = JettonTransferMessage::new(&address, &BigUint::from(1u32)).build()?;
 
-    let code = state.conn.smc_get_code(state.id).await?;
-    let data = state.conn.smc_get_data(state.id).await?;
-    let blockchain_data = contract.get_jetton_data().await?;
+        let mut emulator = TvmEmulator::new(code, data)?;
+        let r = emulator.send_internal_message(msg, 300)?;
+        log::info!("RES: {:?}", r);
+        assert_eq!(r.gas_used, 2779);
+        assert_eq!(r.vm_exit_code, 65535);
+        Ok(())
+    }
 
-    log::info! {"Code cell: {:?}", code};
-    log::info! {"Data cell:{:?}", data};
+    #[tokio::test]
+    async fn test_convert_lib_addr() -> anyhow::Result<()> {
+        common::init_logging();
+        let hex_addr = TonAddress::from_hex_str(
+            "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
+        );
 
-    log::info! {"Jetton data: {:?}", blockchain_data};
+        log::info!("addr {:?}", hex_addr);
 
-    // let other_lib_address =
-    //     TonAddress::from_base64_url("EQBPAXEnLCFbi_j-6sRqhXaIpLZfT-YfgihjH2J9DtqdAInN")?;
-    // let other_lib = factory
-    //     .get_contract(&other_lib_address)
-    //     .get_code_cell()
-    //     .await?;
+        Ok(())
+    }
 
-    // let minter_lib_address =
-    //     TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
-    // let minter_lib = factory
-    //     .get_contract(&minter_lib_address)
-    //     .get_code_cell()
-    //     .await?;
+    #[tokio::test]
+    async fn test_get_lib_cells() -> anyhow::Result<()> {
+        common::init_logging();
+        let client = common::new_mainnet_client().await?;
+        let factory = TonContractFactory::builder(&client).build().await?;
 
-    // let minter_lib_data = factory
-    //     .get_contract(&minter_lib_address)
-    //     .get_data_cell()
-    //     .await?;
+        let minter_lib_address =
+            TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
 
-    //     log::error!("MINTER CODE {:?}",minter_lib );
+        let minter_lib = factory
+            .get_contract(&minter_lib_address)
+            .get_account_state()
+            .await?;
 
-    //     log::error!("MINTER DATA {:?}",minter_lib_data );
-    // let wallet_lib_address =
-    //     TonAddress::from_base64_url("Ef-jvwR2OmH6ZF3xtg6cAx5Q4sFOAboZEoYI3vdVmqGLHziX")?;
-    // let wallet_lib = factory
-    //     .get_contract(&wallet_lib_address)
-    //     .get_code_cell()
-    //     .await?;
-    // let wallet_lib_data = factory
-    //     .get_contract(&wallet_lib_address)
-    //     .get_data_cell()
-    //     .await?;
+        log::info! {"{:?}", minter_lib};
+        Ok(())
+    }
 
-    //     log::error!("WALLET CODE {:?}",wallet_lib );
+    #[tokio::test]
+    async fn test_emulator_contract_with_library() -> anyhow::Result<()> {
+        common::init_logging();
+        let client = common::new_mainnet_client().await?;
 
-    //     log::error!("WALLET DATA {:?}",wallet_lib_data );
+        let address =
+            TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
+        let factory = TonContractFactory::builder(&client).build().await?;
+        let contract = factory.get_contract(&address);
+        let state = factory.client().smc_load(&address).await?;
 
-    // let mut emulator: TvmEmulator = TvmEmulator::new(&code, &data)?;
-    // emulator.set_libraries(wallet_lib)?;
-    // emulator.set_libraries(minter_lib)?;
+        let code = state.conn.smc_get_code(state.id).await?;
+        let data = state.conn.smc_get_data(state.id).await?;
+        let blockchain_data = contract.get_jetton_data().await?;
 
-    // let method = "get_jetton_data";
+        log::info! {"Code cell: {:?}", code};
+        log::info! {"Data cell:{:?}", data};
 
-    // let emulator_result = emulator.run_get_method(method, None)?;
+        log::info! {"Jetton data: {:?}", blockchain_data};
 
-    // log::info!("{:?}", emulator_result);
+        // let other_lib_address =
+        //     TonAddress::from_base64_url("EQBPAXEnLCFbi_j-6sRqhXaIpLZfT-YfgihjH2J9DtqdAInN")?;
+        // let other_lib = factory
+        //     .get_contract(&other_lib_address)
+        //     .get_code_cell()
+        //     .await?;
 
-    //    let emulated_data = emulate_get_jetton_data(&code, &data)?;
+        // let minter_lib_address =
+        //     TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
+        // let minter_lib = factory
+        //     .get_contract(&minter_lib_address)
+        //     .get_code_cell()
+        //     .await?;
 
-    // log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+        // let minter_lib_data = factory
+        //     .get_contract(&minter_lib_address)
+        //     .get_data_cell()
+        //     .await?;
 
-    // assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
-    // assert_eq!(blockchain_data.mintable, emulated_data.mintable);
-    // assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
-    // assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
-    // assert_eq!(blockchain_data.content, emulated_data.content);
+        //     log::error!("MINTER CODE {:?}",minter_lib );
 
-    Ok(())
+        //     log::error!("MINTER DATA {:?}",minter_lib_data );
+        // let wallet_lib_address =
+        //     TonAddress::from_base64_url("Ef-jvwR2OmH6ZF3xtg6cAx5Q4sFOAboZEoYI3vdVmqGLHziX")?;
+        // let wallet_lib = factory
+        //     .get_contract(&wallet_lib_address)
+        //     .get_code_cell()
+        //     .await?;
+        // let wallet_lib_data = factory
+        //     .get_contract(&wallet_lib_address)
+        //     .get_data_cell()
+        //     .await?;
+
+        //     log::error!("WALLET CODE {:?}",wallet_lib );
+
+        //     log::error!("WALLET DATA {:?}",wallet_lib_data );
+
+        // let mut emulator: TvmEmulator = TvmEmulator::new(&code, &data)?;
+        // emulator.set_libraries(wallet_lib)?;
+        // emulator.set_libraries(minter_lib)?;
+
+        // let method = "get_jetton_data";
+
+        // let emulator_result = emulator.run_get_method(method, None)?;
+
+        // log::info!("{:?}", emulator_result);
+
+        //    let emulated_data = emulate_get_jetton_data(&code, &data)?;
+
+        // log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+
+        // assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
+        // assert_eq!(blockchain_data.mintable, emulated_data.mintable);
+        // assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
+        // assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
+        // assert_eq!(blockchain_data.content, emulated_data.content);
+
+        Ok(())
+    }
 }

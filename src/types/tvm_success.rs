@@ -1,3 +1,4 @@
+use crate::cell::ArcCell;
 use crate::types::TvmStackEntry;
 
 #[derive(Debug)]
@@ -19,4 +20,16 @@ impl TvmSuccess {
     pub fn exit_error(&self) -> bool {
         !self.exit_success()
     }
+}
+
+#[derive(Debug)]
+pub struct TvmMsgSuccess {
+    pub new_code: ArcCell,
+    pub new_data: ArcCell,
+    pub accepted: bool,
+    pub vm_exit_code: i32,
+    pub vm_log: Option<String>,
+    pub missing_library: Option<String>,
+    pub gas_used: i32,
+    pub actions: Option<ArcCell>,
 }

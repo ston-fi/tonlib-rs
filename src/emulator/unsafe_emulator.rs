@@ -53,7 +53,7 @@ impl TvmEmulatorUnsafe {
         Ok(json_str.to_string())
     }
 
-    fn _send_internal_message(
+    pub fn send_internal_message(
         &mut self,
         message: &[u8],
         amount: u64,
@@ -62,18 +62,18 @@ impl TvmEmulatorUnsafe {
         let c_str = unsafe {
             tvm_emulator_send_internal_message(self.ptr, message_encoded.into_raw(), amount)
         };
-        let __str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
-        (unimplemented!());
-        //Ok(str.to_string())
+        let json_str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
+        log::trace!("response {}", json_str);
+        Ok(json_str.to_string())
     }
 
-    fn _send_external_message(&mut self, message: &[u8]) -> Result<String, TvmEmulatorError> {
+    pub fn send_external_message(&mut self, message: &[u8]) -> Result<String, TvmEmulatorError> {
         let message_encoded = CString::new(STANDARD.encode(message))?;
         let c_str =
             unsafe { tvm_emulator_send_external_message(self.ptr, message_encoded.into_raw()) };
-        let _str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
-        (unimplemented!());
-        //Ok(str.to_string())
+        let json_str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
+        log::trace!("response {}", json_str);
+        Ok(json_str.to_string())
     }
 
     fn _set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
