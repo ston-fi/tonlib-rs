@@ -69,8 +69,6 @@ integration_test:
     - cargo nextest run --retries=50 --release  --features "emulate_get_method"
   tags:
     - zen4
-  rules:
-    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
   when: manual
 
 test-mr:
