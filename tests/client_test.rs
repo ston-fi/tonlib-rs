@@ -342,7 +342,7 @@ async fn test_get_shard_transactions_works() -> anyhow::Result<()> {
     let shards = assert_ok!(client.get_block_shards(&info.last).await);
     assert!(!shards.shards.is_empty());
     let txs = assert_ok!(client.get_shard_transactions(&shards.shards[0]).await);
-    assert!(txs.len() > 0);
+    assert!(!txs.is_empty());
     println!("{:?}", txs);
     Ok(())
 }
@@ -361,7 +361,7 @@ async fn test_get_shard_transactions_parse_address_correctly() -> anyhow::Result
         file_hash: "VrzW8+EtGDYiaSiYQEou9N5+YWF2CeBzxmAMXUOZ5mE=".to_string(),
     };
     let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
-    assert!(txs.len() > 0);
+    assert!(!txs.is_empty());
     println!("{:?}", txs);
     Ok(())
 }

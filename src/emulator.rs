@@ -5,10 +5,11 @@ pub use error::*;
 use num_bigint::Sign;
 pub use unsafe_emulator::*;
 
+use self::types::TvmEmulatorMessageResponse;
 use crate::address::TonAddress;
 use crate::cell::{BagOfCells, Cell, CellBuilder};
 use crate::emulator::types::TvmEmulatorResponse;
-use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
+use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 mod error;
 mod types;
@@ -132,6 +133,28 @@ impl TvmEmulator {
         //         "Unable to set library".to_string(),
         //     )),
         // }
+    }
+
+    pub fn send_internal_message(
+        &mut self,
+        msg: Cell,
+        amount: u64,
+    ) -> Result<TvmMsgSuccess, TvmEmulatorError> {
+        let msg_serialized = BagOfCells::from_root(msg).serialize(false)?;
+        let msg_result = self
+            .emulator
+            .send_internal_message(msg_serialized.as_slice(), amount)?;
+        let response = TvmEmulatorMessageResponse::from_json(msg_result.as_str());
+        response
+    }
+
+    pub fn send_external_message(&mut self, msg: Cell) -> Result<TvmMsgSuccess, TvmEmulatorError> {
+        let msg_serialized = BagOfCells::from_root(msg).serialize(false)?;
+        let msg_result = self
+            .emulator
+            .send_external_message(msg_serialized.as_slice())?;
+        let response = TvmEmulatorMessageResponse::from_json(msg_result.as_str());
+        response
     }
 
     pub fn run_get_method(

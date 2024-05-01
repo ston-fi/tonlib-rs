@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::TvmEmulatorError;
 use crate::cell::{BagOfCells, CellSlice};
-use crate::types::{TvmStackEntry, TvmSuccess};
+use crate::types::{TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -122,5 +122,88 @@ impl TvmEmulatorResponse {
         }
         stack.reverse();
         Ok(stack)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) struct TvmEmulatorMessageResponse {
+    success: bool,
+    new_code: Option<String>,
+    new_data: Option<String>,
+    accepted: Option<bool>,
+    vm_exit_code: Option<i32>,
+    vm_log: Option<String>,
+    missing_library: Option<String>,
+    gas_used: Option<String>,
+    actions: Option<String>,
+    error: Option<String>,
+}
+
+impl TvmEmulatorMessageResponse {
+    pub fn from_json(json_str: &str) -> Result<TvmMsgSuccess, TvmEmulatorError> {
+        let response: TvmEmulatorMessageResponse = serde_json::from_str(json_str)?;
+
+        match response.success {
+            true => {
+                let new_code_string = response
+                    .new_code
+                    .ok_or(TvmEmulatorError::MissingJsonField("new_code"))?;
+                let new_data_string = response
+                    .new_data
+                    .ok_or(TvmEmulatorError::MissingJsonField("new_data"))?;
+
+                let accepted = response
+                    .accepted
+                    .ok_or(TvmEmulatorError::MissingJsonField("accepted"))?;
+
+                let vm_log = response
+                    .vm_log
+                    .ok_or(TvmEmulatorError::MissingJsonField("vm_log"))?;
+                let vm_exit_code = response
+                    .vm_exit_code
+                    .ok_or(TvmEmulatorError::MissingJsonField("vm_exit_code"))?;
+
+                let missing_library = response.missing_library;
+
+                let gas_used = response
+                    .gas_used
+                    .ok_or(TvmEmulatorError::MissingJsonField("gas_used"))?
+                    .parse::<i32>()
+                    .map_err(|e| TvmEmulatorError::InternalError(e.to_string()))?;
+
+                let actions_sting = response.actions;
+
+                let new_code = BagOfCells::parse_base64(&new_code_string)?
+                    .single_root()?
+                    .clone();
+                let new_data = BagOfCells::parse_base64(&new_data_string)?
+                    .single_root()?
+                    .clone();
+
+                let actions = if let Some(str) = actions_sting {
+                    Some(BagOfCells::parse_base64(&str)?.single_root()?.clone())
+                } else {
+                    None
+                };
+
+                Ok(TvmMsgSuccess {
+                    new_code,
+                    new_data,
+                    accepted,
+                    vm_exit_code,
+                    vm_log: Some(vm_log),
+                    missing_library,
+                    gas_used,
+                    actions,
+                })
+            }
+            false => {
+                let error = response
+                    .error
+                    .ok_or(TvmEmulatorError::MissingJsonField("error"))?;
+                Err(TvmEmulatorError::EmulatorError(error))
+            }
+        }
     }
 }
