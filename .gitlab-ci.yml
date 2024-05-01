@@ -10,7 +10,6 @@ workflow:
 
 stages:
   - test
-  - release
 
 variables:
   FF_USE_FASTZIP: 1
@@ -19,79 +18,87 @@ variables:
   RUSTFLAGS: "-D warnings -C target-cpu=znver2"
   TARGET_CPU_MARCH: "znver2"
 
+
+.snippets:
+  get-cache:
+    - |
+      if [ "$CI_COMMIT_REF_NAME" != "$CI_DEFAULT_BRANCH" ]; then
+        export CACHE_FALLBACK_KEY="cache-$CI_DEFAULT_BRANCH-$CI_RUNNER_ID-non-protected";
+      else
+        export CACHE_FALLBACK_KEY="cache-main-$CI_RUNNER_ID-protected";
+      fi
+      echo "Using cache key: cache-$CI_COMMIT_REF_SLUG"
+      echo "Fallback cache key: $CACHE_FALLBACK_KEY"
+
 cache:
   key: shared-cache
   paths:
     - target/
     - .cargo/
+  
 
-test-branch:
+test:
   stage: test
+  before_script:
+    - !reference [.snippets, get-cache]  
   script:
     - cargo fmt --check
-    - cargo clippy    
-    - cargo clippy --features "state_cache"
-    - cargo clippy --features "emulate_get_method"
-    - cargo rustc -- -D warnings
-    - cargo rustc --features "state_cache" -- -D warnings
-    - cargo rustc --features "emulate_get_method" -- -D warnings
+    - cargo clippy --release   
+    - cargo clippy --features "state_cache" --release
+    - cargo clippy --features "emulate_get_method" --release
+ 
+    - cargo build --release
+    - cargo build --release --features "state_cache"
+    - cargo build --release --features "emulate_get_method"
+    - cargo test --lib
     - cargo test --lib --features "state_cache"
+    - cargo test --lib --features "emulate_get_method"
   tags:
-    - ston
+    - zen4
   rules:
     - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
 
+integration_test:
+  stage: test
+  before_script:
+    - !reference [.snippets, get-cache]
+  script:
+    - cargo install cargo-nextest
+    - cargo nextest run --retries=50 --release  
+    - cargo nextest run --retries=50 --release  --features "state_cache"
+    - cargo nextest run --retries=50 --release  --features "emulate_get_method"
+  tags:
+    - zen4
+  rules:
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
+  when: manual
+
 test-mr:
   tags:
-    - ston
+    - zen4
   stage: test
+  before_script:
+    - !reference [.snippets, get-cache]
   script:
     - cargo fmt --check
-    - cargo clippy    
-    - cargo clippy --features "state_cache"
-    - cargo clippy --features "emulate_get_method"
-    - cargo rustc -- -D warnings
-    - cargo rustc --features "state_cache" -- -D warnings
-    - cargo rustc --features "emulate_get_method" -- -D warnings
-    - cargo test --lib --all-features -- --test-threads=1
+    - cargo clippy --release  
+    - cargo clippy --release --features "state_cache"
+    - cargo clippy --release --features "emulate_get_method"
+    - cargo build --release  
+    - cargo build --release --features "state_cache" 
+    - cargo rustc --release --features "emulate_get_method"
+    - cargo test --lib --all-features
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
 
 test-master:
   tags:
-    - ston
+    - zen4
   stage: test
   script:
     - cargo fmt --check
     - cargo rustc --all-features -- -D warnings
-    - cargo test --lib --all-features -- --test-threads=1
+    - cargo test --lib --all-features
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-release-master:
-  tags:
-    - ston
-  stage: release
-  variables:
-    GIT_STRATEGY: clone
-  before_script:
-    - 'git remote set-url origin https://$CI_REPOSITORY_USER:$CI_REPOSITORY_TOKEN@git.stonfi.net/$CI_PROJECT_PATH.git'
-    - 'git config --global user.name "ci"'
-    - 'git config --global user.email "ci@stonfi.net"'
-    - 'git config push.pushOption "ci.skip"'
-  script:
-    - git checkout $CI_BUILD_REF_NAME
-    - cargo fmt --check
-    - cargo rustc --all-features -- -D warnings
-    - cargo test --lib --all-features -- --test-threads=1
-    - cargo release release --execute --no-publish --no-confirm
-    - export VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0]["version"]')
-    - echo "Released version $VERSION"
-    - export MAJOR_MINOR=$(echo $VERSION | cut -d "." -f1,2)
-    - export PATCH=$(echo $VERSION | cut -d "." -f3)
-    - export NEW_VERSION="$MAJOR_MINOR.$((PATCH+1))-dev"
-    - echo "Starting next development iteration $NEW_VERSION"
-    - cargo release $NEW_VERSION --execute --no-publish --no-confirm --no-tag
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  when: manual
