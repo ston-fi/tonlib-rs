@@ -6,6 +6,7 @@ use hmac::digest::InvalidLength;
 use num_bigint::BigInt;
 use pbkdf2::password_hash::Error;
 use reqwest::StatusCode;
+use tokio_test::assert_ok;
 use tonlib::address::{TonAddress, TonAddressParseError};
 use tonlib::cell::{CellBuilder, CellSlice, TonCellError};
 use tonlib::client::TonClientError;
@@ -24,27 +25,26 @@ mod common;
 // This test is used to demonstrate all available errors.
 #[test]
 #[ignore]
-fn test_all_error_output() -> anyhow::Result<()> {
+fn test_all_error_output() {
     test_ton_address_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_cell_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_client_error_output();
-    println!("-------------------------------------------------------------\n");
-    test_ton_contract_error_output()?;
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
+    test_ton_contract_error_output();
+    log::info!("-------------------------------------------------------------\n");
     test_ton_message_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_meta_loader_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_message_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_tvm_stack_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_tl_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_internal_txid_parse_error_output();
-    Ok(())
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn test_ton_client_error_output() {
 
 #[test]
 #[ignore]
-fn test_ton_contract_error_output() -> anyhow::Result<()> {
+fn test_ton_contract_error_output() {
     common::init_logging();
     log::error!(
         "{}",
@@ -191,16 +191,15 @@ fn test_ton_contract_error_output() -> anyhow::Result<()> {
         }
     );
 
-    let cell = CellBuilder::new()
-        .store_address(&TonAddress::null())?
-        .build()?;
+    let cell =
+        assert_ok!(assert_ok!(CellBuilder::new().store_address(&TonAddress::null())).build());
     log::error!(
         "{}",
         TonContractError::TvmRunError {
             method: "some_get_method".into(),
             gas_used: 300,
             stack: vec![
-                TvmStackEntry::Slice(CellSlice::full_cell(cell.clone())?),
+                TvmStackEntry::Slice(assert_ok!(CellSlice::full_cell(cell.clone()))),
                 TvmStackEntry::Cell(Arc::new(cell)),
                 TvmStackEntry::Int257(BigInt::from(1234566789)),
             ],
@@ -210,7 +209,6 @@ fn test_ton_contract_error_output() -> anyhow::Result<()> {
             address: TonAddress::null(),
         }
     );
-    Ok(())
 }
 
 #[test]

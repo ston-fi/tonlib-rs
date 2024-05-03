@@ -64,9 +64,9 @@ integration_test:
     - !reference [.snippets, get-cache]
   script:
     - cargo install cargo-nextest
-    - cargo nextest run --retries=50 --release  
-    - cargo nextest run --retries=50 --release  --features "state_cache"
-    - cargo nextest run --retries=50 --release  --features "emulate_get_method"
+    - cargo nextest run --release  
+    - cargo nextest run --release --features "state_cache"
+    - cargo nextest run --release --features "emulate_get_method"
   tags:
     - zen4
   when: manual
