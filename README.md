@@ -20,6 +20,12 @@ Rust SDK for [The Open Network](https://ton.org/)
 
 `tonlib-sys` - https://github.com/ston-fi/tonlib-sys
 
+For macOS must be preinstalled next components:
+```shell
+brew install --cask mactex
+brew install readline secp256k1 ccache pkgconfig cmake libsodium
+```
+
 ### Build library
 
 You can build the library using the following command:
