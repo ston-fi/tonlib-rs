@@ -15,6 +15,7 @@ include = [
 default=[]
 state_cache = []
 emulate_get_method = []
+no_avx512 = ["tonlib-sys/no_avx512"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -45,7 +46,7 @@ reqwest = "0.12"
 thiserror = "1"
 tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
-tonlib-sys = "=2024.3.5"
+tonlib-sys = "=2024.3.6"
 
 [dev-dependencies]
 anyhow = "1"
