@@ -1,6 +1,8 @@
+use std::sync::Arc;
 #[cfg(feature = "state_cache")]
 use std::time::Duration;
 
+use super::{DefaultLibraryLoader, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
@@ -13,6 +15,7 @@ pub struct TonContractFactoryBuilder {
     txid_cache_capacity: u64,
     txid_cache_time_to_live: Duration,
     presync_blocks: i32,
+    library_provider: LibraryProvider,
 }
 
 #[cfg(feature = "state_cache")]
@@ -26,6 +29,8 @@ impl TonContractFactoryBuilder {
     const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
 
     pub(crate) fn new(client: &TonClient) -> Self {
+        let loader = DefaultLibraryLoader::new(client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
         TonContractFactoryBuilder {
             client: client.clone(),
             with_cache: false,
@@ -34,6 +39,7 @@ impl TonContractFactoryBuilder {
             txid_cache_capacity: 0,
             txid_cache_time_to_live: Duration::default(),
             presync_blocks: Self::DEFAULT_PRESYNC_BLOCKS,
+            library_provider,
         }
     }
 
@@ -90,6 +96,7 @@ impl TonContractFactoryBuilder {
             self.txid_cache_capacity,
             self.txid_cache_time_to_live,
             self.presync_blocks,
+            self.library_provider.clone(),
         )
         .await
     }
@@ -98,16 +105,35 @@ impl TonContractFactoryBuilder {
 #[cfg(not(feature = "state_cache"))]
 pub struct TonContractFactoryBuilder {
     client: TonClient,
+    library_provider: LibraryProvider,
 }
 
 #[cfg(not(feature = "state_cache"))]
 impl TonContractFactoryBuilder {
-    pub(crate) fn new(client: &TonClient) -> Self {
+    pub(crate) fn new(client: &TonClient) -> TonContractFactoryBuilder {
+        let loader = DefaultLibraryLoader::new(client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
         TonContractFactoryBuilder {
             client: client.clone(),
+            library_provider,
         }
     }
+
     pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
-        TonContractFactory::new(&self.client).await
+        TonContractFactory::new(&self.client, &self.library_provider).await
+    }
+}
+
+impl TonContractFactoryBuilder {
+    pub fn with_default_library_provider(&mut self) -> &mut Self {
+        let loader = DefaultLibraryLoader::new(&self.client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
+        self.library_provider = library_provider;
+        self
+    }
+
+    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
+        self.library_provider = library_provider.clone();
+        self
     }
 }

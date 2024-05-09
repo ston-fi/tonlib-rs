@@ -57,14 +57,14 @@ mod contract_emulator_tests {
         let admin_address = assert_ok!(stack[2].get_address());
         let content = assert_ok!(MetaDataContent::parse(&assert_ok!(stack[3].get_cell())));
         let wallet_code = assert_ok!(stack[4].get_cell());
-        let data = JettonData {
+
+        JettonData {
             total_supply,
             mintable,
             admin_address,
             content,
             wallet_code,
-        };
-        data
+        }
     }
 
     #[tokio::test]

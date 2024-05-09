@@ -483,25 +483,27 @@ mod contract_emulator_tests {
         log::info! {"{:?}", minter_lib};
     }
 
+    #[cfg(feature = "emulate_get_method")]
     #[tokio::test]
     async fn test_emulator_contract_with_library() {
         common::init_logging();
         let client = common::new_mainnet_client().await;
 
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8"
-        )); //jetton master
+        let address =
+            TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
+
         let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
         let contract = factory.get_contract(&address);
-        let state = assert_ok!(factory.client().smc_load(&address).await);
-
-        let code = assert_ok!(state.conn.smc_get_code(state.id).await);
-        let data = assert_ok!(state.conn.smc_get_data(state.id).await);
         let blockchain_data = assert_ok!(contract.get_jetton_data().await);
 
-        log::info! {"Code cell: {:?}", code};
-        log::info! {"Data cell:{:?}", data};
+        let factory_with_library_loader =
+            assert_ok!(TonContractFactory::builder(&client).build().await);
+        let contract_with_library_loader = factory_with_library_loader.get_contract(&address);
+        let emulated_data = assert_ok!(contract_with_library_loader.get_jetton_data().await);
 
-        log::info! {"Jetton data: {:?}", blockchain_data};
+        log::info! {"Blockchain Jetton data: {:?}", blockchain_data};
+        log::info! {"Emulated Jetton data: {:?}", blockchain_data};
+
+        assert_eq!(blockchain_data, emulated_data);
     }
 }
