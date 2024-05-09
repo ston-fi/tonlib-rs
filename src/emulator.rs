@@ -122,17 +122,18 @@ impl TvmEmulator {
         }
     }
 
-    fn _set_libraries(&mut self, _libraries: Vec<u8>) -> Result<&mut Self, TvmEmulatorError> {
-        // todo: change prototype
-        // todo parse libraries here to Vec<u8>, parameter of this fn myst have more specific type
-        unimplemented!();
-        // let result = self.emulator.set_libraries(libraries)?;
-        // match result {
-        //     true => Ok(self),
-        //     false => Err(TvmEmulatorError::InternalError(
-        //         "Unable to set library".to_string(),
-        //     )),
-        // }
+    pub fn set_libraries(&mut self, libraries: &[u8]) -> Result<&mut Self, TvmEmulatorError> {
+        if libraries.is_empty() {
+            return Ok(self);
+        }
+        let res = self.emulator.set_libraries(libraries)?;
+        if res {
+            Ok(self)
+        } else {
+            Err(TvmEmulatorError::EmulatorError(
+                "Couldn't set libraries".to_string(),
+            ))
+        }
     }
 
     pub fn send_internal_message(
@@ -165,13 +166,6 @@ impl TvmEmulator {
         let stack_boc = Self::build_stack_boc(stack)?;
         let run_result = self.emulator.run_get_method(method.to_id(), &stack_boc)?;
         let response = TvmEmulatorResponse::from_json(run_result.as_str())?;
-
-        // Should we hangle it here or level above?
-        if let Some(missing_lib) = response.missing_library {
-            let a = TonAddress::from_hex_str(missing_lib.as_str());
-
-            panic!("{:?}", a)
-        }
 
         Ok(response)
     }

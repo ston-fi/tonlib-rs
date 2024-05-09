@@ -5,6 +5,7 @@ use std::time::Duration;
 pub use builder::*;
 #[cfg(feature = "state_cache")]
 pub use cache::*;
+pub use library_loader::*;
 pub use library_provider::*;
 use tokio::sync::OnceCell;
 
@@ -16,6 +17,7 @@ use crate::tl::{ConfigInfo, InternalTransactionId, RawFullAccountState};
 mod builder;
 #[cfg(feature = "state_cache")]
 mod cache;
+mod library_loader;
 mod library_provider;
 
 #[derive(Clone)]
@@ -26,6 +28,7 @@ pub struct TonContractFactory {
 struct Inner {
     client: TonClient,
     config_info: OnceCell<ConfigInfo>,
+    library_provider: LibraryProvider,
     #[cfg(feature = "state_cache")]
     cache: Option<ContractFactoryCache>,
 }
@@ -45,6 +48,7 @@ impl TonContractFactory {
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
         presync_blocks: i32,
+        library_provider: LibraryProvider,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
             let cache = ContractFactoryCache::new(
@@ -65,6 +69,7 @@ impl TonContractFactory {
             client: client.clone(),
             config_info,
             cache,
+            library_provider,
         };
 
         Ok(TonContractFactory {
@@ -72,11 +77,15 @@ impl TonContractFactory {
         })
     }
     #[cfg(not(feature = "state_cache"))]
-    pub(crate) async fn new(client: &TonClient) -> Result<TonContractFactory, TonContractError> {
+    pub(crate) async fn new(
+        client: &TonClient,
+        library_provider: &LibraryProvider,
+    ) -> Result<TonContractFactory, TonContractError> {
         let config_info = OnceCell::const_new();
         let inner = Inner {
             client: client.clone(),
             config_info,
+            library_provider: library_provider.clone(),
         };
         Ok(TonContractFactory {
             inner: Arc::new(inner),
@@ -96,8 +105,8 @@ impl TonContractFactory {
         Ok(c.config.bytes.as_slice())
     }
 
-    pub fn library_provider(&self) -> &LibraryProvider {
-        &DUMMY_LIBRARY_PROVIDER
+    pub fn library_provider(&self) -> LibraryProvider {
+        self.inner.library_provider.clone()
     }
 
     pub fn get_contract(&self, address: &TonAddress) -> TonContract {

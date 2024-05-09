@@ -64,6 +64,12 @@ pub enum TonContractError {
         missing_library: String,
     },
 
+    #[error("Library not found (Address: {address}, lib: {missing_library})")]
+    LibraryNotFound {
+        address: TonAddress,
+        missing_library: String,
+    },
+
     #[error(
         "Tvm stack parse  error (Method: {method}, address: {address}, stack error: {error:?})"
     )]

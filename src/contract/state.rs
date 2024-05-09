@@ -44,18 +44,17 @@ impl TonContractState {
         M: Into<TonMethodId> + Send + Copy,
         S: AsRef<[TvmStackEntry]> + Send,
     {
-        let run_result = self.emulate_get_method(method, stack.as_ref()).await?;
+        let run_result = self.emulate_get_method(method, stack.as_ref()).await;
 
-        if let Some(missing_library) = run_result.missing_library {
-            log::warn!(
-                "Missing library: (Method: {}, address: {}, library {} ",
-                method.into(),
-                self.address(),
-                missing_library
-            );
-            self.tonlib_run_get_method(method, stack).await
-        } else {
-            Ok(run_result)
+        match run_result {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                log::warn!(
+                    "Contract emulator returned error: {} \n Falling back to tonlib_run_get_method",
+                    e
+                );
+                self.tonlib_run_get_method(method, stack).await
+            }
         }
     }
 
@@ -90,6 +89,13 @@ impl TonContractState {
             0,
         )
         .build();
+
+        let libs = self
+            .factory
+            .library_provider()
+            .get_contract_libraries(&self.address, &self.account_state)
+            .await?;
+
         let run_result = unsafe {
             // Using unsafe to extend lifetime of references to method_id & stack.
             //
@@ -105,6 +111,7 @@ impl TonContractState {
                 let data = state.data.as_slice();
                 let mut emulator = TvmEmulator::new(code, data)?;
                 emulator.set_c7(&c7)?;
+                emulator.set_libraries(libs.dict_boc.as_slice())?;
                 let run_result = emulator.run_get_method(static_method_id, static_stack);
                 run_result
             })

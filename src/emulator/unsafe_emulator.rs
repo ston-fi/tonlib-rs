@@ -76,11 +76,10 @@ impl TvmEmulatorUnsafe {
         Ok(json_str.to_string())
     }
 
-    fn _set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
+    pub fn set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
         let libs_encoded = CString::new(STANDARD.encode(libs_boc))?;
-        let _success = unsafe { tvm_emulator_set_libraries(self.ptr, libs_encoded.into_raw()) };
-        unimplemented!();
-        //Ok(success)
+        let success = unsafe { tvm_emulator_set_libraries(self.ptr, libs_encoded.into_raw()) };
+        Ok(success)
     }
 
     pub fn set_c7(

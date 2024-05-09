@@ -268,9 +268,11 @@ pub trait TonClientInterface: Send + Sync {
 
     async fn smc_get_libraries_ext(
         &self,
-        list: Vec<SmcLibraryQueryExt>,
+        list: &[SmcLibraryQueryExt],
     ) -> Result<SmcLibraryResultExt, TonClientError> {
-        let func = TonFunction::SmcGetLibrariesExt { list };
+        let func = TonFunction::SmcGetLibrariesExt {
+            list: list.to_vec(),
+        };
         let result = self.invoke(&func).await?;
         match result {
             TonResult::SmcLibraryResultExt(r) => Ok(r),

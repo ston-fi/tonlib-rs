@@ -530,8 +530,7 @@ async fn client_smc_get_libraries_ext() {
 
     let library_hash = "TwFxJywhW4v4/urEaoV2iKS2X0/mH4IoYx9ifQ7anQA=";
 
-    let smc_libraries_ext_result =
-        assert_ok!(client.smc_get_libraries_ext(vec![library_query]).await);
+    let smc_libraries_ext_result = assert_ok!(client.smc_get_libraries_ext(&[library_query]).await);
 
     log::info!("smc_libraries_ext_result {:?}", smc_libraries_ext_result);
 
