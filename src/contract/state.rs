@@ -3,11 +3,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::address::TonAddress;
+use crate::cell::Cell;
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::{TvmEmulator, TvmEmulatorC7Builder};
 use crate::tl::RawFullAccountState;
-use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
+use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Clone)]
 pub struct TonContractState {
@@ -110,12 +111,40 @@ impl TonContractState {
             .await
             .map_err(|e| TonContractError::InternalError(e.to_string()))?
         }
-        .map_err(|e| TonContractError::EmulatorError {
+        .map_err(|e| TonContractError::MethodEmulationError {
             method: method_id.to_string(),
             address: self.address().clone(),
             error: e,
         });
         Self::raise_exit_error(self.address(), method_id, run_result?)
+    }
+
+    pub async fn emulate_internal_message(
+        &self,
+        message: Cell,
+        amount: u64,
+    ) -> Result<TvmMsgSuccess, TonContractError> {
+        let state = self.account_state.clone();
+        let c7 = TvmEmulatorC7Builder::new(
+            &self.address,
+            self.factory.get_config_cell_serial().await?,
+            0,
+        )
+        .build();
+        let run_result = tokio::task::spawn_blocking(move || {
+            let code = state.code.as_slice();
+            let data = state.data.as_slice();
+            let mut emulator = TvmEmulator::new(code, data)?;
+            emulator.set_c7(&c7)?;
+            emulator.send_internal_message(message, amount)
+        })
+        .await
+        .map_err(|e| TonContractError::InternalError(e.to_string()))?
+        .map_err(|e| TonContractError::MessageEmulationError {
+            address: self.address().clone(),
+            error: e,
+        });
+        run_result
     }
 
     pub async fn tonlib_run_get_method<M, S>(

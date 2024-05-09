@@ -21,9 +21,15 @@ pub enum TonContractError {
     #[error("TonClientError ({0})")]
     ClientError(#[from] TonClientError),
 
-    #[error("Emulator error (Method: {method}, address: {address}, error {error}")]
-    EmulatorError {
+    #[error("Method emulation error (Method: {method}, address: {address}, error {error}")]
+    MethodEmulationError {
         method: String,
+        address: TonAddress,
+        error: TvmEmulatorError,
+    },
+
+    #[error("Message emulation error (address: {address}, error {error}")]
+    MessageEmulationError {
         address: TonAddress,
         error: TvmEmulatorError,
     },
