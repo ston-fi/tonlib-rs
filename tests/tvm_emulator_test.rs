@@ -424,7 +424,7 @@ mod contract_emulator_tests {
     }
 
     #[tokio::test]
-    async fn emulate_internal_transfer_message() {
+    async fn emulate_internal_transfer_message() -> anyhow::Result<()> {
         common::init_logging();
         let client = common::new_mainnet_client().await;
 
@@ -450,6 +450,7 @@ mod contract_emulator_tests {
         log::info!("RES: {:?}", r);
         assert_eq!(r.gas_used, 2779);
         assert_eq!(r.vm_exit_code, 65535);
+        Ok(())
     }
 
     #[tokio::test]
@@ -502,62 +503,5 @@ mod contract_emulator_tests {
         log::info! {"Data cell:{:?}", data};
 
         log::info! {"Jetton data: {:?}", blockchain_data};
-
-        // let other_lib_address =
-        //     TonAddress::from_base64_url("EQBPAXEnLCFbi_j-6sRqhXaIpLZfT-YfgihjH2J9DtqdAInN")?;
-        // let other_lib = factory
-        //     .get_contract(&other_lib_address)
-        //     .get_code_cell()
-        //     .await?;
-
-        // let minter_lib_address =
-        //     TonAddress::from_base64_url("Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_")?;
-        // let minter_lib = factory
-        //     .get_contract(&minter_lib_address)
-        //     .get_code_cell()
-        //     .await?;
-
-        // let minter_lib_data = factory
-        //     .get_contract(&minter_lib_address)
-        //     .get_data_cell()
-        //     .await?;
-
-        //     log::error!("MINTER CODE {:?}",minter_lib );
-
-        //     log::error!("MINTER DATA {:?}",minter_lib_data );
-        // let wallet_lib_address =
-        //     TonAddress::from_base64_url("Ef-jvwR2OmH6ZF3xtg6cAx5Q4sFOAboZEoYI3vdVmqGLHziX")?;
-        // let wallet_lib = factory
-        //     .get_contract(&wallet_lib_address)
-        //     .get_code_cell()
-        //     .await?;
-        // let wallet_lib_data = factory
-        //     .get_contract(&wallet_lib_address)
-        //     .get_data_cell()
-        //     .await?;
-
-        //     log::error!("WALLET CODE {:?}",wallet_lib );
-
-        //     log::error!("WALLET DATA {:?}",wallet_lib_data );
-
-        // let mut emulator: TvmEmulator = TvmEmulator::new(&code, &data)?;
-        // emulator.set_libraries(wallet_lib)?;
-        // emulator.set_libraries(minter_lib)?;
-
-        // let method = "get_jetton_data";
-
-        // let emulator_result = emulator.run_get_method(method, None)?;
-
-        // log::info!("{:?}", emulator_result);
-
-        //    let emulated_data = emulate_get_jetton_data(&code, &data)?;
-
-        // log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
-
-        // assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
-        // assert_eq!(blockchain_data.mintable, emulated_data.mintable);
-        // assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
-        // assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
-        // assert_eq!(blockchain_data.content, emulated_data.content);
     }
 }
