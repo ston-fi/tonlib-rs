@@ -489,8 +489,9 @@ mod contract_emulator_tests {
         common::init_logging();
         let client = common::new_mainnet_client().await;
 
-        let address =
-            TonAddress::from_base64_url("EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8")?; //jetton master
+        let address = assert_ok!(TonAddress::from_base64_url(
+            "EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8"
+        )); //jetton master
 
         let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
         let contract = factory.get_contract(&address);
