@@ -151,13 +151,13 @@ mod tests {
     fn mnemonic_parse_works() -> anyhow::Result<()> {
         let words = "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game";
         let mnemonic = Mnemonic::from_str(words, &None);
-        assert_eq!(mnemonic.is_err(), false);
+        assert!(mnemonic.is_ok());
 
         let words = " dose ice enrich trigger test dove \
         century still betray gas diet       dune use other base gym mad law \
         immense village world example praise game ";
         let mnemonic = Mnemonic::from_str(words, &None);
-        assert_eq!(mnemonic.is_err(), false);
+        assert!(mnemonic.is_ok());
         Ok(())
     }
 
@@ -170,9 +170,9 @@ mod tests {
             ],
             &None,
         );
-        assert_eq!(mnemonic.is_err(), true);
+        assert!(mnemonic.is_err());
         let mnemonic = Mnemonic::new(vec!["a"], &None);
-        assert_eq!(mnemonic.is_err(), true);
+        assert!(mnemonic.is_err());
         Ok(())
     }
 

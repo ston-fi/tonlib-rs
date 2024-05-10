@@ -70,7 +70,7 @@ impl LatestContractTransactionsCache {
         // Find out what to sync
         let state = self
             .contract_factory
-            .get_account_state(&self.address)
+            .get_latest_account_state(&self.address)
             .await?;
         let last_tx_id = &state.last_transaction_id;
 
@@ -88,7 +88,7 @@ impl LatestContractTransactionsCache {
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
             let maybe_txs = self
                 .contract_factory
-                .get_client()
+                .client()
                 .get_raw_transactions_v2(&self.address, &next_to_load, batch_size, false)
                 .await;
             let txs = match maybe_txs {

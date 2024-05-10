@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 pub use error::*;
 pub use factory::*;
@@ -10,8 +12,8 @@ pub use wallet::*;
 
 use crate::address::TonAddress;
 use crate::client::TonClientInterface;
-use crate::tl::{InternalTransactionId, RawFullAccountState, SmcRunResult, TvmCell, TvmStackEntry};
-use crate::types::TonMethodId;
+use crate::tl::{InternalTransactionId, RawFullAccountState};
+use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
 
 mod error;
 mod factory;
@@ -35,10 +37,6 @@ impl TonContract {
         }
     }
 
-    pub async fn get_account_state(&self) -> Result<RawFullAccountState, TonContractError> {
-        self.factory.get_account_state(&self.address).await
-    }
-
     pub async fn get_account_state_by_transaction(
         &self,
         transaction_id: &InternalTransactionId,
@@ -49,7 +47,10 @@ impl TonContract {
     }
 
     pub async fn get_state(&self) -> Result<TonContractState, TonContractError> {
-        let r = self.factory.get_contract_state(&self.address).await?;
+        let r = self
+            .factory
+            .get_latest_contract_state(&self.address)
+            .await?;
         Ok(r)
     }
 
@@ -67,37 +68,27 @@ impl TonContract {
 
 #[async_trait]
 impl TonContractInterface for TonContract {
-    fn client(&self) -> &dyn TonClientInterface {
-        self.factory.get_client()
+    fn factory(&self) -> &TonContractFactory {
+        &self.factory
     }
 
     fn address(&self) -> &TonAddress {
         &self.address
     }
 
-    async fn get_code_cell(&self) -> Result<TvmCell, TonContractError> {
-        let state = self.get_state().await?;
-        let result = state.get_code_cell().await?;
-        Ok(result)
+    async fn get_account_state(&self) -> Result<Arc<RawFullAccountState>, TonContractError> {
+        self.factory.get_latest_account_state(self.address()).await
     }
 
-    async fn get_data_cell(&self) -> Result<TvmCell, TonContractError> {
-        let state = self.get_state().await?;
-        let result = state.get_data_cell().await?;
-        Ok(result)
-    }
-
-    async fn get_state_cell(&self) -> Result<TvmCell, TonContractError> {
-        let state = self.get_state().await?;
-        let result = state.get_state_cell().await?;
-        Ok(result)
-    }
-
-    async fn run_get_method<A: Into<TonMethodId> + Send>(
+    async fn run_get_method<M, S>(
         &self,
-        method: A,
-        stack: &Vec<TvmStackEntry>,
-    ) -> Result<SmcRunResult, TonContractError> {
+        method: M,
+        stack: S,
+    ) -> Result<TvmSuccess, TonContractError>
+    where
+        M: Into<TonMethodId> + Send + Copy,
+        S: AsRef<[TvmStackEntry]> + Send,
+    {
         let state = self.get_state().await?;
         let result = state.run_get_method(method, stack).await?;
         Ok(result)

@@ -2,6 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::address::TonAddressParseError;
 use crate::tl::{TlError, TonResult, TonResultDiscriminants};
 
 #[derive(Error, Debug)]
@@ -27,6 +28,9 @@ pub enum TonClientError {
 
     #[error("TlError: ({0})")]
     TlError(#[from] TlError),
+
+    #[error("TonAddressParseError: ({0})")]
+    TonAddressParseError(#[from] TonAddressParseError),
 }
 
 impl TonClientError {

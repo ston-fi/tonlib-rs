@@ -1,5 +1,6 @@
-use core::fmt;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
 use std::ops::Deref;
@@ -56,6 +57,15 @@ impl Cell {
     }
 
     #[allow(clippy::let_and_return)]
+    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
+    where
+        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
+    {
+        let mut parser = self.parser();
+        let res = parse(&mut parser);
+        res
+    }
+
     pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
     where
         F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
@@ -63,16 +73,6 @@ impl Cell {
         let mut reader = self.parser();
         let res = parse(&mut reader);
         reader.ensure_empty()?;
-        res
-    }
-
-    #[allow(clippy::let_and_return)]
-    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut reader = self.parser();
-        let res = parse(&mut reader);
         res
     }
 
@@ -181,7 +181,6 @@ impl Cell {
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
     pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
-        //todo: #79 key in hashmap must be [u8;32]
         let dict_loader = GenericDictLoader::new(
             key_extractor_256bit,
             value_extractor_snake_formatted_string,
@@ -221,16 +220,16 @@ impl Cell {
         let mut cell: &Cell = self;
         let mut first_cell = true;
         loop {
-            let mut reader = cell.parser();
-            let first_byte = reader.load_uint(8)?.to_u32().unwrap();
+            let mut parser = cell.parser();
+            let first_byte = parser.load_uint(8)?.to_u32().unwrap();
 
             if first_cell && first_byte != 0 {
                 return Err(TonCellError::boc_deserialization_error(
                     "Invalid snake format",
                 ));
             }
-            let remaining_bytes = reader.remaining_bytes();
-            let mut data = reader.load_bytes(remaining_bytes)?;
+            let remaining_bytes = parser.remaining_bytes();
+            let mut data = parser.load_bytes(remaining_bytes)?;
             buffer.append(&mut data);
             match cell.references.len() {
                 0 => return Ok(()),
@@ -341,8 +340,8 @@ impl Cell {
     }
 }
 
-impl fmt::Debug for Cell {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for Cell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "Cell{{ data: [{}], bit_len: {}, references: [\n",

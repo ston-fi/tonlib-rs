@@ -1,20 +1,24 @@
 use std::ffi::CString;
 use std::io;
+use std::sync::Arc;
 
 use hmac::digest::InvalidLength;
+use num_bigint::BigInt;
 use pbkdf2::password_hash::Error;
 use reqwest::StatusCode;
+use tokio_test::assert_ok;
 use tonlib::address::{TonAddress, TonAddressParseError};
-use tonlib::cell::TonCellError;
+use tonlib::cell::{CellBuilder, CellSlice, TonCellError};
 use tonlib::client::TonClientError;
 use tonlib::contract::TonContractError;
 use tonlib::message::TonMessageError;
 use tonlib::meta::{IpfsLoaderError, MetaDataContent, MetaLoaderError};
 use tonlib::mnemonic::MnemonicError;
 use tonlib::tl::{
-    InternalTransactionIdParseError, TlError, TonResultDiscriminants, TvmCell, TvmNumber, TvmSlice,
-    TvmStackEntry, TvmStackError,
+    InternalTransactionIdParseError, TlError, TonResultDiscriminants, TvmCell,
+    TvmStackEntry as TlTvmStackEntry, TvmStackError,
 };
+use tonlib::types::TvmStackEntry;
 
 mod common;
 
@@ -23,23 +27,23 @@ mod common;
 #[ignore]
 fn test_all_error_output() {
     test_ton_address_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_cell_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_client_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_contract_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_ton_message_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_meta_loader_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_message_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_tvm_stack_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_tl_error_output();
-    println!("-------------------------------------------------------------\n");
+    log::info!("-------------------------------------------------------------\n");
     test_internal_txid_parse_error_output();
 }
 
@@ -187,31 +191,24 @@ fn test_ton_contract_error_output() {
         }
     );
 
+    let cell =
+        assert_ok!(assert_ok!(CellBuilder::new().store_address(&TonAddress::null())).build());
     log::error!(
         "{}",
         TonContractError::TvmRunError {
             method: "some_get_method".into(),
             gas_used: 300,
             stack: vec![
-                TvmStackEntry::Slice {
-                    slice: TvmSlice {
-                        bytes: vec![0x00, 0x12, 0x34, 0x6, 0x78, 0xDE, 0xAD, 0xBE, 0xEF]
-                    }
-                },
-                TvmStackEntry::Cell {
-                    cell: TvmCell {
-                        bytes: vec![0x00, 0x12, 0x34, 0x6, 0x78, 0xDE, 0xAD, 0xBE, 0xEF]
-                    }
-                },
-                TvmStackEntry::Number {
-                    number: TvmNumber {
-                        number: "-987654321".to_string()
-                    }
-                },
+                TvmStackEntry::Slice(assert_ok!(CellSlice::full_cell(cell.clone()))),
+                TvmStackEntry::Cell(Arc::new(cell)),
+                TvmStackEntry::Int257(BigInt::from(1234566789)),
             ],
             exit_code: -123,
+            vm_log: None,
+            missing_library: None,
+            address: TonAddress::null(),
         }
-    )
+    );
 }
 
 #[test]
@@ -284,7 +281,7 @@ fn test_message_error_output() {
 #[ignore]
 fn test_tvm_stack_error_output() {
     common::init_logging();
-    let cell_entry: TvmStackEntry = TvmStackEntry::Cell {
+    let cell_entry = TlTvmStackEntry::Cell {
         cell: TvmCell { bytes: vec![0x00] },
     };
     log::error!(

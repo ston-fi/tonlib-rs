@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 
+use super::{SmcLibraryQueryExt, SmcLibraryResult, SmcLibraryResultExt, TonLibraryId};
 use crate::address::TonAddress;
 use crate::client::{TonClientError, TonConnection};
+use crate::contract::LoadedSmcState;
 use crate::tl::{
     AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, BlocksHeader,
     BlocksMasterchainInfo, BlocksShards, BlocksTransactions, BlocksTransactionsExt, ConfigInfo,
@@ -162,16 +164,19 @@ pub trait TonClientInterface: Send + Sync {
 
     async fn smc_load(
         &self,
-        account_address: &str,
-    ) -> Result<(TonConnection, i64), TonClientError> {
+        account_address: &TonAddress,
+    ) -> Result<LoadedSmcState, TonClientError> {
         let func = TonFunction::SmcLoad {
             account_address: AccountAddress {
-                account_address: String::from(account_address),
+                account_address: account_address.to_hex(),
             },
         };
         let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
-            TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
+            TonResult::SmcInfo(smc_info) => Ok(LoadedSmcState {
+                conn,
+                id: smc_info.id,
+            }),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::SmcInfo,
                 r,
@@ -180,18 +185,21 @@ pub trait TonClientInterface: Send + Sync {
     }
     async fn smc_load_by_transaction(
         &self,
-        account_address: &TonAddress,
-        transaction_id: &InternalTransactionId,
-    ) -> Result<(TonConnection, i64), TonClientError> {
+        address: &TonAddress,
+        tx_id: &InternalTransactionId,
+    ) -> Result<LoadedSmcState, TonClientError> {
         let func = TonFunction::SmcLoadByTransaction {
             account_address: AccountAddress {
-                account_address: account_address.to_hex(),
+                account_address: address.to_hex(),
             },
-            transaction_id: transaction_id.clone(),
+            transaction_id: tx_id.clone(),
         };
         let (conn, result) = self.invoke_on_connection(&func).await?;
         match result {
-            TonResult::SmcInfo(smc_info) => Ok((conn, smc_info.id)),
+            TonResult::SmcInfo(smc_info) => Ok(LoadedSmcState {
+                conn,
+                id: smc_info.id,
+            }),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::SmcInfo,
                 r,
@@ -236,6 +244,40 @@ pub trait TonClientInterface: Send + Sync {
             TonResult::TvmCell(cell) => Ok(cell),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::TvmCell,
+                r,
+            )),
+        }
+    }
+
+    async fn smc_get_libraries(
+        &self,
+        library_list: &[TonLibraryId],
+    ) -> Result<SmcLibraryResult, TonClientError> {
+        let func = TonFunction::SmcGetLibraries {
+            library_list: library_list.to_vec(),
+        };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::SmcLibraryResult(r) => Ok(r),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::SmcLibraryResult,
+                r,
+            )),
+        }
+    }
+
+    async fn smc_get_libraries_ext(
+        &self,
+        list: &[SmcLibraryQueryExt],
+    ) -> Result<SmcLibraryResultExt, TonClientError> {
+        let func = TonFunction::SmcGetLibrariesExt {
+            list: list.to_vec(),
+        };
+        let result = self.invoke(&func).await?;
+        match result {
+            TonResult::SmcLibraryResultExt(r) => Ok(r),
+            r => Err(TonClientError::unexpected_ton_result(
+                TonResultDiscriminants::SmcLibraryResultExt,
                 r,
             )),
         }

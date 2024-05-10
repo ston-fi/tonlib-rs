@@ -2,12 +2,14 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::client::{
     MultiConnectionCallback, TonClientError, TonClientInterface, TonConnection,
-    TonConnectionCallback, TonConnectionParams, DEFAULT_CONNECTION_PARAMS,
-    LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
+    TonConnectionCallback, DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK,
+    NOOP_CONNECTION_CALLBACK,
 };
+use tonlib::config::MAINNET_CONFIG;
 use tonlib::tl::{
     KeyStoreType, SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState,
 };
@@ -15,26 +17,19 @@ use tonlib::tl::{
 mod common;
 
 #[tokio::test]
-async fn test_connection_init() -> anyhow::Result<()> {
+async fn test_connection_init() {
     common::init_logging();
-    let conn = TonConnection::new(
+    let conn = assert_ok!(TonConnection::new(
         LOGGING_CONNECTION_CALLBACK.clone(),
-        &TonConnectionParams::default(),
-    )?;
+        &DEFAULT_CONNECTION_PARAMS,
+    ));
     let r = conn
-        .init(
-            tonlib::config::MAINNET_CONFIG,
-            None,
-            false,
-            false,
-            KeyStoreType::InMemory,
-        )
+        .init(MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
         .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
-    let lvl = conn.get_log_verbosity_level().await?;
-    println!("Log verbosity level: {}", lvl);
-    Ok(())
+    log::info!("{:?}", r);
+    assert_ok!(r);
+    let lvl = assert_ok!(conn.get_log_verbosity_level().await);
+    log::info!("Log verbosity level: {}", lvl);
 }
 
 struct TestConnectionCallback {
@@ -81,7 +76,7 @@ impl TonConnectionCallback for TestConnectionCallback {
 }
 
 #[tokio::test]
-async fn test_connection_callback() -> anyhow::Result<()> {
+async fn test_connection_callback() {
     common::init_logging();
     let test_callback = Arc::new(TestConnectionCallback::new());
     let multi_callback = Arc::new(MultiConnectionCallback::new(vec![
@@ -89,37 +84,35 @@ async fn test_connection_callback() -> anyhow::Result<()> {
         test_callback.clone(),
         LOGGING_CONNECTION_CALLBACK.clone(),
     ]));
-    let conn = TonConnection::new(multi_callback, &TonConnectionParams::default())?;
+    let conn = assert_ok!(TonConnection::new(
+        multi_callback,
+        &DEFAULT_CONNECTION_PARAMS
+    ));
     let r = conn
-        .init(
-            tonlib::config::MAINNET_CONFIG,
-            None,
-            false,
-            false,
-            KeyStoreType::InMemory,
-        )
+        .init(MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
         .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
-    let lvl = conn.get_log_verbosity_level().await?;
-    println!("Log verbosity level: {}", lvl);
+    log::info!("{:?}", r);
+    assert_ok!(r);
+    let lvl = assert_ok!(conn.get_log_verbosity_level().await);
+    log::info!("Log verbosity level: {}", lvl);
     assert_eq!(2, test_callback.num_invoke.load(Ordering::SeqCst));
     assert_eq!(2, test_callback.num_invoke_result.load(Ordering::SeqCst));
     assert_eq!(
         0,
         test_callback.num_result_parse_error.load(Ordering::SeqCst)
     );
-    Ok(())
 }
 
 #[tokio::test]
-async fn test_connection_sync() -> anyhow::Result<()> {
+async fn test_connection_sync() {
     common::init_logging();
-    let conn = TonConnection::connect(
-        &DEFAULT_CONNECTION_PARAMS,
-        LOGGING_CONNECTION_CALLBACK.clone(),
-    )
-    .await?;
+    let conn = assert_ok!(
+        TonConnection::connect(
+            &DEFAULT_CONNECTION_PARAMS,
+            LOGGING_CONNECTION_CALLBACK.clone(),
+        )
+        .await
+    );
     let mut receiver = conn.subscribe();
     let flag = Arc::new(AtomicBool::new(false));
     let flag_copy = flag.clone();
@@ -129,18 +122,17 @@ async fn test_connection_sync() -> anyhow::Result<()> {
         });
         while let Ok(n) = receiver.recv().await {
             if *n == synced {
-                println!("Synchronized");
+                log::info!("Synchronized");
                 flag_copy.store(true, Ordering::Release);
             }
         }
     });
     let r = conn
-        .get_account_state(&TonAddress::from_base64_url(
+        .get_account_state(&assert_ok!(TonAddress::from_base64_url(
             "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
-        )?)
+        )))
         .await;
-    println!("{:?}", r);
-    assert!(r.is_ok());
+    log::info!("{:?}", r);
+    assert_ok!(r);
     assert!(flag.load(Ordering::Acquire));
-    Ok(())
 }

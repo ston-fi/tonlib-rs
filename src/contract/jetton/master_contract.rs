@@ -3,10 +3,10 @@ use num_bigint::BigUint;
 use strum::IntoStaticStr;
 
 use crate::address::TonAddress;
-use crate::cell::{BagOfCells, CellBuilder, TonCellError};
+use crate::cell::{ArcCell, BagOfCells, CellBuilder, CellSlice, TonCellError};
 use crate::contract::{MapCellError, MapStackError, TonContractError, TonContractInterface};
 use crate::meta::MetaDataContent;
-use crate::tl::{TvmSlice, TvmStackEntry};
+use crate::types::TvmStackEntry;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct JettonData {
@@ -14,7 +14,7 @@ pub struct JettonData {
     pub mintable: bool,
     pub admin_address: TonAddress,
     pub content: MetaDataContent,
-    pub wallet_code: BagOfCells,
+    pub wallet_code: ArcCell,
 }
 
 #[derive(IntoStaticStr)]
@@ -34,14 +34,13 @@ pub trait JettonMasterContract: TonContractInterface {
         let res = self.run_get_method(method, &Vec::new()).await?;
 
         let stack = res.stack;
-        if stack.elements.len() == JETTON_DATA_STACK_ELEMENTS {
-            let total_supply = stack.get_biguint(0).map_stack_error(method, &address)?;
-            let mintable = stack.get_i32(1).map_stack_error(method, &address)? != 0;
-            let admin_address = stack.get_address(2).map_stack_error(method, &address)?;
-            let boc = stack.get_boc(3).map_stack_error(method, &address)?;
-            let content = read_jetton_metadata_content(&boc).map_cell_error(method, &address)?;
-            let wallet_code = stack.get_boc(4).map_stack_error(method, &address)?;
-
+        if stack.len() == JETTON_DATA_STACK_ELEMENTS {
+            let total_supply = stack[0].get_biguint().map_stack_error(method, &address)?;
+            let mintable = stack[1].get_bool().map_stack_error(method, &address)?;
+            let admin_address = stack[2].get_address().map_stack_error(method, &address)?;
+            let cell = stack[3].get_cell().map_stack_error(method, &address)?;
+            let content = read_jetton_metadata_content(cell).map_cell_error(method, &address)?;
+            let wallet_code = stack[4].get_cell().map_stack_error(method, &address)?;
             Ok(JettonData {
                 total_supply,
                 mintable,
@@ -53,8 +52,7 @@ pub trait JettonMasterContract: TonContractInterface {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: JETTON_DATA_STACK_ELEMENTS,
             })
         }
@@ -66,27 +64,22 @@ pub trait JettonMasterContract: TonContractInterface {
     ) -> Result<TonAddress, TonContractError> {
         let method: &'static str = JettonMasterMethods::GetWalletAddress.into();
         let address = self.address().clone();
-
-        let slice = match build_get_wallet_address_payload(owner_address) {
-            Ok(slice) => Ok(slice),
-            Err(e) => Err(TonContractError::CellError {
-                method: method.to_string(),
-                address: self.address().clone(),
-                error: e,
-            }),
-        }?;
-
+        let cell = CellBuilder::new()
+            .store_address(owner_address)
+            .map_cell_error(method, owner_address)?
+            .build()
+            .map_cell_error(method, owner_address)?;
+        let cell_slice = CellSlice::full_cell(cell).map_cell_error(method, owner_address)?;
+        let slice = TvmStackEntry::Slice(cell_slice);
         let res = self.run_get_method(method, &vec![slice]).await?;
-
         let stack = res.stack;
-        if stack.elements.len() == 1 {
-            stack.get_address(0).map_stack_error(method, &address)
+        if stack.len() == 1 {
+            stack[0].get_address().map_stack_error(method, &address)
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: 1,
             })
         }
@@ -95,42 +88,27 @@ pub trait JettonMasterContract: TonContractInterface {
 
 impl<T> JettonMasterContract for T where T: TonContractInterface {}
 
-fn build_get_wallet_address_payload(
-    owner_address: &TonAddress,
-) -> Result<TvmStackEntry, TonCellError> {
-    let cell = CellBuilder::new().store_address(owner_address)?.build()?;
-    let boc = BagOfCells::from_root(cell);
-    let slice = TvmStackEntry::Slice {
-        slice: TvmSlice {
-            bytes: boc.serialize(true)?,
-        },
-    };
-    Ok(slice)
-}
-
-fn read_jetton_metadata_content(boc: &BagOfCells) -> Result<MetaDataContent, TonCellError> {
-    if let Ok(root) = boc.single_root() {
-        let mut reader = root.parser();
-        let content_representation = reader.load_byte()?;
-        match content_representation {
-            0 => {
-                let dict = root.reference(0)?.load_snake_formatted_dict()?;
-                let converted_dict = dict
-                    .into_iter()
-                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                    .collect();
-                Ok(MetaDataContent::Internal {
-                    dict: converted_dict,
-                }) //todo #79
-            }
-            1 => {
-                let remaining_bytes = reader.remaining_bytes();
-                let uri = reader.load_utf8(remaining_bytes)?;
-                Ok(MetaDataContent::External { uri })
-            }
-            _ => Ok(MetaDataContent::Unsupported { boc: boc.clone() }),
+fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCellError> {
+    let mut parser = cell.parser();
+    let content_representation = parser.load_byte()?;
+    match content_representation {
+        0 => {
+            let dict = cell.reference(0)?.load_snake_formatted_dict()?;
+            let converted_dict = dict
+                .into_iter()
+                .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                .collect();
+            Ok(MetaDataContent::Internal {
+                dict: converted_dict,
+            }) //todo #79
         }
-    } else {
-        Ok(MetaDataContent::Unsupported { boc: boc.clone() })
+        1 => {
+            let remaining_bytes = parser.remaining_bytes();
+            let uri = parser.load_utf8(remaining_bytes)?;
+            Ok(MetaDataContent::External { uri })
+        }
+        _ => Ok(MetaDataContent::Unsupported {
+            boc: BagOfCells::from_root(cell.as_ref().clone()),
+        }),
     }
 }

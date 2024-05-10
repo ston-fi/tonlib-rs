@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
-use crate::cell::BagOfCells;
+use crate::cell::{ArcCell, BagOfCells, TonCellError};
 
 struct MetaDataField {
     pub(crate) key: [u8; 32],
@@ -53,8 +53,40 @@ lazy_static! {
 pub enum MetaDataContent {
     External { uri: String },
     Internal { dict: HashMap<[u8; 32], String> },
+    // TODO: Replace with cell
     Unsupported { boc: BagOfCells },
 }
+
+impl MetaDataContent {
+    pub fn parse(cell: &ArcCell) -> Result<MetaDataContent, TonCellError> {
+        // TODO: Refactor NFT metadata to use this method and merge collection data & item data afterwards
+        let mut parser = cell.parser();
+        let content_representation = parser.load_byte()?;
+        match content_representation {
+            0 => {
+                let dict = cell.reference(0)?.load_snake_formatted_dict()?;
+                let converted_dict = dict
+                    .into_iter()
+                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                    .collect();
+                Ok(MetaDataContent::Internal {
+                    dict: converted_dict,
+                })
+            }
+            1 => {
+                let remaining_bytes = parser.remaining_bytes();
+                let uri = parser.load_utf8(remaining_bytes)?;
+                Ok(MetaDataContent::External { uri })
+            }
+            _ => Ok(MetaDataContent::Unsupported {
+                boc: BagOfCells {
+                    roots: vec![cell.clone()],
+                },
+            }),
+        }
+    }
+}
+
 pub struct MetaLoader<MetaData>
 where
     MetaData: DeserializeOwned,

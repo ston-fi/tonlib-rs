@@ -4,11 +4,40 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
-use super::{DEFAULT_CONNECTION_CONCURRENCY_LIMIT, DEFAULT_NOTIFICATION_QUEUE_LENGTH};
+use super::{
+    BlocksShortTxId, TonClientError, DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
+    DEFAULT_NOTIFICATION_QUEUE_LENGTH,
+};
+use crate::address::TonAddress;
 use crate::config::MAINNET_CONFIG;
-use crate::tl::TonNotification;
+use crate::tl::{InternalTransactionId, TonNotification};
 
 pub type TonNotificationReceiver = broadcast::Receiver<Arc<TonNotification>>;
+
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+pub struct TxId {
+    pub address: TonAddress,
+    pub internal_transaction_id: InternalTransactionId,
+}
+
+impl TxId {
+    pub fn new(workchain: i32, tx_id: &BlocksShortTxId) -> Result<TxId, TonClientError> {
+        let addr = TonAddress::new(
+            workchain,
+            tx_id.account.as_slice().try_into().map_err(|_| {
+                TonClientError::InternalError(format!("Invalid BlocksShortTxId: {:?}", tx_id))
+            })?,
+        );
+        let id = InternalTransactionId {
+            lt: tx_id.lt,
+            hash: tx_id.hash.clone(),
+        };
+        Ok(TxId {
+            address: addr,
+            internal_transaction_id: id,
+        })
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TonConnectionParams {

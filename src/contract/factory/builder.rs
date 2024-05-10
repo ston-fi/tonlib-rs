@@ -1,91 +1,139 @@
+use std::sync::Arc;
+#[cfg(feature = "state_cache")]
 use std::time::Duration;
 
+use super::{DefaultLibraryLoader, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
 #[cfg(feature = "state_cache")]
-const DEFAULT_CAPACITY: u64 = 100_000;
-#[cfg(feature = "state_cache")]
-const DEFAULT_TTL: Duration = Duration::from_secs(60 * 60);
-#[cfg(feature = "state_cache")]
-const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
-
 pub struct TonContractFactoryBuilder {
     client: TonClient,
-    #[cfg(feature = "state_cache")]
     with_cache: bool,
-    #[cfg(feature = "state_cache")]
-    capacity: u64,
-    #[cfg(feature = "state_cache")]
-    time_to_live: Duration,
-    #[cfg(feature = "state_cache")]
+    account_state_cache_capacity: u64,
+    account_state_cache_time_to_live: Duration,
+    txid_cache_capacity: u64,
+    txid_cache_time_to_live: Duration,
     presync_blocks: i32,
+    library_provider: LibraryProvider,
 }
 
+#[cfg(feature = "state_cache")]
 impl TonContractFactoryBuilder {
-    #[cfg(feature = "state_cache")]
+    const DEFAULT_ACCOUNT_STATE_CACHE_CAPACITY: u64 = 100_000;
+    const DEFAULT_ACCOUNT_STATE_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
+
+    const DEFAULT_TXID_CACHE_CAPACITY: u64 = 100_000;
+    const DEFAULT_TXID_STATE_CACHE_TTL: Duration = Duration::from_secs(30 * 60);
+
+    const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
+
     pub(crate) fn new(client: &TonClient) -> Self {
+        let loader = DefaultLibraryLoader::new(client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
         TonContractFactoryBuilder {
             client: client.clone(),
             with_cache: false,
-            capacity: 0,
-            time_to_live: Duration::default(),
-            presync_blocks: DEFAULT_PRESYNC_BLOCKS,
+            account_state_cache_capacity: 0,
+            account_state_cache_time_to_live: Duration::default(),
+            txid_cache_capacity: 0,
+            txid_cache_time_to_live: Duration::default(),
+            presync_blocks: Self::DEFAULT_PRESYNC_BLOCKS,
+            library_provider,
         }
     }
 
-    #[cfg(not(feature = "state_cache"))]
-    pub(crate) fn new(client: &TonClient) -> Self {
-        TonContractFactoryBuilder {
-            client: client.clone(),
-        }
-    }
-
-    #[cfg(feature = "state_cache")]
-    pub fn with_cache(&mut self, capacity: u64, time_to_live: Duration) -> &mut Self {
+    pub fn with_account_state_cache(
+        &mut self,
+        txid_cache_capacity: u64,
+        txid_cache_time_to_live: Duration,
+        account_state_cache_capacity: u64,
+        account_state_cache_time_to_live: Duration,
+    ) -> &mut Self {
         self.with_cache = true;
-        self.capacity = capacity;
-        self.time_to_live = time_to_live;
+        self.txid_cache_capacity = txid_cache_capacity;
+        self.txid_cache_time_to_live = txid_cache_time_to_live;
+        self.account_state_cache_capacity = account_state_cache_capacity;
+        self.account_state_cache_time_to_live = account_state_cache_time_to_live;
         self
     }
 
-    #[cfg(not(feature = "state_cache"))]
-    pub fn with_cache(&mut self, _capacity: u64, _time_to_live: Duration) -> &mut Self {
-        panic!("State cache disabled. Use feature flag \"state_cache\" to enable it.  ");
-    }
-
-    #[cfg(feature = "state_cache")]
-    pub fn with_default_cache(&mut self) -> &mut Self {
+    pub fn with_state_cache(
+        &mut self,
+        txid_cache_capacity: u64,
+        txid_cache_time_to_live: Duration,
+        account_state_cache_capacity: u64,
+        account_state_cache_time_to_live: Duration,
+    ) -> &mut Self {
         self.with_cache = true;
-        self.capacity = DEFAULT_CAPACITY;
-        self.time_to_live = DEFAULT_TTL;
+        self.txid_cache_capacity = txid_cache_capacity;
+        self.txid_cache_time_to_live = txid_cache_time_to_live;
+        self.account_state_cache_capacity = account_state_cache_capacity;
+        self.account_state_cache_time_to_live = account_state_cache_time_to_live;
         self
     }
 
-    #[cfg(not(feature = "state_cache"))]
     pub fn with_default_cache(&mut self) -> &mut Self {
-        panic!("State cache disabled. Use feature flag \"state_cache\" to enable it.  ");
+        self.with_cache = true;
+        self.account_state_cache_capacity = Self::DEFAULT_ACCOUNT_STATE_CACHE_CAPACITY;
+        self.account_state_cache_time_to_live = Self::DEFAULT_ACCOUNT_STATE_CACHE_TTL;
+        self.txid_cache_capacity = Self::DEFAULT_TXID_CACHE_CAPACITY;
+        self.txid_cache_time_to_live = Self::DEFAULT_TXID_STATE_CACHE_TTL;
+        self
     }
 
-    #[cfg(feature = "state_cache")]
-    pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
-        TonContractFactory::new(
-            &self.client,
-            self.with_cache,
-            self.capacity,
-            self.time_to_live,
-            self.presync_blocks,
-        )
-        .await
-    }
-    #[cfg(feature = "state_cache")]
     pub fn presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
         self.presync_blocks = presync_blocks;
         self
     }
 
-    #[cfg(not(feature = "state_cache"))]
     pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
-        TonContractFactory::new(&self.client).await
+        TonContractFactory::new(
+            &self.client,
+            self.with_cache,
+            self.account_state_cache_capacity,
+            self.account_state_cache_time_to_live,
+            self.txid_cache_capacity,
+            self.txid_cache_time_to_live,
+            self.presync_blocks,
+            self.library_provider.clone(),
+        )
+        .await
+    }
+}
+
+#[cfg(not(feature = "state_cache"))]
+pub struct TonContractFactoryBuilder {
+    client: TonClient,
+    library_provider: LibraryProvider,
+}
+
+#[cfg(not(feature = "state_cache"))]
+impl TonContractFactoryBuilder {
+    pub(crate) fn new(client: &TonClient) -> TonContractFactoryBuilder {
+        let loader = DefaultLibraryLoader::new(client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
+        TonContractFactoryBuilder {
+            client: client.clone(),
+            library_provider,
+        }
+    }
+
+    pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
+        TonContractFactory::new(&self.client, &self.library_provider).await
+    }
+}
+
+impl TonContractFactoryBuilder {
+    pub fn with_default_library_provider(&mut self) -> &mut Self {
+        let loader = DefaultLibraryLoader::new(&self.client);
+        let library_provider = LibraryProvider::new(Arc::new(loader));
+        self.library_provider = library_provider;
+        self
+    }
+
+    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
+        self.library_provider = library_provider.clone();
+        self
     }
 }

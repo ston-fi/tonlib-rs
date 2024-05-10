@@ -1,12 +1,46 @@
-use serde::{Deserialize, Serialize};
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum::IntoStaticStr;
 
-use super::SmcMethodId;
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
-    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId, Options,
+    AccountAddress, BlockId, BlockIdExt, BlocksAccountTransactionId, InternalTransactionId,
+    Options, SmcLibraryQueryExt, SmcMethodId,
 };
 use crate::tl::Base64Standard;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+
+pub struct TonLibraryId {
+    pub id: Vec<u8>,
+}
+
+impl Serialize for TonLibraryId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&STANDARD.encode(&self.id))
+    }
+}
+
+impl<'de> Deserialize<'de> for TonLibraryId {
+    fn deserialize<D>(deserializer: D) -> Result<TonLibraryId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+
+        // Try to decode the base64 string
+        let bytes = match STANDARD.decode(s) {
+            Ok(decoded) => decoded,
+            Err(_) => return Err(serde::de::Error::custom("Invalid base64 string")),
+        };
+
+        Ok(TonLibraryId { id: bytes })
+    }
+}
 
 #[derive(IntoStaticStr, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(tag = "@type", rename_all = "camelCase")]
@@ -132,6 +166,18 @@ pub enum TonFunction {
         id: i64,
         method: SmcMethodId,
         stack: Vec<TvmStackEntry>,
+    },
+
+    // tonlib_api.tl, line 314
+    #[serde(rename = "smc.getLibraries")]
+    SmcGetLibraries {
+        library_list: Vec<TonLibraryId>,
+    },
+
+    // tonlib_api.tl, line 315
+    #[serde(rename = "smc.getLibrariesExt")]
+    SmcGetLibrariesExt {
+        list: Vec<SmcLibraryQueryExt>,
     },
 
     // tonlib_api.tl, line 316

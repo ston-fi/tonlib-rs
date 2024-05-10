@@ -1,18 +1,20 @@
+use tokio_test::assert_ok;
 use tonlib::meta::{IpfsLoader, IpfsLoaderConfig};
 
 mod common;
 
 #[tokio::test]
-async fn test_ipfs_http_gateway() -> anyhow::Result<()> {
+async fn test_ipfs_http_gateway() {
     common::init_logging();
     let config = IpfsLoaderConfig::http_gateway("https://cloudflare-ipfs.com/ipfs/");
-    let loader = IpfsLoader::new(&config)?;
-    let result = loader
-        .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
-        .await?;
-    println!("{}", result);
+    let loader = assert_ok!(IpfsLoader::new(&config));
+    let result = assert_ok!(
+        loader
+            .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
+            .await
+    );
+    log::info!("{}", result);
     assert!(result.contains("BOLT"));
-    Ok(())
 }
 
 /// Requires IPFS node running on localhost:5001.
@@ -20,18 +22,18 @@ async fn test_ipfs_http_gateway() -> anyhow::Result<()> {
 /// Check `compose/README.md` for details
 #[tokio::test]
 #[ignore]
-async fn test_ipfs_node() -> anyhow::Result<()> {
+async fn test_ipfs_node() {
     common::init_logging();
     let config = IpfsLoaderConfig::ipfs_node("http://localhost:5001");
-    let loader = IpfsLoader::new(&config)?;
-    let result = tokio::spawn(async move {
-        let r = loader
-            .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
-            .await;
-        r
-    })
-    .await??;
-    println!("{}", result);
+    let loader = assert_ok!(IpfsLoader::new(&config));
+    let result = assert_ok!(assert_ok!(
+        tokio::spawn(async move {
+            loader
+                .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
+                .await
+        })
+        .await
+    ));
+    log::info!("{}", result);
     assert!(result.contains("BOLT"));
-    Ok(())
 }

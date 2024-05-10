@@ -3,6 +3,7 @@ use std::ops::ShrAssign;
 
 use num_bigint::{BigInt, BigUint};
 
+use super::Cell;
 use crate::cell::{CellSlice, TonCellError};
 
 pub trait DictLoader<K, V>
@@ -89,6 +90,11 @@ pub fn key_extractor_uint(bit_len: usize, key: &[u8]) -> Result<BigUint, TonCell
 
 pub fn key_extractor_decimal_string(bit_len: usize, key: &[u8]) -> Result<String, TonCellError> {
     Ok(key_extractor_uint(bit_len, key)?.to_str_radix(10))
+}
+
+pub fn value_extractor_cell(cell_slice: &CellSlice) -> Result<Cell, TonCellError> {
+    let cell = cell_slice.into_cell()?;
+    Ok(cell)
 }
 
 pub fn value_extractor_snake_formatted_string(

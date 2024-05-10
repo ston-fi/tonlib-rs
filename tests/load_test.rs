@@ -1,5 +1,6 @@
 use futures::future::try_join_all;
 use rand::Rng;
+use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::client::TonClient;
 use tonlib::contract::{JettonMasterContract, JettonWalletContract, TonContractFactory};
@@ -11,9 +12,9 @@ const NUM_ITERATIONS: usize = 1000000;
 
 #[ignore]
 #[tokio::test]
-async fn load_test_smc_methods() -> anyhow::Result<()> {
+async fn load_test_smc_methods() {
     common::init_logging();
-    let client = common::new_testnet_client().await?;
+    let client = common::new_testnet_client().await;
     let mut handles = vec![];
     for _ in 0..NUM_RUNNERS {
         let c = client.clone();
@@ -21,9 +22,8 @@ async fn load_test_smc_methods() -> anyhow::Result<()> {
         let h = tokio::spawn(async move { smc_methods_runner(c).await });
         handles.push(h);
     }
-    let r = try_join_all(handles).await?;
+    let r = assert_ok!(try_join_all(handles).await);
     log::info!("Result: {:?}", r);
-    Ok(())
 }
 
 const NUM_WALLETS: usize = 16;
@@ -54,18 +54,23 @@ const JETTONS: [&str; NUM_JETTONS] = [
     "EQDcBkGHmC4pTf34x3Gm05XvepO5w60DNxZ-XT4I6-UGG5L5",
 ];
 
-async fn smc_methods_runner(client: TonClient) -> anyhow::Result<()> {
-    let factory = TonContractFactory::builder(&client)
-        .with_default_cache()
-        .build()
-        .await?;
+async fn smc_methods_runner(client: TonClient) {
+    #[cfg(not(feature = "state_cache"))]
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    #[cfg(feature = "state_cache")]
+    let factory = assert_ok!(
+        TonContractFactory::builder(&client)
+            .with_default_cache()
+            .build()
+            .await
+    );
     for _ in 0..NUM_ITERATIONS {
         let wallet_index = get_random(NUM_WALLETS);
         let jetton_index = get_random(NUM_JETTONS);
-        let wallet_addr: TonAddress = WALLETS[wallet_index].parse()?;
-        let jetton_addr: TonAddress = JETTONS[jetton_index].parse()?;
+        let wallet_addr: TonAddress = assert_ok!(WALLETS[wallet_index].parse());
+        let jetton_addr: TonAddress = assert_ok!(JETTONS[jetton_index].parse());
         let jetton = factory.get_contract(&jetton_addr);
-        let jetton_wallet_addr = jetton.get_wallet_address(&wallet_addr).await?;
+        let jetton_wallet_addr = assert_ok!(jetton.get_wallet_address(&wallet_addr).await);
         let jetton_wallet = factory.get_contract(&jetton_wallet_addr);
         let wallet_data_result = jetton_wallet.get_wallet_data().await;
         match wallet_data_result {
@@ -78,7 +83,6 @@ async fn smc_methods_runner(client: TonClient) -> anyhow::Result<()> {
             }
         }
     }
-    Ok(())
 }
 
 fn get_random(max: usize) -> usize {

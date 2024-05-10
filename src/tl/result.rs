@@ -8,8 +8,8 @@ use crate::tl::stack::TvmCell;
 use crate::tl::types::{
     BlockIdExt, BlocksHeader, BlocksMasterchainInfo, BlocksShards, BlocksTransactions,
     BlocksTransactionsExt, ConfigInfo, FullAccountState, LiteServerInfo, LogVerbosityLevel,
-    OptionsInfo, RawExtMessageInfo, RawFullAccountState, RawTransactions, SmcInfo, SmcRunResult,
-    UpdateSyncState,
+    OptionsInfo, RawExtMessageInfo, RawFullAccountState, RawTransactions, SmcInfo,
+    SmcLibraryResult, SmcLibraryResultExt, SmcRunResult, UpdateSyncState,
 };
 
 #[derive(
@@ -52,6 +52,12 @@ pub enum TonResult {
     // tonlib_api.tl, line 184
     #[serde(rename = "smc.runResult")]
     SmcRunResult(SmcRunResult),
+    // tonlib_api.tl, line 187
+    #[serde(rename = "smc.libraryResult")]
+    SmcLibraryResult(SmcLibraryResult),
+    // tonlib_api.tl, line 191
+    #[serde(rename = "smc.libraryResultExt")]
+    SmcLibraryResultExt(SmcLibraryResultExt),
     // tonlib_api.tl, line 194
     #[serde(rename = "updateSyncState")]
     UpdateSyncState(UpdateSyncState),
@@ -142,6 +148,19 @@ impl fmt::Display for TonResult {
             TonResult::SmcRunResult(smc_run_result) => {
                 write!(f, "TonResult::SmcRunResult: {}", smc_run_result.exit_code)
             }
+
+            TonResult::SmcLibraryResult(smc_library_result_ext)=>write!(
+                f,
+                "TonResult::SmcLibraryResult: {:?}",
+                smc_library_result_ext),
+
+            TonResult::SmcLibraryResultExt(smc_library_result_ext) => write!(
+                f,
+                "TonResult::SmcLibraryResultExt: Raw dictionary: {:?}\n Libs ok: {:?}\n Libs not found:{:?}",
+                smc_library_result_ext.dict_boc,
+                smc_library_result_ext.libs_ok,
+                smc_library_result_ext.libs_not_found
+            ),
 
             TonResult::UpdateSyncState(_) => write!(f, "TonResult::UpdateSyncState"),
 

@@ -6,8 +6,9 @@ use thiserror::Error;
 use crate::address::TonAddress;
 use crate::cell::TonCellError;
 use crate::client::TonClientError;
-use crate::tl::{TvmStackEntry, TvmStackError};
-use crate::types::TonMethodId;
+use crate::emulator::TvmEmulatorError;
+use crate::tl::TvmStackError;
+use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
 
 #[derive(Error, Debug)]
 pub enum TonContractError {
@@ -19,6 +20,19 @@ pub enum TonContractError {
     },
     #[error("TonClientError ({0})")]
     ClientError(#[from] TonClientError),
+
+    #[error("Method emulation error (Method: {method}, address: {address}, error {error}")]
+    MethodEmulationError {
+        method: String,
+        address: TonAddress,
+        error: TvmEmulatorError,
+    },
+
+    #[error("Message emulation error (address: {address}, error {error}")]
+    MessageEmulationError {
+        address: TonAddress,
+        error: TvmEmulatorError,
+    },
 
     #[error("Illegal argument ({0})")]
     IllegalArgument(String),
@@ -43,14 +57,39 @@ pub enum TonContractError {
         error: TvmStackError,
     },
 
+    #[error("Missing library (Method: {method}, address: {address}, lib: {missing_library})")]
+    MissingLibrary {
+        method: TonMethodId,
+        address: TonAddress,
+        missing_library: String,
+    },
+
+    #[error("Library not found (Address: {address}, lib: {missing_library})")]
+    LibraryNotFound {
+        address: TonAddress,
+        missing_library: String,
+    },
+
     #[error(
-        "Tvm run error (Method: {method}, exit code: {exit_code}, gas used: {gas_used}, stack: {stack:?})"
+        "Tvm stack parse  error (Method: {method}, address: {address}, stack error: {error:?})"
+    )]
+    TvmStackParseError {
+        method: TonMethodId,
+        address: TonAddress,
+        error: StackParseError,
+    },
+
+    #[error(
+        "Tvm run error (Method: {method}, address: {address}, exit code: {exit_code}, gas used: {gas_used}, stack: {stack:?}, vm_log: {vm_log:?}, missing_library: {missing_library:?})"
     )]
     TvmRunError {
         method: TonMethodId,
-        gas_used: i64,
-        stack: Vec<TvmStackEntry>,
+        address: TonAddress,
+        vm_log: Option<String>,
         exit_code: i32,
+        stack: Vec<TvmStackEntry>,
+        missing_library: Option<String>,
+        gas_used: i64,
     },
 
     // TODO: Experiment with it, maybe just use  `CacheError { message: String }`
@@ -82,6 +121,20 @@ impl<R> MapStackError<R> for Result<R, TvmStackError> {
         address: &TonAddress,
     ) -> Result<R, TonContractError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
+            method: method.into(),
+            address: address.clone(),
+            error: e,
+        })
+    }
+}
+
+impl<R> MapStackError<R> for Result<R, StackParseError> {
+    fn map_stack_error(
+        self,
+        method: &'static str,
+        address: &TonAddress,
+    ) -> Result<R, TonContractError> {
+        self.map_err(|e| TonContractError::TvmStackParseError {
             method: method.into(),
             address: address.clone(),
             error: e,

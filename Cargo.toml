@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.14.5"
+version = "0.15.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -12,18 +12,18 @@ include = [
 ]
 
 [features]
-default = []
+default=[]
 state_cache = []
+emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
-
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.21"
+base64 = "0.22"
 base64-serde = "0.7"
-bitstream-io = "1"
+bitstream-io = "2.2"
 crc = "3"
 dashmap = "5"
 futures = "0.3"
@@ -40,14 +40,13 @@ serde = { version = "1", features = ["derive"] }
 serde-aux = "4"
 serde_json = "1"
 sha2 = "0.10"
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 pbkdf2 = { version="0.12", features = ["simple"] }
-reqwest = "0.11"
+reqwest = "0.12"
 thiserror = "1"
 tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
 tonlib-sys = "=2024.3.7"
-
 
 [dev-dependencies]
 anyhow = "1"

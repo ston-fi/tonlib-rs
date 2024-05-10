@@ -3,7 +3,7 @@ use num_bigint::BigUint;
 use strum::IntoStaticStr;
 
 use crate::address::TonAddress;
-use crate::cell::BagOfCells;
+use crate::cell::ArcCell;
 use crate::contract::{MapStackError, TonContractError, TonContractInterface};
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub struct WalletData {
     pub balance: BigUint,
     pub owner_address: TonAddress,
     pub master_address: TonAddress,
-    pub wallet_code: BagOfCells,
+    pub wallet_code: ArcCell,
 }
 
 #[derive(IntoStaticStr)]
@@ -30,12 +30,11 @@ pub trait JettonWalletContract: TonContractInterface {
         let res = self.run_get_method(method, &Vec::new()).await?;
 
         let stack = res.stack;
-        if stack.elements.len() == WALLET_DATA_STACK_ELEMENTS {
-            let balance = stack.get_biguint(0).map_stack_error(method, &address)?;
-            let owner_address = stack.get_address(1).map_stack_error(method, &address)?;
-            let master_address = stack.get_address(2).map_stack_error(method, &address)?;
-            let wallet_code = stack.get_boc(3).map_stack_error(method, &address)?;
-
+        if stack.len() == WALLET_DATA_STACK_ELEMENTS {
+            let balance = stack[0].get_biguint().map_stack_error(method, &address)?;
+            let owner_address = stack[1].get_address().map_stack_error(method, &address)?;
+            let master_address = stack[2].get_address().map_stack_error(method, &address)?;
+            let wallet_code = stack[3].get_cell().map_stack_error(method, &address)?;
             Ok(WalletData {
                 balance,
                 owner_address,
@@ -46,8 +45,7 @@ pub trait JettonWalletContract: TonContractInterface {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: WALLET_DATA_STACK_ELEMENTS,
             })
         }

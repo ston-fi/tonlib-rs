@@ -4,14 +4,13 @@ use num_traits::Zero;
 use strum::IntoStaticStr;
 
 use crate::address::TonAddress;
-use crate::cell::BagOfCells;
-use crate::client::TonClientInterface;
+use crate::cell::{ArcCell, BagOfCells};
+use crate::contract::factory::TonContractFactory;
 use crate::contract::{
     MapCellError, MapStackError, NftItemContract, TonContractError, TonContractInterface,
-    TonContractState,
 };
 use crate::meta::MetaDataContent;
-use crate::tl::{TvmNumber, TvmStackEntry};
+use crate::types::TvmStackEntry;
 
 /// Data returned by get_collection_data according to TEP-62
 #[derive(Debug, Clone)]
@@ -43,12 +42,12 @@ pub trait NftCollectionContract: TonContractInterface {
         let address = self.address().clone();
 
         let stack = self.run_get_method(method, &Vec::new()).await?.stack;
-        if stack.elements.len() == NFT_COLLECTION_STACK_ELEMENTS {
-            let next_item_index = stack.get_i64(0).map_stack_error(method, &address)?;
-            let boc = &stack.get_boc(1).map_stack_error(method, &address)?;
+        if stack.len() == NFT_COLLECTION_STACK_ELEMENTS {
+            let next_item_index = stack[0].get_i64().map_stack_error(method, &address)?;
+            let cell = stack[1].get_cell().map_stack_error(method, &address)?;
             let collection_content =
-                read_collection_metadata_content(self.client(), &address, boc).await?;
-            let owner_address = stack.get_address(2).map_stack_error(method, &address)?;
+                read_collection_metadata_content(self.factory(), &address, cell).await?;
+            let owner_address = stack[2].get_address().map_stack_error(method, &address)?;
 
             Ok(NftCollectionData {
                 next_item_index,
@@ -59,7 +58,7 @@ pub trait NftCollectionContract: TonContractInterface {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: NFT_COLLECTION_STACK_ELEMENTS,
             })
         }
@@ -69,22 +68,18 @@ pub trait NftCollectionContract: TonContractInterface {
     /// returns the address (TonAddress) of this NFT item smart contract.
     async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError> {
         let method = NftCollectionMethods::GetNftAddressByIndex.into();
-        let input_stack = vec![
-            (TvmStackEntry::Number {
-                number: TvmNumber {
-                    number: index.to_string(),
-                },
-            }),
-        ];
+        let input_stack = vec![TvmStackEntry::Int64(index)];
         let stack = self.run_get_method(method, &input_stack).await?.stack;
 
-        if stack.elements.len() == 1 {
-            stack.get_address(0).map_stack_error(method, self.address())
+        if stack.len() == 1 {
+            stack[0]
+                .get_address()
+                .map_stack_error(method, self.address())
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {
                 method: method.to_string(),
                 address: self.address().clone(),
-                actual: stack.elements.len(),
+                actual: stack.len(),
                 expected: 1,
             })
         }
@@ -92,71 +87,66 @@ pub trait NftCollectionContract: TonContractInterface {
 }
 
 impl<T> NftCollectionContract for T where T: TonContractInterface {}
-
 async fn read_collection_metadata_content(
-    client_interface: &dyn TonClientInterface,
+    factory: &TonContractFactory,
     collection_address: &TonAddress,
-    boc: &BagOfCells,
+    cell: ArcCell,
 ) -> Result<MetaDataContent, TonContractError> {
-    if let Ok(root) = boc.single_root() {
-        let mut reader = root.parser();
-        let content_representation = reader
-            .load_byte()
-            .map_cell_error("get_collection_data", collection_address)?;
-        match content_representation {
-            // Off-chain content layout
-            // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.
-            // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
-            //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
-            0 => {
-                let reference = root
-                    .reference(0)
-                    .map_cell_error("get_collection_data", collection_address)?;
-                let dict = reference
-                    .load_snake_formatted_dict()
-                    .map_cell_error("get_collection_data", collection_address)?;
-                let converted_dict = dict
-                    .into_iter()
-                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                    .collect();
-                Ok(MetaDataContent::Internal {
-                    dict: converted_dict,
-                }) //todo #79
-            }
-            // On-chain content layout
-            // The first byte is 0x00 and the rest is key/value dictionary.
-            // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
-            1 => {
-                let remaining_bytes = reader.remaining_bytes();
-                let uri = reader
-                    .load_utf8(remaining_bytes)
-                    .map_cell_error("get_collection_data", collection_address)?;
-                Ok(MetaDataContent::External { uri })
-            }
-
-            // Semi-chain content layout
-            // Data encoded as described in "2. On-chain content layout".
-            // The dictionary must have uri key with a value containing the URI pointing to the JSON document with token metadata.
-            // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
-            _ => {
-                let collection_contract_state =
-                    TonContractState::load(client_interface, collection_address).await?;
-                let nft_content = collection_contract_state
-                    .get_nft_content(&BigUint::zero(), boc.clone())
-                    .await?;
-                let cell = nft_content
-                    .single_root()
-                    .map_cell_error("get_nft_content", collection_address)?
-                    .clone();
-                let uri = cell
-                    .load_snake_formatted_string()
-                    .map_cell_error("get_nft_content", collection_address)?;
-                Ok(MetaDataContent::External {
-                    uri: uri.to_string(),
-                })
-            }
+    let mut parser = cell.parser();
+    let content_representation = parser
+        .load_byte()
+        .map_cell_error("get_collection_data", collection_address)?;
+    match content_representation {
+        // Off-chain content layout
+        // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.
+        // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
+        //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
+        0 => {
+            let reference = cell
+                .reference(0)
+                .map_cell_error("get_collection_data", collection_address)?;
+            let dict = reference
+                .load_snake_formatted_dict()
+                .map_cell_error("get_collection_data", collection_address)?;
+            let converted_dict = dict
+                .into_iter()
+                .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
+                .collect();
+            Ok(MetaDataContent::Internal {
+                dict: converted_dict,
+            }) //todo #79
         }
-    } else {
-        Ok(MetaDataContent::Unsupported { boc: boc.clone() })
+        // On-chain content layout
+        // The first byte is 0x00 and the rest is key/value dictionary.
+        // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
+        1 => {
+            let remaining_bytes = parser.remaining_bytes();
+            let uri = parser
+                .load_utf8(remaining_bytes)
+                .map_cell_error("get_collection_data", collection_address)?;
+            Ok(MetaDataContent::External { uri })
+        }
+
+        // Semi-chain content layout
+        // Data encoded as described in "2. On-chain content layout".
+        // The dictionary must have uri key with a value containing the URI pointing to the JSON document with token metadata.
+        // Clients in this case should merge the keys of the on-chain dictionary and off-chain JSON doc.
+        _ => {
+            let contract = factory.get_contract(collection_address);
+            let boc = BagOfCells::from_root(cell.as_ref().clone());
+            let nft_content = contract
+                .get_nft_content(&BigUint::zero(), boc.clone())
+                .await?;
+            let cell = nft_content
+                .single_root()
+                .map_cell_error("get_nft_content", collection_address)?
+                .clone();
+            let uri = cell
+                .load_snake_formatted_string()
+                .map_cell_error("get_nft_content", collection_address)?;
+            Ok(MetaDataContent::External {
+                uri: uri.to_string(),
+            })
+        }
     }
 }

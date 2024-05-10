@@ -348,7 +348,7 @@ async fn create_jetton_transfer() -> anyhow::Result<()> {
     let jetton_master =
         contract_factory.get_contract(&jetton_master_address);
     let self_jetton_wallet_addr = jetton_master.get_wallet_address(&self_address).await?;
-    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
+    let wallet = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let src: TonAddress = "<source wallet address>".parse()?;
     let jetton_amount = BigUint::from(1000000u64);
@@ -363,7 +363,7 @@ async fn create_jetton_transfer() -> anyhow::Result<()> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs() as u32;
-    let body = wallet.create_external_body(now + 60, seqno.try_into().unwrap(), transfer)?;
+    let body = wallet.create_external_body(now + 60, seqno.try_into().unwrap(), vec![transfer])?;
     let signed = wallet.sign_external_body(&body)?;
     let wrapped = wallet.wrap_signed_body(signed)?;
     let boc = BagOfCells::from_root(wrapped);
@@ -407,14 +407,14 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
     
 
     let client = TonClient::default().await?;
-    let wallet = TonWallet::derive(0, WalletVersion::V4R2, &key_pair, None)?;
+    let wallet = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let value = BigUint::from(10000000u64); // 0.01 TON
     let transfer = TransferMessage::new(&dest, &value).build()?;
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs() as u32;
-    let body = wallet.create_external_body(now + 60, seqno, transfer)?;
+    let body = wallet.create_external_body(now + 60, seqno, vec![transfer])?;
     let signed = wallet.sign_external_body(&body)?;
     let wrapped = wallet.wrap_signed_body(signed)?;
     let boc = BagOfCells::from_root(wrapped);

@@ -471,7 +471,7 @@ mod tests {
         let address = "124";
         let a = format!("\"{}\"", address);
         let deserial: serde_json::Result<TonAddress> = serde_json::from_str(a.as_str());
-        assert_eq!(true, deserial.is_err());
+        assert!(deserial.is_err());
 
         Ok(())
     }
