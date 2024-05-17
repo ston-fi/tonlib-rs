@@ -28,42 +28,25 @@ impl LoadMeta<NftCollectionMetaData> for MetaLoader<NftCollectionMetaData> {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
                 if dict.contains_key(&META_URI.key) {
-                    let uri = dict.get(&META_URI.key).unwrap();
+                    let uri = String::from_utf8_lossy(dict.get(&META_URI.key).unwrap()).to_string();
                     let external_meta = self.load_meta_from_uri(uri.as_str()).await?;
                     Ok(NftCollectionMetaData {
-                        image: external_meta
-                            .image
-                            .or_else(|| dict.get(&META_IMAGE.key).cloned()),
-                        name: external_meta
-                            .name
-                            .or_else(|| dict.get(&META_NAME.key).cloned()),
-                        description: external_meta
-                            .description
-                            .or_else(|| dict.get(&META_DESCRIPTION.key).cloned()),
-                        social_links: external_meta.social_links.or_else(|| {
-                            dict.get(&META_SOCIAL_LINKS.key)
-                                .map(|attr_str| {
-                                    Some(Value::Array(vec![Value::String(attr_str.clone())]))
-                                })
-                                .unwrap_or_default()
-                        }),
-
-                        marketplace: external_meta
-                            .marketplace
-                            .or_else(|| dict.get(&META_MARKETPLACE.key).cloned()),
+                        image: META_IMAGE.use_string_or(external_meta.image, dict),
+                        name: META_NAME.use_string_or(external_meta.name, dict),
+                        description: META_DESCRIPTION
+                            .use_string_or(external_meta.description, dict),
+                        social_links: META_SOCIAL_LINKS
+                            .use_value_or(external_meta.social_links, dict),
+                        marketplace: META_MARKETPLACE
+                            .use_string_or(external_meta.marketplace, dict),
                     })
                 } else {
                     Ok(NftCollectionMetaData {
-                        image: dict.get(&META_IMAGE.key).cloned(),
-                        name: dict.get(&META_NAME.key).cloned(),
-                        description: dict.get(&META_DESCRIPTION.key).cloned(),
-                        social_links: dict
-                            .get(&META_SOCIAL_LINKS.key)
-                            .map(|attr_str| {
-                                Some(Value::Array(vec![Value::String(attr_str.clone())]))
-                            })
-                            .unwrap_or_default(),
-                        marketplace: dict.get(&META_MARKETPLACE.key).cloned(),
+                        image: META_IMAGE.use_string_or(None, dict),
+                        name: META_NAME.use_string_or(None, dict),
+                        description: META_DESCRIPTION.use_string_or(None, dict),
+                        social_links: META_SOCIAL_LINKS.use_value_or(None, dict),
+                        marketplace: META_MARKETPLACE.use_string_or(None, dict),
                     })
                 }
             }

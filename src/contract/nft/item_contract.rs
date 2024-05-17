@@ -141,13 +141,7 @@ async fn read_item_metadata_content(
             let dict = reference
                 .load_snake_formatted_dict()
                 .map_cell_error("get_nft_data", item_address)?;
-            let converted_dict = dict
-                .into_iter()
-                .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                .collect();
-            Ok(MetaDataContent::Internal {
-                dict: converted_dict,
-            }) //todo #79s
+            Ok(MetaDataContent::Internal { dict })
         }
         // Off-chain content layout
         // The first byte is 0x01 and the rest is the URI pointing to the JSON document containing the token metadata.

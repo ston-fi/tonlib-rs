@@ -25,41 +25,23 @@ impl LoadMeta<NftItemMetaData> for MetaLoader<NftItemMetaData> {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
                 if dict.contains_key(&META_URI.key) {
-                    let uri = dict.get(&META_URI.key).unwrap();
+                    let uri = String::from_utf8_lossy(dict.get(&META_URI.key).unwrap()).to_string();
                     let external_meta = self.load_meta_from_uri(uri.as_str()).await?;
                     Ok(NftItemMetaData {
-                        name: external_meta
-                            .name
-                            .or_else(|| dict.get(&META_NAME.key).cloned()),
-                        content_url: external_meta
-                            .content_url
-                            .or_else(|| dict.get(&META_URI.key).cloned()),
-                        description: external_meta
-                            .description
-                            .or_else(|| dict.get(&META_DESCRIPTION.key).cloned()),
-                        image: external_meta
-                            .image
-                            .or_else(|| dict.get(&META_IMAGE.key).cloned()),
-                        attributes: external_meta.attributes.or_else(|| {
-                            dict.get(&META_ATTRIBUTES.key)
-                                .map(|attr_str| {
-                                    Some(Value::Array(vec![Value::String(attr_str.clone())]))
-                                })
-                                .unwrap_or_default()
-                        }),
+                        name: META_NAME.use_string_or(external_meta.name, dict),
+                        content_url: META_URI.use_string_or(external_meta.content_url, dict),
+                        description: META_DESCRIPTION
+                            .use_string_or(external_meta.description, dict),
+                        image: META_IMAGE.use_string_or(external_meta.image, dict),
+                        attributes: META_ATTRIBUTES.use_value_or(external_meta.attributes, dict),
                     })
                 } else {
                     Ok(NftItemMetaData {
-                        name: dict.get(&META_NAME.key).cloned(),
-                        content_url: dict.get(&META_CONTENT_URL.key).cloned(),
-                        description: dict.get(&META_DESCRIPTION.key).cloned(),
-                        image: dict.get(&META_IMAGE.key).cloned(),
-                        attributes: dict
-                            .get(&META_ATTRIBUTES.key)
-                            .map(|attr_str| {
-                                Some(Value::Array(vec![Value::String(attr_str.clone())]))
-                            })
-                            .unwrap_or_default(),
+                        name: META_NAME.use_string_or(None, dict),
+                        content_url: META_URI.use_string_or(None, dict),
+                        description: META_DESCRIPTION.use_string_or(None, dict),
+                        image: META_IMAGE.use_string_or(None, dict),
+                        attributes: META_ATTRIBUTES.use_value_or(None, dict),
                     })
                 }
             }
