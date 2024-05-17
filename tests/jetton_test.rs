@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::contract::{JettonMasterContract, TonContractFactory};
@@ -85,6 +86,8 @@ async fn test_get_jetton_content_ipfs_uri() {
     log::info!("{:?}", content_res);
     log::info!("{:?}", content_res.image_data);
     assert_eq!(content_res.decimals.unwrap(), 0x9);
+
+    log::info!("{:?}", res);
 }
 
 #[tokio::test]
@@ -151,4 +154,30 @@ async fn test_get_jetton_data_invalid_utf8_sequence() {
     let content_res = assert_ok!(meta_loader.load(&res.content).await);
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TFH"));
     assert_eq!(content_res.decimals.unwrap(), 0x9);
+}
+
+#[tokio::test]
+async fn test_jetton_image_data() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&assert_ok!(
+        "EQCTzzFI_I9OmQu5CfiK1k2TIV8ZvMtIWRkMjHdRrpfhJuBX".parse()
+    ));
+
+    let jetton_data = assert_ok!(contract.get_jetton_data().await);
+
+    let meta_loader = assert_ok!(JettonMetaLoader::default());
+    let content_res = assert_ok!(meta_loader.load(&jetton_data.content).await);
+
+    const TARGET_IMAGE_HASH: [u8; 32] = [
+        45, 186, 67, 118, 224, 166, 76, 84, 0, 203, 69, 175, 47, 34, 164, 184, 36, 229, 51, 193,
+        17, 18, 84, 70, 179, 240, 137, 163, 42, 147, 119, 220,
+    ];
+    let mut hasher: Sha256 = Sha256::new();
+    hasher.update(&content_res.image_data.unwrap());
+    let img_hash = hasher.finalize()[..].to_vec();
+    assert_eq!(TARGET_IMAGE_HASH.to_vec(), img_hash);
+
+    Ok(())
 }
