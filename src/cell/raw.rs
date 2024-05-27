@@ -252,16 +252,17 @@ fn write_raw_cell(
     let padding_bits = cell.bit_len % 8;
     let full_bytes = padding_bits == 0;
     let data = cell.data.as_slice();
-    let data_len = (cell.bit_len + 7) / 8;
-    let d2 = data_len as u8 * 2 - if full_bytes { 0 } else { 1 }; //subtract 1 if the last byte is not full
+    let data_len_bytes = (cell.bit_len + 7) / 8;
+    // data_len_bytes <= 128 by spec, but d2 must be u8 by spec as well
+    let d2 = (data_len_bytes * 2 - if full_bytes { 0 } else { 1 }) as u8; //subtract 1 if the last byte is not full
 
     writer.write(8, d1).map_boc_serialization_error()?;
     writer.write(8, d2).map_boc_serialization_error()?;
     if !full_bytes {
         writer
-            .write_bytes(&data[..data_len - 1])
+            .write_bytes(&data[..data_len_bytes - 1])
             .map_boc_serialization_error()?;
-        let last_byte = data[data_len - 1];
+        let last_byte = data[data_len_bytes - 1];
         let l = last_byte | 1 << (8 - padding_bits - 1);
         writer.write(8, l).map_boc_serialization_error()?;
     } else {
@@ -292,4 +293,25 @@ fn read_var_size(
         result |= usize::from(byte);
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio_test::assert_ok;
+
+    #[test]
+    fn test_raw_cell_serialize() {
+        let raw_cell = RawCell {
+            data: vec![1; 128],
+            bit_len: 1023,
+            references: vec![],
+            max_level: 255,
+        };
+        let raw_bag = RawBagOfCells {
+            cells: vec![raw_cell],
+            roots: vec![0],
+        };
+        let _res = assert_ok!(raw_bag.serialize(false));
+    }
 }
