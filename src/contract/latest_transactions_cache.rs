@@ -1,5 +1,4 @@
 use std::collections::LinkedList;
-use std::ops::DerefMut;
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -13,35 +12,31 @@ pub struct LatestContractTransactionsCache {
     capacity: usize,
     contract_factory: TonContractFactory,
     address: TonAddress,
+
     soft_limit: bool,
     inner: Mutex<Inner>,
-}
-
-struct Inner {
-    transactions: LinkedList<Arc<RawTransaction>>,
 }
 
 impl LatestContractTransactionsCache {
     pub fn new(
         contract_factory: &TonContractFactory,
-        contract_address: &TonAddress,
+        address: &TonAddress,
         capacity: usize,
         soft_limit: bool,
     ) -> LatestContractTransactionsCache {
+        let inner = Mutex::new(Inner {
+            transactions: LinkedList::new(),
+        });
         LatestContractTransactionsCache {
             capacity,
             contract_factory: contract_factory.clone(),
-            address: contract_address.clone(),
+            address: address.clone(),
+
             soft_limit,
-            inner: Mutex::new(Inner {
-                transactions: LinkedList::new(),
-            }),
+            inner,
         }
     }
 
-    /// Returns up to `limit` last transactions.
-    ///
-    /// Returned transactions are sorted from latest to earliest.
     pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         if limit > self.capacity {
             return Err(TonContractError::IllegalArgument(format!(
@@ -49,51 +44,69 @@ impl LatestContractTransactionsCache {
                 limit, self.capacity
             )));
         }
-        let mut lock = self.inner.lock().await;
-        self.sync(lock.deref_mut()).await?;
 
-        let mut res = Vec::with_capacity(limit);
-        for i in lock.transactions.iter().take(limit) {
-            res.push(i.clone())
+        let target_sync_tx_id = self.get_latest_tx_id().await?;
+
+        let mut inner = self.inner.lock().await;
+
+        // check sync status
+        if inner.is_not_synced_to_tx_id(&target_sync_tx_id) {
+            inner
+                .load_new_txs(
+                    &self.contract_factory,
+                    &self.address,
+                    self.soft_limit,
+                    self.capacity,
+                    &target_sync_tx_id,
+                )
+                .await?;
         }
-        Ok(res)
+        let r = inner.fill_txs(limit);
+        Ok(r)
     }
 
-    /// Returns up to `capacity` last transactions.
-    ///
-    /// Returned transactions are sorted from latest to earliest.
     pub async fn get_all(&self) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         self.get(self.capacity).await
     }
 
-    async fn sync(&self, inner: &mut Inner) -> Result<(), TonContractError> {
-        // Find out what to sync
+    async fn get_latest_tx_id(&self) -> Result<InternalTransactionId, TonContractError> {
         let state = self
             .contract_factory
             .get_latest_account_state(&self.address)
             .await?;
-        let last_tx_id = &state.last_transaction_id;
+        let tx_id = state.last_transaction_id.clone();
+        Ok(tx_id)
+    }
+}
 
-        let synced_tx_id: &InternalTransactionId = inner
-            .transactions
-            .front()
-            .map(|tx| &tx.transaction_id)
-            .unwrap_or(&NULL_TRANSACTION_ID);
+struct Inner {
+    transactions: LinkedList<Arc<RawTransaction>>,
+}
 
-        // Load neccessary data
-        let mut loaded: Vec<Arc<RawTransaction>> = Vec::new();
+impl Inner {
+    async fn load_new_txs(
+        &mut self,
+        contract_factory: &TonContractFactory,
+        address: &TonAddress,
+        soft_limit: bool,
+        capacity: usize,
+        target_sync_tx: &InternalTransactionId,
+    ) -> Result<(), TonContractError> {
+        let synced_tx_id = self.get_latest_synced_tx_id();
+        let mut loaded = Vec::new();
         let mut finished = false;
-        let mut next_to_load: InternalTransactionId = last_tx_id.clone();
-        let mut batch_size: usize = 16;
+        let mut next_to_load = target_sync_tx.clone();
+        let mut batch_size = 16;
+
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
-            let maybe_txs = self
-                .contract_factory
+            let maybe_txs = contract_factory
+                .clone()
                 .client()
-                .get_raw_transactions_v2(&self.address, &next_to_load, batch_size, false)
+                .get_raw_transactions_v2(address, &next_to_load, batch_size, false)
                 .await;
             let txs = match maybe_txs {
                 Ok(txs) => txs,
-                Err(e) if self.soft_limit => match e {
+                Err(e) if soft_limit => match e {
                     TonClientError::TonlibError { code: 500, .. } => {
                         batch_size /= 2;
                         if batch_size == 0 {
@@ -110,7 +123,7 @@ impl LatestContractTransactionsCache {
             };
 
             for tx in txs.transactions {
-                if loaded.len() >= self.capacity || tx.transaction_id.lt <= synced_tx_id.lt {
+                if loaded.len() >= capacity || tx.transaction_id.lt <= synced_tx_id.lt {
                     finished = true;
                     break;
                 }
@@ -118,31 +131,53 @@ impl LatestContractTransactionsCache {
             }
             next_to_load = txs.previous_transaction_id.clone();
         }
-
         // Add loaded transactions
         if !loaded.is_empty() {
             log::trace!(
                 "Adding {} new transactions for contract {}",
                 loaded.len(),
-                self.address
+                address
             );
         }
+        let txs = &mut self.transactions;
         for tx in loaded.iter().rev() {
-            inner.transactions.push_front(tx.clone());
+            txs.push_front(tx.clone());
         }
 
         // Remove outdated transactions
-        if inner.transactions.len() > self.capacity {
+        if txs.len() > capacity {
             log::trace!(
                 "Removing {} outdated transactions for contract {}",
-                inner.transactions.len() - self.capacity,
-                self.address
+                txs.len() - capacity,
+                address
             );
         }
-        while inner.transactions.len() > self.capacity {
-            inner.transactions.pop_back();
+        while txs.len() > capacity {
+            txs.pop_back();
         }
+        log::trace!("Finished sync");
 
         Ok(())
+    }
+
+    fn fill_txs(&self, limit: usize) -> Vec<Arc<RawTransaction>> {
+        let mut res = Vec::with_capacity(limit);
+        let txs = &self.transactions;
+        for i in txs.iter().take(limit) {
+            res.push(i.clone())
+        }
+        res
+    }
+
+    fn get_latest_synced_tx_id(&self) -> &InternalTransactionId {
+        self.transactions
+            .front()
+            .map(|tx| &tx.transaction_id)
+            .unwrap_or(&NULL_TRANSACTION_ID)
+    }
+
+    fn is_not_synced_to_tx_id(&self, target_sync_tx: &InternalTransactionId) -> bool {
+        let latest_synced_tx = self.get_latest_synced_tx_id();
+        latest_synced_tx != target_sync_tx
     }
 }
