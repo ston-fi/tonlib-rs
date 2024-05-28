@@ -108,6 +108,20 @@ impl TvmStackEntry {
             }),
         }
     }
+    pub fn get_string(&self) -> Result<String, StackParseError> {
+        match self {
+            TvmStackEntry::Slice(slice) => {
+                let data = &slice.cell.data;
+                let value = String::from_utf8(data.clone())?;
+                Ok(value)
+            }
+
+            t => Err(StackParseError::InvalidEntryType {
+                expected: "Slice".to_string(),
+                found: t.clone(),
+            }),
+        }
+    }
 
     pub fn get_dict<K, V, L>(&self, loader: &L) -> Result<HashMap<K, V>, StackParseError>
     where
@@ -164,6 +178,22 @@ impl TryFrom<&TonAddress> for TvmStackEntry {
 
     fn try_from(value: &TonAddress) -> Result<Self, Self::Error> {
         let cell = CellBuilder::new().store_address(value)?.build()?;
+        Ok(TvmStackEntry::Slice(CellSlice::full_cell(cell)?))
+    }
+}
+
+impl TryFrom<&String> for TvmStackEntry {
+    type Error = StackParseError;
+
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        let bytes = value.as_bytes().to_vec();
+        let bit_len = bytes.len() * 8;
+        // todo: support reference and snake format
+        let cell = Cell {
+            data: bytes,
+            bit_len,
+            references: vec![],
+        };
         Ok(TvmStackEntry::Slice(CellSlice::full_cell(cell)?))
     }
 }
