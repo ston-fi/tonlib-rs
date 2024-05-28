@@ -20,7 +20,14 @@ Rust SDK for [The Open Network](https://ton.org/)
 
 `tonlib-sys` - https://github.com/ston-fi/tonlib-sys
 
-For macOS must be preinstalled next components:
+## Prerequisites
+
+For Linux:
+```shell
+sudo apt install build-essential cmake libsodium-dev libsecp256k1-dev lz4 liblz4-dev
+```
+
+For macOS:
 ```shell
 brew install --cask mactex
 brew install readline secp256k1 ccache pkgconfig cmake libsodium
@@ -40,7 +47,7 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib = "0.14"
+tonlib = "0.15"
 ```
 
 Then, in your Rust code, you can import the library with:
