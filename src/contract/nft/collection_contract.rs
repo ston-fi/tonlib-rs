@@ -108,13 +108,7 @@ async fn read_collection_metadata_content(
             let dict = reference
                 .load_snake_formatted_dict()
                 .map_cell_error("get_collection_data", collection_address)?;
-            let converted_dict = dict
-                .into_iter()
-                .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                .collect();
-            Ok(MetaDataContent::Internal {
-                dict: converted_dict,
-            }) //todo #79
+            Ok(MetaDataContent::Internal { dict })
         }
         // On-chain content layout
         // The first byte is 0x00 and the rest is key/value dictionary.

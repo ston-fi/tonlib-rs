@@ -1,7 +1,10 @@
+use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Instant;
 use std::{thread, time};
 
 use anyhow::anyhow;
+use futures::future::join_all;
 use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::contract::{LatestContractTransactionsCache, TonContractFactory};
@@ -135,5 +138,51 @@ fn check_order(trs: Vec<Arc<RawTransaction>>) -> anyhow::Result<()> {
         }
         lt = t.transaction_id.lt;
     }
+    Ok(())
+}
+
+#[ignore]
+#[tokio::test]
+async fn latest_tx_data_cache_test() -> anyhow::Result<()> {
+    common::init_logging();
+
+    let client = common::new_mainnet_client().await;
+    let contract_factory = TonContractFactory::builder(&client).build().await?;
+
+    let contract_address =
+        TonAddress::from_str("EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt")?;
+
+    let capacity = 500;
+    let soft_limit = true;
+    let cache = LatestContractTransactionsCache::new(
+        &contract_factory,
+        &contract_address,
+        capacity,
+        soft_limit,
+    );
+    log::info!("Created cache");
+    for _ in 0..10 {
+        cache.get(capacity).await?;
+    }
+
+    let t = Instant::now();
+    let mut fut = vec![];
+    for j in 0..100 {
+        fut.push(cache.get(j));
+    }
+    let r = join_all(fut).await;
+
+    let dt = Instant::now() - t;
+
+    for (i, t) in r.into_iter().enumerate() {
+        assert_eq!(i, t?.len());
+    }
+
+    log::info!(
+        "100 parallel calls to latest tx data size 500 cache takes {:?}",
+        dt
+    );
+    drop(cache);
+
     Ok(())
 }

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
+use common::new_mainnet_client;
 use num_bigint::BigUint;
 use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
@@ -217,4 +218,17 @@ async fn test_derive_undeployed() {
     let r = contract.run_get_method("seqno", vec![]).await;
     log::info!("result: {:?}", r);
     assert!(r.is_err());
+}
+
+#[tokio::test]
+async fn test_string_in_tvm_success() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let pool_address = "EQB7kbyu5u26057eqT1wDmC0rbV0ybVDjr0xzp6yDXtcDmOn";
+    let pool = factory.get_contract(&pool_address.parse()?);
+    let pool_type =
+        assert_ok!(pool.run_get_method("get_pool_type", vec![]).await?.stack[0].get_string());
+    assert_eq!("constant_product", pool_type);
+    Ok(())
 }

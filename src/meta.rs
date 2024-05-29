@@ -1,12 +1,12 @@
 pub use error::*;
 pub use ipfs_loader::*;
 pub use loader::*;
+use serde_json::Value;
 
 mod error;
 mod ipfs_loader;
 mod loader;
 
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
-use crate::cell::{ArcCell, BagOfCells, TonCellError};
+use crate::cell::{ArcCell, BagOfCells, SnakeFormattedDict, TonCellError};
 
 struct MetaDataField {
     pub(crate) key: [u8; 32],
@@ -32,6 +32,24 @@ impl MetaDataField {
         let slice = &hasher.finalize()[..];
         TryInto::<[u8; 32]>::try_into(slice)
             .map_err(|e| MetaLoaderError::InternalError(e.to_string()))
+    }
+
+    pub fn use_string_or(&self, src: Option<String>, dict: &SnakeFormattedDict) -> Option<String> {
+        src.or(dict
+            .get(&self.key)
+            .cloned()
+            .and_then(|vec| String::from_utf8(vec).ok()))
+    }
+
+    pub fn use_value_or(&self, src: Option<Value>, dict: &SnakeFormattedDict) -> Option<Value> {
+        src.or(dict
+            .get(&self.key)
+            .map(|attr_str| {
+                Some(Value::Array(vec![Value::String(
+                    String::from_utf8_lossy(attr_str).to_string().clone(),
+                )]))
+            })
+            .unwrap_or_default())
     }
 }
 
@@ -52,7 +70,7 @@ lazy_static! {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum MetaDataContent {
     External { uri: String },
-    Internal { dict: HashMap<[u8; 32], String> },
+    Internal { dict: SnakeFormattedDict },
     // TODO: Replace with cell
     Unsupported { boc: BagOfCells },
 }
@@ -65,13 +83,7 @@ impl MetaDataContent {
         match content_representation {
             0 => {
                 let dict = cell.reference(0)?.load_snake_formatted_dict()?;
-                let converted_dict = dict
-                    .into_iter()
-                    .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                    .collect();
-                Ok(MetaDataContent::Internal {
-                    dict: converted_dict,
-                })
+                Ok(MetaDataContent::Internal { dict })
             }
             1 => {
                 let remaining_bytes = parser.remaining_bytes();

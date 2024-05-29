@@ -36,6 +36,8 @@ mod util;
 
 pub type ArcCell = Arc<Cell>;
 
+pub type SnakeFormattedDict = HashMap<[u8; 32], Vec<u8>>;
+
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Cell {
     pub data: Vec<u8>,
@@ -180,7 +182,7 @@ impl Cell {
     /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
     ///
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
-    pub fn load_snake_formatted_dict(&self) -> Result<HashMap<[u8; 32], Vec<u8>>, TonCellError> {
+    pub fn load_snake_formatted_dict(&self) -> Result<SnakeFormattedDict, TonCellError> {
         let dict_loader = GenericDictLoader::new(
             key_extractor_256bit,
             value_extractor_snake_formatted_string,
@@ -221,12 +223,14 @@ impl Cell {
         let mut first_cell = true;
         loop {
             let mut parser = cell.parser();
-            let first_byte = parser.load_uint(8)?.to_u32().unwrap();
+            if first_cell {
+                let first_byte = parser.load_u8(8)?;
 
-            if first_cell && first_byte != 0 {
-                return Err(TonCellError::boc_deserialization_error(
-                    "Invalid snake format",
-                ));
+                if first_byte != 0 {
+                    return Err(TonCellError::boc_deserialization_error(
+                        "Invalid snake format",
+                    ));
+                }
             }
             let remaining_bytes = parser.remaining_bytes();
             let mut data = parser.load_bytes(remaining_bytes)?;

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
 
+use crate::cell::SnakeFormattedDict;
 use crate::meta::*;
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Debug, Clone)]
@@ -17,7 +18,7 @@ pub struct JettonMetaData {
     ///Optional. ASCII string. A URI pointing to a jetton icon with mime type image.
     pub image: Option<String>,
     ///Optional. Either binary representation of the image for onchain layout or base64 for offchain layout.
-    pub image_data: Option<String>,
+    pub image_data: Option<Vec<u8>>,
     ///Optional. If not specified, 9 is used by default. UTF8 encoded string with number from 0 to 255.
     ///The number of decimals the token uses - e.g. 8, means to divide the token amount by 100000000
     ///to get its user representation, while 0 means that tokens are indivisible:
@@ -36,23 +37,23 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
             MetaDataContent::External { uri } => self.load_meta_from_uri(uri.as_str()).await,
             MetaDataContent::Internal { dict } => {
                 if dict.contains_key(&META_URI.key) {
-                    let uri = dict.get(&META_URI.key).unwrap();
+                    let uri = String::from_utf8_lossy(dict.get(&META_URI.key).unwrap()).to_string();
                     let result = self.load_meta_from_uri(uri.as_str()).await;
+
                     match result {
                         Ok(external_meta) => Ok(JettonMetaData {
-                            name: external_meta.name.or(dict.get(&META_NAME.key).cloned()),
-                            uri: external_meta.uri.or(dict.get(&META_URI.key).cloned()),
-                            symbol: external_meta.symbol.or(dict.get(&META_SYMBOL.key).cloned()),
-                            description: external_meta
-                                .description
-                                .or(dict.get(&META_DESCRIPTION.key).cloned()),
-                            image: external_meta.image.or(dict.get(&META_IMAGE.key).cloned()),
+                            name: META_NAME.use_string_or(external_meta.name, dict),
+                            uri: META_URI.use_string_or(external_meta.uri, dict),
+                            symbol: META_SYMBOL.use_string_or(external_meta.symbol, dict),
+                            description: META_DESCRIPTION
+                                .use_string_or(external_meta.description, dict),
+                            image: META_IMAGE.use_string_or(external_meta.image, dict),
                             image_data: external_meta
                                 .image_data
                                 .or(dict.get(&META_IMAGE_DATA.key).cloned()),
-                            decimals: external_meta.decimals.or(dict
-                                .get(&META_DECIMALS.key)
-                                .and_then(|v| v.parse::<u8>().ok())),
+                            decimals: META_DECIMALS
+                                .use_string_or(None, dict)
+                                .map(|v| v.parse::<u8>().unwrap()),
                         }),
                         Err(_) => Ok(dict.into()),
                     }
@@ -66,18 +67,18 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
     }
 }
 
-impl From<&HashMap<[u8; 32], String>> for JettonMetaData {
-    fn from(dict: &HashMap<[u8; 32], String>) -> Self {
+impl From<&SnakeFormattedDict> for JettonMetaData {
+    fn from(dict: &SnakeFormattedDict) -> Self {
         JettonMetaData {
-            name: dict.get(&META_NAME.key).cloned(),
-            uri: dict.get(&META_URI.key).cloned(),
-            symbol: dict.get(&META_SYMBOL.key).cloned(),
-            description: dict.get(&META_DESCRIPTION.key).cloned(),
-            image: dict.get(&META_IMAGE.key).cloned(),
+            name: META_NAME.use_string_or(None, dict),
+            uri: META_URI.use_string_or(None, dict),
+            symbol: META_SYMBOL.use_string_or(None, dict),
+            description: META_DESCRIPTION.use_string_or(None, dict),
+            image: META_IMAGE.use_string_or(None, dict),
             image_data: dict.get(&META_IMAGE_DATA.key).cloned(),
-            decimals: dict
-                .get(&META_DECIMALS.key)
-                .and_then(|v| v.parse::<u8>().ok()),
+            decimals: META_DECIMALS
+                .use_string_or(None, dict)
+                .map(|v| v.parse::<u8>().unwrap()),
         }
     }
 }

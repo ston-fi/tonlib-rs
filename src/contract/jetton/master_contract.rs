@@ -94,13 +94,7 @@ fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCel
     match content_representation {
         0 => {
             let dict = cell.reference(0)?.load_snake_formatted_dict()?;
-            let converted_dict = dict
-                .into_iter()
-                .map(|(key, value)| (key, String::from_utf8_lossy(&value).to_string()))
-                .collect();
-            Ok(MetaDataContent::Internal {
-                dict: converted_dict,
-            }) //todo #79
+            Ok(MetaDataContent::Internal { dict })
         }
         1 => {
             let remaining_bytes = parser.remaining_bytes();

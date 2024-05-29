@@ -1,3 +1,5 @@
+use std::string::FromUtf8Error;
+
 use thiserror::Error;
 
 use crate::cell::TonCellError;
@@ -16,6 +18,9 @@ pub enum StackParseError {
 
     #[error("Invalid stack entry({0})")]
     InvalidEntryValue(String),
+
+    #[error("FromUtf8 error({0})")]
+    FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("Cell error({0})")]
     CellError(#[from] TonCellError),
