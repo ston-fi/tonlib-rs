@@ -20,10 +20,16 @@ impl LibraryProvider {
         address: &TonAddress,
         account_state: &Arc<RawFullAccountState>,
     ) -> Result<Arc<ContractLibraryDict>, TonContractError> {
-        let code = &account_state.code;
+        self.get_libraries_by_contract_code(address, &account_state.code)
+            .await
+    }
 
-        //todo cache
-
+    pub async fn get_libraries_by_contract_code(
+        &self,
+        address: &TonAddress,
+        code: &[u8],
+    ) -> Result<Arc<ContractLibraryDict>, TonContractError> {
+        // TODO cache
         self.loader.load_contract_libraries(address, code).await
     }
 }
