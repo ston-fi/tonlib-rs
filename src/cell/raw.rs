@@ -297,8 +297,9 @@ fn read_var_size(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tokio_test::assert_ok;
+
+    use super::*;
 
     #[test]
     fn test_raw_cell_serialize() {
