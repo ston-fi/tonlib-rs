@@ -98,6 +98,15 @@ impl Inner {
         let mut next_to_load = target_sync_tx.clone();
         let mut batch_size = 16;
 
+        if next_to_load.lt <= synced_tx_id.lt {
+            log::warn!(
+                "next to load lt is less or equal to synced_tx_id.lt {:?},{:?}",
+                next_to_load.lt,
+                synced_tx_id.lt
+            );
+            return Ok(());
+        }
+
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
             let maybe_txs = contract_factory
                 .clone()
