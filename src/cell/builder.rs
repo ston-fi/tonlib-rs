@@ -296,14 +296,13 @@ fn extend_and_invert_bits(bits_cnt: usize, src: &BigUint) -> Result<BigUint, Ton
     // can be optimized
     for (pos, byte) in src_bytes.iter().rev().enumerate() {
         let inverted_pos = inverted.len() - 1 - pos;
-        inverted[inverted_pos] = inverted[inverted_pos] ^ byte;
-        if inverted_pos == 0 {}
+        inverted[inverted_pos] ^= byte;
     }
     let mut inverted_val_bytes = BigUint::from_bytes_be(&inverted)
         .add(BigUint::one())
         .to_bytes_be();
     let leading_zeros = inverted_bytes_cnt * 8 - bits_cnt;
-    inverted_val_bytes[0] = inverted_val_bytes[0] & (0xffu8 >> leading_zeros);
+    inverted_val_bytes[0] &= 0xffu8 >> leading_zeros;
     Ok(BigUint::from_bytes_be(&inverted_val_bytes))
 }
 
@@ -448,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn write_write_int() -> anyhow::Result<()> {
+    fn write_big_int() -> anyhow::Result<()> {
         let value = BigInt::from_str("3")?;
         let mut writer = CellBuilder::new();
         assert_ok!(writer.store_int(33, &value));
@@ -480,7 +479,7 @@ mod tests {
     }
 
     #[test]
-    fn write_load_uint() -> anyhow::Result<()> {
+    fn write_load_big_uint() -> anyhow::Result<()> {
         let value = BigUint::from_str("3")?;
         let mut writer = CellBuilder::new();
         assert!(writer.store_uint(1, &value).is_err());
