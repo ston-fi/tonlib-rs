@@ -83,7 +83,7 @@ impl CellBuilder {
             )));
         }
         // example: bit_len=13, val=5. 5 = 00000101, we must store 0000000000101
-        // leading_zeros_bytes = 10
+        // leading_zeros_bits = 10
         // leading_zeros_bytes = 10 / 8 = 1
         let leading_zero_bits = bit_len - val.bits() as usize;
         let leading_zeros_bytes = leading_zero_bits / 8;
