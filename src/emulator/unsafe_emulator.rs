@@ -25,6 +25,7 @@ impl TvmEmulatorUnsafe {
         data: &[u8],
         vm_log_verbosity: u32,
     ) -> Result<TvmEmulatorUnsafe, TvmEmulatorError> {
+        log::trace!("tvm_emulator_unsafe: creating...");
         let code = CString::new(STANDARD.encode(code))?;
         let data = CString::new(STANDARD.encode(data))?;
 
@@ -33,8 +34,10 @@ impl TvmEmulatorUnsafe {
             TvmEmulatorUnsafe { ptr }
         };
         if emulator.ptr.is_null() {
+            log::trace!("tvm_emulator_unsafe: creating failed");
             Err(TvmEmulatorError::CreationFailed())
         } else {
+            log::trace!("tvm_emulator_unsafe: created");
             Ok(emulator)
         }
     }
@@ -44,12 +47,21 @@ impl TvmEmulatorUnsafe {
         method_id: i32,
         stack_boc: &[u8],
     ) -> Result<String, TvmEmulatorError> {
+        log::trace!(
+            "run_get_method_req: method_id: {}, stack_boc: {:?}",
+            method_id,
+            stack_boc
+        );
         let data: CString = CString::new(STANDARD.encode(stack_boc))?;
         let c_str = unsafe { tvm_emulator_run_get_method(self.ptr, method_id, data.as_ptr()) };
 
         let json_str: &str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str()? };
-        log::trace!("response {}", json_str);
-
+        log::trace!(
+            "run_get_method_rsp: method_id: {}, stack_boc: {:?}, rsp: {}",
+            method_id,
+            stack_boc,
+            json_str
+        );
         Ok(json_str.to_string())
     }
 
@@ -58,21 +70,36 @@ impl TvmEmulatorUnsafe {
         message: &[u8],
         amount: u64,
     ) -> Result<String, TvmEmulatorError> {
+        log::trace!(
+            "send_internal_message_req: msg: {:?}, amount: {}",
+            message,
+            amount
+        );
         let message_encoded = CString::new(STANDARD.encode(message))?;
         let c_str = unsafe {
             tvm_emulator_send_internal_message(self.ptr, message_encoded.into_raw(), amount)
         };
         let json_str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
-        log::trace!("response {}", json_str);
+        log::trace!(
+            "send_internal_message_rsp: msg: {:?}, amount: {}, rsp: {}",
+            message,
+            amount,
+            json_str
+        );
         Ok(json_str.to_string())
     }
 
     pub fn send_external_message(&mut self, message: &[u8]) -> Result<String, TvmEmulatorError> {
+        log::trace!("send_internal_message_req: msg: {:?}", message);
         let message_encoded = CString::new(STANDARD.encode(message))?;
         let c_str =
             unsafe { tvm_emulator_send_external_message(self.ptr, message_encoded.into_raw()) };
         let json_str = unsafe { std::ffi::CStr::from_ptr(c_str).to_str() }?;
-        log::trace!("response {}", json_str);
+        log::trace!(
+            "send_external_message_rsp: msg: {:?}, rsp: {}",
+            message,
+            json_str
+        );
         Ok(json_str.to_string())
     }
 
