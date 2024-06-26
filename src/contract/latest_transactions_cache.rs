@@ -1,6 +1,7 @@
 use std::collections::LinkedList;
+use std::ops::Sub;
 use std::sync::Arc;
-
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
 use crate::address::TonAddress;
@@ -14,6 +15,7 @@ pub struct LatestContractTransactionsCache {
     address: TonAddress,
 
     soft_limit: bool,
+    tx_age_limit: Option<Duration>,
     inner: Mutex<Inner>,
 }
 
@@ -23,6 +25,7 @@ impl LatestContractTransactionsCache {
         address: &TonAddress,
         capacity: usize,
         soft_limit: bool,
+        tx_age_limit: Option<Duration>,
     ) -> LatestContractTransactionsCache {
         let inner = Mutex::new(Inner {
             transactions: LinkedList::new(),
@@ -33,6 +36,7 @@ impl LatestContractTransactionsCache {
             address: address.clone(),
 
             soft_limit,
+            tx_age_limit,
             inner,
         }
     }
@@ -58,6 +62,7 @@ impl LatestContractTransactionsCache {
                     self.soft_limit,
                     self.capacity,
                     &target_sync_tx_id,
+                    self.tx_age_limit,
                 )
                 .await?;
         }
@@ -91,6 +96,7 @@ impl Inner {
         soft_limit: bool,
         capacity: usize,
         target_sync_tx: &InternalTransactionId,
+        tx_age_limit: Option<Duration>,
     ) -> Result<(), TonContractError> {
         let synced_tx_id = self.get_latest_synced_tx_id();
         let mut loaded = Vec::new();
@@ -106,6 +112,11 @@ impl Inner {
             );
             return Ok(());
         }
+
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_e| TonContractError::InternalError("Time went backwards!".to_string()))?;
+        let min_utime = tx_age_limit.map(|duration| current_time - duration);
 
         while !finished && next_to_load.lt != 0 && next_to_load.lt > synced_tx_id.lt {
             let maybe_txs = contract_factory
@@ -134,6 +145,14 @@ impl Inner {
             for tx in txs.transactions {
                 if loaded.len() >= capacity || tx.transaction_id.lt <= synced_tx_id.lt {
                     finished = true;
+                    break;
+                } else if Inner::is_older_than(tx.utime, min_utime) {
+                    finished = true;
+                    log::trace!(
+                        "Minimum loaded timestamp limit reached {:?} for transaction id {:?}",
+                        tx_age_limit.map(|limit| current_time.sub(limit)),
+                        tx.transaction_id.lt
+                    );
                     break;
                 }
                 loaded.push(Arc::new(tx));
@@ -167,6 +186,13 @@ impl Inner {
         log::trace!("Finished sync");
 
         Ok(())
+    }
+
+    fn is_older_than(utime: i64, min_utime: Option<Duration>) -> bool {
+        if let Some(min) = min_utime {
+            return Duration::from_secs(utime as u64) < min;
+        }
+        false
     }
 
     fn fill_txs(&self, limit: usize) -> Vec<Arc<RawTransaction>> {
