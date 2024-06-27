@@ -1,8 +1,9 @@
+use std::ops::Add;
 use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
-use num_bigint::{BigInt, BigUint};
-use num_traits::Zero;
+use num_bigint::{BigInt, BigUint, Sign};
+use num_traits::{One, Zero};
 
 use crate::address::TonAddress;
 use crate::cell::error::{MapTonCellError, TonCellError};
@@ -75,68 +76,64 @@ impl CellBuilder {
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
         if val.bits() as usize > bit_len {
             return Err(TonCellError::cell_builder_error(format!(
-                "Value {} doesn't fit in {} bits",
-                val, bit_len
+                "Value {} doesn't fit in {} bits (takes {} bits)",
+                val,
+                bit_len,
+                val.bits()
             )));
         }
-        let bytes = val.to_bytes_be();
-        let num_full_bytes = bit_len / 8;
-        let num_bits_in_high_byte = bit_len % 8;
-        if bytes.len() > num_full_bytes + 1 {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Internal error: can't fit {} into {} bits ",
-                val, bit_len
-            )));
-        }
-        if num_bits_in_high_byte > 0 {
-            let high_byte: u8 = if bytes.len() == num_full_bytes + 1 {
-                bytes[0]
-            } else {
-                0
-            };
-            self.store_u8(num_bits_in_high_byte, high_byte)?;
-        }
-        let num_empty_bytes = num_full_bytes - bytes.len();
-        for _ in 0..num_empty_bytes {
+        // example: bit_len=13, val=5. 5 = 00000101, we must store 0000000000101
+        // leading_zeros_bits = 10
+        // leading_zeros_bytes = 10 / 8 = 1
+        let leading_zero_bits = bit_len - val.bits() as usize;
+        let leading_zeros_bytes = leading_zero_bits / 8;
+        for _ in 0..leading_zeros_bytes {
             self.store_byte(0)?;
         }
-        for b in bytes {
-            self.store_byte(b)?;
+        // we must align high byte of val to specified bit_len, 00101 in our case
+        let extra_zeros = leading_zero_bits % 8;
+        for _ in 0..extra_zeros {
+            self.store_bit(false)?;
+        }
+        // and then store val's high byte in minimum number of bits
+        let val_bytes = val.to_bytes_be();
+        let high_bits_cnt = {
+            let cnt = val.bits() % 8;
+            if cnt == 0 {
+                8
+            } else {
+                cnt
+            }
+        };
+        let high_byte = val_bytes[0];
+        for i in 0..high_bits_cnt {
+            self.store_bit(high_byte & (1 << (high_bits_cnt - i - 1)) != 0)?;
+        }
+        // store the rest of val
+        for byte in val_bytes.iter().skip(1) {
+            self.store_byte(*byte)?;
         }
         Ok(self)
     }
 
     pub fn store_int(&mut self, bit_len: usize, val: &BigInt) -> Result<&mut Self, TonCellError> {
-        if val.bits() as usize > bit_len {
+        let (sign, mag) = val.clone().into_parts();
+        let bit_len = bit_len - 1; // reserve 1 bit for sign
+        if bit_len < mag.bits() as usize {
             return Err(TonCellError::cell_builder_error(format!(
-                "Value {} doesn't fit in {} bits",
-                val, bit_len
+                "Value {} doesn't fit in {} bits (takes {} bits)",
+                val,
+                bit_len,
+                mag.bits()
             )));
         }
-        let bytes = val.to_signed_bytes_be();
-        let num_full_bytes = bit_len / 8;
-        let num_bits_in_high_byte = bit_len % 8;
-        if bytes.len() > num_full_bytes + 1 {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Internal error: can't fit {} into {} bits ",
-                val, bit_len
-            )));
-        }
-        if num_bits_in_high_byte > 0 {
-            let high_byte: u8 = if bytes.len() == num_full_bytes + 1 {
-                bytes[0]
-            } else {
-                0
-            };
-            self.store_u8(num_bits_in_high_byte, high_byte)?;
-        }
-        let num_empty_bytes = num_full_bytes - bytes.len();
-        for _ in 0..num_empty_bytes {
+        if sign == Sign::Minus {
+            self.store_byte(1)?;
+            self.store_uint(bit_len, &extend_and_invert_bits(bit_len, &mag)?)?;
+        } else {
             self.store_byte(0)?;
-        }
-        for b in bytes {
-            self.store_byte(b)?;
-        }
+            self.store_uint(bit_len, &mag)?;
+        };
         Ok(self)
     }
 
@@ -285,6 +282,30 @@ impl CellBuilder {
     }
 }
 
+fn extend_and_invert_bits(bits_cnt: usize, src: &BigUint) -> Result<BigUint, TonCellError> {
+    if bits_cnt < src.bits() as usize {
+        return Err(TonCellError::cell_builder_error(format!(
+            "Can't invert bits: value {} doesn't fit in {} bits",
+            src, bits_cnt
+        )));
+    }
+
+    let src_bytes = src.to_bytes_be();
+    let inverted_bytes_cnt = (bits_cnt + 7) / 8;
+    let mut inverted = vec![0xffu8; inverted_bytes_cnt];
+    // can be optimized
+    for (pos, byte) in src_bytes.iter().rev().enumerate() {
+        let inverted_pos = inverted.len() - 1 - pos;
+        inverted[inverted_pos] ^= byte;
+    }
+    let mut inverted_val_bytes = BigUint::from_bytes_be(&inverted)
+        .add(BigUint::one())
+        .to_bytes_be();
+    let leading_zeros = inverted_bytes_cnt * 8 - bits_cnt;
+    inverted_val_bytes[0] &= 0xffu8 >> leading_zeros;
+    Ok(BigUint::from_bytes_be(&inverted_val_bytes))
+}
+
 impl Default for CellBuilder {
     fn default() -> Self {
         Self::new()
@@ -294,7 +315,35 @@ impl Default for CellBuilder {
 #[cfg(test)]
 mod tests {
     use crate::address::TonAddress;
+    use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::CellBuilder;
+    use num_bigint::{BigInt, BigUint, Sign};
+    use std::str::FromStr;
+    use tokio_test::{assert_err, assert_ok};
+
+    #[test]
+    fn test_extend_and_invert_bits() -> anyhow::Result<()> {
+        let a = BigUint::from(1u8);
+        let b = extend_and_invert_bits(8, &a)?;
+        println!("a: {:0x}", a);
+        println!("b: {:0x}", b);
+        assert_eq!(b, BigUint::from(0xffu8));
+
+        let b = extend_and_invert_bits(16, &a)?;
+        assert_eq!(b, BigUint::from_slice(&[0xffffu32]));
+
+        let b = extend_and_invert_bits(20, &a)?;
+        assert_eq!(b, BigUint::from_slice(&[0xfffffu32]));
+
+        let b = extend_and_invert_bits(8, &a)?;
+        assert_eq!(b, BigUint::from_slice(&[0xffu32]));
+
+        let b = extend_and_invert_bits(9, &a)?;
+        assert_eq!(b, BigUint::from_slice(&[0x1ffu32]));
+
+        assert_err!(extend_and_invert_bits(3, &BigUint::from(10u32)));
+        Ok(())
+    }
 
     #[test]
     fn write_bit() -> anyhow::Result<()> {
@@ -394,6 +443,77 @@ mod tests {
         let mut reader = cell.parser();
         let result = reader.load_address()?;
         assert_eq!(result, addr);
+        Ok(())
+    }
+
+    #[test]
+    fn write_big_int() -> anyhow::Result<()> {
+        let value = BigInt::from_str("3")?;
+        let mut writer = CellBuilder::new();
+        assert_ok!(writer.store_int(33, &value));
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        assert_eq!(written, value);
+
+        // 256 bits (+ sign)
+        let value = BigInt::from_str(
+            "97887266651548624282413032824435501549503168134499591480902563623927645013201",
+        )?;
+        let mut writer = CellBuilder::new();
+        assert_ok!(writer.store_int(257, &value));
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        assert_eq!(written, value);
+
+        let value = BigInt::from_str("-5")?;
+        let mut writer = CellBuilder::new();
+        assert_ok!(writer.store_int(5, &value));
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data[1..]);
+        let expected = BigInt::from_bytes_be(Sign::Plus, &[0xB0u8]);
+        assert_eq!(written, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn write_load_big_uint() -> anyhow::Result<()> {
+        let value = BigUint::from_str("3")?;
+        let mut writer = CellBuilder::new();
+        assert!(writer.store_uint(1, &value).is_err());
+        let bits_for_tests = vec![256, 128, 64, 8];
+
+        for bits_num in bits_for_tests.iter() {
+            assert_ok!(writer.store_uint(*bits_num, &value));
+        }
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        let mut cell_parser = cell.parser();
+        for bits_num in bits_for_tests.iter() {
+            let written_value = assert_ok!(cell_parser.load_uint(*bits_num));
+            assert_eq!(written_value, value);
+        }
+
+        // 256 bit
+        let value = BigUint::from_str(
+            "97887266651548624282413032824435501549503168134499591480902563623927645013201",
+        )?;
+        let mut writer = CellBuilder::new();
+        assert!(writer.store_uint(255, &value).is_err());
+        let bits_for_tests = vec![496, 264, 256];
+        for bits_num in bits_for_tests.iter() {
+            assert_ok!(writer.store_uint(*bits_num, &value));
+        }
+        let cell = writer.build()?;
+        let mut cell_parser = cell.parser();
+        println!("cell: {:?}", cell);
+        for bits_num in bits_for_tests.iter() {
+            let written_value = assert_ok!(cell_parser.load_uint(*bits_num));
+            assert_eq!(written_value, value);
+        }
+
         Ok(())
     }
 }

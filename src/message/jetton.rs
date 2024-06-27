@@ -87,7 +87,7 @@ impl JettonTransferMessage {
         forward_ton_amount: &BigUint,
         forward_payload: &ArcCell,
     ) -> &mut Self {
-        self.forward_ton_amount = forward_ton_amount.clone();
+        self.forward_ton_amount.clone_from(forward_ton_amount);
         self.forward_payload = Some(forward_payload.clone());
         self
     }

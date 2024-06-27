@@ -1,10 +1,10 @@
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Instant;
-use std::{thread, time};
-
 use anyhow::anyhow;
 use futures::future::join_all;
+use std::ops::Sub;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::{thread, time};
 use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::contract::{LatestContractTransactionsCache, TonContractFactory};
@@ -20,7 +20,7 @@ async fn get_txs_for_frequent_works() {
 
     let client = common::new_mainnet_client().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    let trans = LatestContractTransactionsCache::new(&factory, validator, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, validator, 100, true, None);
     let trs = assert_ok!(trans.get(4).await);
     log::info!(
         "Got {} transactions, first {}, last {}",
@@ -64,7 +64,7 @@ async fn get_txs_for_rare_works() {
 
     let client = common::new_archive_mainnet_client().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true, None);
 
     let trs = assert_ok!(trans.get(4).await);
     if trs.is_empty() {
@@ -97,7 +97,8 @@ async fn get_txs_for_rare_works() {
     let mut missing_hash = addr.hash_part;
     missing_hash[31] += 1;
     let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
-    let missing_trans = LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true);
+    let missing_trans =
+        LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true, None);
     let missing_trs = assert_ok!(missing_trans.get(30).await);
 
     assert_eq!(missing_trs.len(), 0);
@@ -110,7 +111,7 @@ async fn get_txs_for_empty_works() {
 
     let client = common::new_mainnet_client().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true);
+    let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true, None);
     let trs = assert_ok!(trans.get(4).await);
     log::info!(
         "Got {} transactions, first {:?}, last {:?}",
@@ -159,6 +160,7 @@ async fn latest_tx_data_cache_test() -> anyhow::Result<()> {
         &contract_address,
         capacity,
         soft_limit,
+        None,
     );
     log::info!("Created cache");
     for _ in 0..10 {
@@ -183,6 +185,48 @@ async fn latest_tx_data_cache_test() -> anyhow::Result<()> {
         dt
     );
     drop(cache);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn timestamp_limit_test() -> anyhow::Result<()> {
+    const ADDRESS: &str = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt";
+    const TIMESTAMP_LIMIT_SEC: u64 = 60;
+    let time_limit = Duration::from_secs(TIMESTAMP_LIMIT_SEC);
+
+    common::init_logging();
+    let addr: &TonAddress = &assert_ok!(ADDRESS.parse());
+
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+
+    let cache = LatestContractTransactionsCache::new(
+        &factory,
+        &addr,
+        500,
+        true,
+        Some(Duration::from_secs(TIMESTAMP_LIMIT_SEC)),
+    );
+
+    let transactions = assert_ok!(cache.get(500).await);
+    if transactions.len() > 0 {
+        let last = transactions.last().unwrap();
+        log::info!(
+            "Got {} transactions, first {}, last {}",
+            transactions.len(),
+            transactions.first().unwrap().transaction_id.lt,
+            last.transaction_id.lt,
+        );
+
+        let expected_min_utime = SystemTime::now()
+            .sub(time_limit)
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        assert!(last.utime > expected_min_utime);
+    }
 
     Ok(())
 }
