@@ -314,12 +314,14 @@ impl Default for CellBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use num_bigint::{BigInt, BigUint, Sign};
+    use tokio_test::{assert_err, assert_ok};
+
     use crate::address::TonAddress;
     use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::CellBuilder;
-    use num_bigint::{BigInt, BigUint, Sign};
-    use std::str::FromStr;
-    use tokio_test::{assert_err, assert_ok};
 
     #[test]
     fn test_extend_and_invert_bits() -> anyhow::Result<()> {
@@ -483,7 +485,7 @@ mod tests {
         let value = BigUint::from_str("3")?;
         let mut writer = CellBuilder::new();
         assert!(writer.store_uint(1, &value).is_err());
-        let bits_for_tests = vec![256, 128, 64, 8];
+        let bits_for_tests = [256, 128, 64, 8];
 
         for bits_num in bits_for_tests.iter() {
             assert_ok!(writer.store_uint(*bits_num, &value));
@@ -502,7 +504,7 @@ mod tests {
         )?;
         let mut writer = CellBuilder::new();
         assert!(writer.store_uint(255, &value).is_err());
-        let bits_for_tests = vec![496, 264, 256];
+        let bits_for_tests = [496, 264, 256];
         for bits_num in bits_for_tests.iter() {
             assert_ok!(writer.store_uint(*bits_num, &value));
         }
