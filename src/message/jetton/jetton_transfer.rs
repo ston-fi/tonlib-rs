@@ -213,11 +213,9 @@ mod tests {
             .unwrap(),
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Some(Arc::new(Cell {
-                data: hex::decode(TRANSFER_PAYLOAD).unwrap(),
-                bit_len: 862,
-                references: vec![],
-            })),
+            forward_payload: Some(Arc::new(
+                Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
+            )),
         };
 
         assert_eq!(expected_jetton_transfer_msg, result_jetton_transfer_msg);
@@ -235,11 +233,9 @@ mod tests {
             .unwrap(),
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Some(Arc::new(Cell {
-                data: hex::decode(TRANSFER_PAYLOAD).unwrap(),
-                bit_len: 862,
-                references: vec![],
-            })),
+            forward_payload: Some(Arc::new(
+                Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
+            )),
         };
 
         let result_cell = assert_ok!(jetton_transfer_msg.build());
