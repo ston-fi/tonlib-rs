@@ -1,4 +1,4 @@
-use super::ArcCell;
+use super::{ArcCell, CellHash};
 use crate::cell::{Cell, CellBuilder, TonCellError};
 
 pub struct StateInitBuilder {
@@ -58,8 +58,8 @@ impl StateInitBuilder {
 }
 
 impl StateInit {
-    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<Vec<u8>, TonCellError> {
-        StateInitBuilder::new(code, data).build()?.cell_hash()
+    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<CellHash, TonCellError> {
+        Ok(StateInitBuilder::new(code, data).build()?.cell_hash())
     }
 }
 

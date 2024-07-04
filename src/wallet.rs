@@ -265,7 +265,7 @@ impl TonWallet {
     }
 
     pub fn sign_external_body(&self, external_body: &Cell) -> Result<Cell, TonMessageError> {
-        let message_hash = external_body.cell_hash()?;
+        let message_hash = external_body.cell_hash();
         let sig = signature(message_hash.as_slice(), self.key_pair.secret_key.as_slice())
             .map_err(|e| TonMessageError::NaclCryptographicError(e.message))?;
         let mut body_builder = CellBuilder::new();

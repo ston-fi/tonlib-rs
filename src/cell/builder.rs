@@ -15,6 +15,7 @@ const MAX_CELL_REFERENCES: usize = 4;
 pub struct CellBuilder {
     bit_writer: BitWriter<Vec<u8>, BigEndian>,
     references: Vec<ArcCell>,
+    is_cell_exotic: bool,
 }
 
 impl CellBuilder {
@@ -23,7 +24,12 @@ impl CellBuilder {
         CellBuilder {
             bit_writer,
             references: Vec::new(),
+            is_cell_exotic: false,
         }
+    }
+
+    pub fn set_cell_is_exotic(&mut self, val: bool) {
+        self.is_cell_exotic = val;
     }
 
     pub fn store_bit(&mut self, val: bool) -> Result<&mut Self, TonCellError> {
@@ -269,11 +275,13 @@ impl CellBuilder {
                     ref_count
                 )));
             }
-            Ok(Cell {
-                data: vec.clone(),
+
+            Cell::new(
+                vec.clone(),
                 bit_len,
-                references: self.references.clone(),
-            })
+                self.references.clone(),
+                self.is_cell_exotic,
+            )
         } else {
             Err(TonCellError::CellBuilderError(
                 "Stream is not byte-aligned".to_string(),
