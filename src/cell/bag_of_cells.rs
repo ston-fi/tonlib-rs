@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use base64::engine::general_purpose::STANDARD;
 
+use crate::cell::raw_boc_from_boc::convert_to_raw_boc;
 use crate::cell::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
@@ -56,29 +56,36 @@ impl BagOfCells {
     pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
-        let mut cells: Vec<ArcCell> = Vec::new();
-        for i in (0..num_cells).rev() {
-            let raw_cell = &raw.cells[i];
-            let mut cell = Cell {
-                data: raw_cell.data.clone(),
-                bit_len: raw_cell.bit_len,
-                references: Vec::new(),
-            };
-            for r in &raw_cell.references {
-                if *r <= i {
+        let mut cells: Vec<ArcCell> = Vec::with_capacity(num_cells);
+
+        for (cell_index, raw_cell) in raw.cells.into_iter().enumerate().rev() {
+            let mut references = Vec::with_capacity(raw_cell.references.len());
+            for ref_index in &raw_cell.references {
+                if *ref_index <= cell_index {
                     return Err(TonCellError::boc_deserialization_error(
                         "References to previous cells are not supported",
                     ));
                 }
-                cell.references.push(cells[num_cells - 1 - r].clone());
+                references.push(cells[num_cells - 1 - ref_index].clone());
             }
-            cells.push(Arc::new(cell));
+
+            let cell = Cell::new(
+                raw_cell.data,
+                raw_cell.bit_len,
+                references,
+                raw_cell.is_exotic,
+            )
+            .map_boc_deserialization_error()?;
+            cells.push(cell.to_arc());
         }
-        let roots: Vec<ArcCell> = raw
+
+        let roots = raw
             .roots
-            .iter()
-            .map(|r| cells[num_cells - 1 - r].clone())
+            .into_iter()
+            .map(|r| &cells[num_cells - 1 - r])
+            .map(Arc::clone)
             .collect();
+
         Ok(BagOfCells { roots })
     }
 
@@ -94,97 +101,8 @@ impl BagOfCells {
     }
 
     pub fn serialize(&self, has_crc32: bool) -> Result<Vec<u8>, TonCellError> {
-        let raw = self.to_raw()?;
+        let raw = convert_to_raw_boc(self)?;
         raw.serialize(has_crc32)
-    }
-
-    /// Traverses all cells, fills all_cells set and inbound references map.
-    fn traverse_cell_tree(
-        cell: &ArcCell,
-        all_cells: &mut HashSet<ArcCell>,
-        in_refs: &mut HashMap<ArcCell, HashSet<ArcCell>>,
-    ) -> Result<(), TonCellError> {
-        if !all_cells.contains(cell) {
-            all_cells.insert(cell.clone());
-            for r in &cell.references {
-                if r == cell {
-                    return Err(TonCellError::BagOfCellsDeserializationError(
-                        "Cell must not reference itself".to_string(),
-                    ));
-                }
-                let maybe_refs = in_refs.get_mut(&r.clone());
-                match maybe_refs {
-                    Some(refs) => {
-                        refs.insert(cell.clone());
-                    }
-                    None => {
-                        let mut refs: HashSet<ArcCell> = HashSet::new();
-                        refs.insert(cell.clone());
-                        in_refs.insert(r.clone(), refs);
-                    }
-                }
-                Self::traverse_cell_tree(r, all_cells, in_refs)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Constructs raw representation of BagOfCells
-    pub(crate) fn to_raw(&self) -> Result<RawBagOfCells, TonCellError> {
-        let mut all_cells: HashSet<ArcCell> = HashSet::new();
-        let mut in_refs: HashMap<ArcCell, HashSet<ArcCell>> = HashMap::new();
-        for r in &self.roots {
-            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
-        }
-        let mut no_in_refs: HashSet<ArcCell> = HashSet::new();
-        for c in &all_cells {
-            if !in_refs.contains_key(c) {
-                no_in_refs.insert(c.clone());
-            }
-        }
-        let mut ordered_cells: Vec<ArcCell> = Vec::new();
-        let mut indices: HashMap<ArcCell, usize> = HashMap::new();
-        while !no_in_refs.is_empty() {
-            let cell = no_in_refs.iter().next().unwrap().clone();
-            ordered_cells.push(cell.clone());
-            indices.insert(cell.clone(), indices.len());
-            for child in &cell.references {
-                if let Some(refs) = in_refs.get_mut(child) {
-                    refs.remove(&cell);
-                    if refs.is_empty() {
-                        no_in_refs.insert(child.clone());
-                        in_refs.remove(child);
-                    }
-                }
-            }
-            no_in_refs.remove(&cell);
-        }
-        if !in_refs.is_empty() {
-            return Err(TonCellError::CellBuilderError(
-                "Can't construct topological ordering: cycle detected".to_string(),
-            ));
-        }
-        let mut cells: Vec<RawCell> = Vec::new();
-        for cell in &ordered_cells {
-            let refs: Vec<usize> = cell
-                .references
-                .iter()
-                .map(|c| *indices.get(c).unwrap())
-                .collect();
-            let raw = RawCell {
-                data: cell.data.clone(),
-                bit_len: cell.bit_len,
-                references: refs,
-                max_level: cell.get_max_level(),
-            };
-            cells.push(raw);
-        }
-        let roots: Vec<usize> = self
-            .roots
-            .iter()
-            .map(|c| *indices.get(c).unwrap())
-            .collect();
-        Ok(RawBagOfCells { cells, roots })
     }
 }
 
@@ -193,11 +111,12 @@ mod tests {
     use std::sync::Arc;
     use std::time::Instant;
 
+    use crate::cell::raw_boc_from_boc::convert_to_raw_boc;
     use crate::cell::{BagOfCells, CellBuilder, TonCellError};
     use crate::message::ZERO_COINS;
 
     #[test]
-    fn cell_repr_works() -> anyhow::Result<()> {
+    fn cell_hash_works() -> anyhow::Result<()> {
         let hole_address = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c".parse()?;
         let contract = "EQDwHr48oKCFD5od9u_TnsCOhe7tGZIei-5ESWfzhlWLRYvW".parse()?;
         let token0 = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()?;
@@ -325,10 +244,10 @@ mod tests {
             .store_reference(&Arc::new(data))?
             .build()?;
 
+        let hash = hex::encode(state.cell_hash());
         assert_eq!(
-            hex::encode(state.get_repr()?),
-            "0201340009000838eee530fd07306581470adf04f707ca92198672c6e4186c331954d4a82151\
-                   d553f1bdeac386cb209570c7d74fac7b2b938896147530e3fb4459f46f7b0a18a0"
+            hash,
+            "e557059d5395a79f714ddb966e8419d4681f0ce4aa966cf6088db610841c204a"
         );
 
         Ok(())
@@ -341,21 +260,21 @@ mod tests {
         let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v3_code code_hash{:?}",
-            boc.single_root()?.cell_hash_base64()?
+            boc.single_root()?.cell_hash_base64()
         );
 
         let raw = include_str!("../../resources/wallet/wallet_v3r2.code");
         let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v3r2_code code_hash{:?}",
-            boc.single_root()?.cell_hash_base64()?
+            boc.single_root()?.cell_hash_base64()
         );
 
         let raw = include_str!("../../resources/wallet/wallet_v4r2.code");
         let boc = BagOfCells::parse_base64(raw)?;
         println!(
             "wallet_v4r2_code code_hash{:?}",
-            boc.single_root()?.cell_hash_base64()?
+            boc.single_root()?.cell_hash_base64()
         );
         Ok(())
     }
@@ -365,7 +284,7 @@ mod tests {
     fn benchmark_cell_repr() -> anyhow::Result<()> {
         let now = Instant::now();
         for _ in 1..10000 {
-            let result = cell_repr_works();
+            let result = cell_hash_works();
             match result {
                 Ok(_) => {}
                 Err(e) => return Err(e),
@@ -389,7 +308,7 @@ mod tests {
             .store_child(inter)?
             .build()?;
         let boc = BagOfCells::from_root(root);
-        let _raw = boc.to_raw()?;
+        let _raw = convert_to_raw_boc(&boc)?;
         Ok(())
     }
 }

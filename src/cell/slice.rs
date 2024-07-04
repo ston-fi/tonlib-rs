@@ -142,11 +142,12 @@ impl CellSlice {
             .skip(self.start_bit as u32)
             .map_cell_parser_error()?;
         bit_reader.read_bits(bit_len, data.as_mut_slice())?;
-        let cell = Cell {
+
+        Cell::new(
             data,
             bit_len,
-            references: self.cell.references[self.start_ref..self.end_ref].to_vec(),
-        };
-        Ok(cell)
+            self.cell.references[self.start_ref..self.end_ref].to_vec(),
+            false,
+        )
     }
 }
