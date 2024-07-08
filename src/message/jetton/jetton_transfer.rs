@@ -56,24 +56,18 @@ impl JettonTransferMessage {
         self
     }
 
-    pub fn with_custom_payload<T>(&mut self, custom_payload: T) -> &mut Self
-    where
-        T: AsRef<ArcCell>,
-    {
-        self.custom_payload = Some(custom_payload.as_ref().clone());
+    pub fn with_custom_payload(&mut self, custom_payload: &ArcCell) -> &mut Self {
+        self.custom_payload = Some(custom_payload.clone());
         self
     }
 
-    pub fn with_forward_payload<T>(
+    pub fn with_forward_payload(
         &mut self,
         forward_ton_amount: &BigUint,
-        forward_payload: T,
-    ) -> &mut Self
-    where
-        T: AsRef<ArcCell>,
-    {
+        forward_payload: &ArcCell,
+    ) -> &mut Self {
         self.forward_ton_amount.clone_from(forward_ton_amount);
-        self.forward_payload = Some(forward_payload.as_ref().clone());
+        self.forward_payload = Some(forward_payload.clone());
         self
     }
 
