@@ -342,6 +342,18 @@ impl Cell {
     pub fn to_arc(self) -> ArcCell {
         Arc::new(self)
     }
+
+    pub fn expect_reference_count(&self, expected_refs: usize) -> Result<(), TonCellError> {
+        let ref_count = self.references.len();
+        if ref_count != expected_refs {
+            Err(TonCellError::CellParserError(format!(
+                "Cell should contain {} reference cells, actual: {}",
+                expected_refs, ref_count
+            )))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl Debug for Cell {

@@ -1,10 +1,11 @@
-use anyhow::anyhow;
-use futures::future::join_all;
 use std::ops::Sub;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::{thread, time};
+
+use anyhow::anyhow;
+use futures::future::join_all;
 use tokio_test::assert_ok;
 use tonlib::address::TonAddress;
 use tonlib::contract::{LatestContractTransactionsCache, TonContractFactory};
@@ -203,14 +204,14 @@ async fn timestamp_limit_test() -> anyhow::Result<()> {
 
     let cache = LatestContractTransactionsCache::new(
         &factory,
-        &addr,
+        addr,
         500,
         true,
         Some(Duration::from_secs(TIMESTAMP_LIMIT_SEC)),
     );
 
     let transactions = assert_ok!(cache.get(500).await);
-    if transactions.len() > 0 {
+    if !transactions.is_empty() {
         let last = transactions.last().unwrap();
         log::info!(
             "Got {} transactions, first {}, last {}",
