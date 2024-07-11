@@ -1,7 +1,8 @@
-use crate::cell::{ArcCell, BagOfCells, Cell, CellHash, RawBagOfCells, RawCell, TonCellError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use crate::cell::{ArcCell, BagOfCells, Cell, CellHash, RawBagOfCells, RawCell, TonCellError};
 
 #[derive(Debug, Clone)]
 struct IndexedCell {

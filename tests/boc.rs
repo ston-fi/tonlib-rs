@@ -1,9 +1,10 @@
-use base64::prelude::*;
-use num_bigint::BigUint;
-use num_traits::Zero;
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
+
+use base64::prelude::*;
+use num_bigint::BigUint;
+use num_traits::Zero;
 use tonlib::address::TonAddress;
 use tonlib::cell::{BagOfCells, CellBuilder, StateInit};
 
