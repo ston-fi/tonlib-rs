@@ -1,11 +1,13 @@
+use std::cmp::PartialEq;
+use std::io;
+use std::io::Cursor;
+
+use bitstream_io::{BigEndian, ByteRead, ByteReader};
+
 use crate::cell::level_mask::LevelMask;
 use crate::cell::{
     ArcCell, Cell, CellHash, MapTonCellError, TonCellError, DEPTH_BYTES, HASH_BYTES, MAX_LEVEL,
 };
-use bitstream_io::{BigEndian, ByteRead, ByteReader};
-use std::cmp::PartialEq;
-use std::io;
-use std::io::Cursor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum CellType {

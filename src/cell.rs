@@ -6,8 +6,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::{fmt, io};
 
-use crate::cell::cell_type::CellType;
-use crate::cell::level_mask::LevelMask;
 pub use bag_of_cells::*;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -25,6 +23,9 @@ use sha2::Sha256;
 pub use slice::*;
 pub use state_init::*;
 pub use util::*;
+
+use crate::cell::cell_type::CellType;
+use crate::cell::level_mask::LevelMask;
 
 mod bag_of_cells;
 mod bit_string;
