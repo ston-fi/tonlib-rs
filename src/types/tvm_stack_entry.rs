@@ -111,8 +111,8 @@ impl TvmStackEntry {
     pub fn get_string(&self) -> Result<String, StackParseError> {
         match self {
             TvmStackEntry::Slice(slice) => {
-                let data = &slice.cell.data;
-                let value = String::from_utf8(data.clone())?;
+                let data = slice.cell.data();
+                let value = String::from_utf8(data.to_vec())?;
                 Ok(value)
             }
 
@@ -189,11 +189,7 @@ impl TryFrom<&String> for TvmStackEntry {
         let bytes = value.as_bytes().to_vec();
         let bit_len = bytes.len() * 8;
         // todo: support reference and snake format
-        let cell = Cell {
-            data: bytes,
-            bit_len,
-            references: vec![],
-        };
+        let cell = Cell::new(bytes, bit_len, vec![], false)?;
         Ok(TvmStackEntry::Slice(CellSlice::full_cell(cell)?))
     }
 }
@@ -247,7 +243,7 @@ impl TryFrom<&TlTvmStackEntry> for TvmStackEntry {
                     cell: cell.clone(),
                     start_bit: 0,
                     start_ref: 0,
-                    end_bit: cell.bit_len,
+                    end_bit: cell.bit_len(),
                     end_ref: 0,
                 };
                 TvmStackEntry::Slice(cell_slice)

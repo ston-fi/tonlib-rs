@@ -23,6 +23,12 @@ pub enum TonCellError {
     #[error("Invalid address type (Type: {0})")]
     InvalidAddressType(u8),
 
+    #[error("Invalid cell type for exotic cell (Type: {0:?})")]
+    InvalidExoticCellType(Option<u8>),
+
+    #[error("Bad data ({0})")]
+    InvalidExoticCellData(String),
+
     #[error("Non-empty reader (Remaining bits: {0})")]
     NonEmptyReader(usize),
 }

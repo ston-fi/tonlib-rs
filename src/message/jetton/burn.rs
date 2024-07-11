@@ -44,11 +44,8 @@ impl JettonBurnMessage {
         self
     }
 
-    pub fn with_custom_payload<T>(&mut self, custom_payload: T) -> &mut Self
-    where
-        T: AsRef<ArcCell>,
-    {
-        self.custom_payload = Some(custom_payload.as_ref().clone());
+    pub fn with_custom_payload(&mut self, custom_payload: &ArcCell) -> &mut Self {
+        self.custom_payload = Some(custom_payload.clone());
         self
     }
 
