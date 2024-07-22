@@ -12,7 +12,7 @@ use crate::message::{InvalidMessage, TonMessageError};
 ///                               sender:MsgAddress forward_payload:(Either Cell ^Cell)
 ///                               = InternalMsgBody;
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct JettonTransferNotificationMessage {
     /// should be equal with request's query_id.
     pub query_id: u64,
@@ -111,7 +111,6 @@ mod tests {
     use crate::cell::{BagOfCells, Cell};
     use crate::message::JettonTransferNotificationMessage;
 
-    // message origin: https://tonviewer.com/transaction/1b19a1ea5fdefd93ffc6051f67a8e89e02a5ead168a70c6ccd38f6d2e3f0e1d5
     const JETTON_TRANSFER_NOTIFICATION_MSG: &str = "b5ee9c720101020100a60001647362d09c000000d2c7ceef23401312d008003be20895401cd8539741eb7815d5e63b3429014018d7e5f7800de16a984f27730100dd25938561800f2465b65c76b1b562f32423676970b431319419d5f45ffd2eeb2155ce6ab7eacc78ee0250ef0300077c4112a8039b0a72e83d6f02babcc766852028031afcbef001bc2d5309e4ee700257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";
     const TRANSFER_NOTIFICATION_PAYLOAD: &str = "25938561800f2465b65c76b1b562f32423676970b431319419d5f45ffd2eeb2155ce6ab7eacc78ee0250ef0300077c4112a8039b0a72e83d6f02babcc766852028031afcbef001bc2d5309e4ee700257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad94";
 
@@ -135,8 +134,7 @@ mod tests {
                 .unwrap(),
             )),
         };
-        let result_jetton_transfer_msg =
-            assert_ok!(JettonTransferNotificationMessage::parse(&cell));
+        let result_jetton_transfer_msg = assert_ok!(JettonTransferNotificationMessage::parse(cell));
 
         assert_eq!(
             expected_jetton_transfer_notification_msg,

@@ -14,7 +14,7 @@ use crate::message::{InvalidMessage, TonMessageError, ZERO_COINS};
 ///                  forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
 ///                  = InternalMsgBody;
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct JettonTransferMessage {
     /// arbitrary request number.
     pub query_id: u64,
@@ -165,7 +165,7 @@ mod tests {
     use crate::address::TonAddress;
     use crate::cell::{BagOfCells, Cell};
     use crate::message::JettonTransferMessage;
-    // message origin: https://tonviewer.com/transaction/2e250e3c9367d8092f15e09fb3c3d750749187c2a528a616bf0e88e5f36ca3f4
+
     const JETTON_TRANSFER_MSG : &str="b5ee9c720101020100a800016d0f8a7ea5001f5512dab844d643b9aca00800ef3b9902a271b2a01c8938a523cfe24e71847aaeb6a620001ed44a77ac0e709c1033428f030100d7259385618009dd924373a9aad41b28cec02da9384d67363af2034fc2a7ccc067e28d4110de86e66deb002365dfa32dfd419308ebdf35e0f6ba7c42534bbb5dab5e89e28ea3e0455cc2d2f00257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";
     const TRANSFER_PAYLOAD: &str = "259385618009DD924373A9AAD41B28CEC02DA9384D67363AF2034FC2A7CCC067E28D4110DE86E66DEB002365DFA32DFD419308EBDF35E0F6BA7C42534BBB5DAB5E89E28EA3E0455CC2D2F00257A672371A90E149B7D25864DBFD44827CC1E8A30DF1B1E0C4338502ADE2AD94";
 
@@ -174,7 +174,7 @@ mod tests {
         let boc = BagOfCells::parse_hex(JETTON_TRANSFER_MSG).unwrap();
         let cell = boc.single_root().unwrap();
 
-        let result_jetton_transfer_msg = assert_ok!(JettonTransferMessage::parse(&cell));
+        let result_jetton_transfer_msg = assert_ok!(JettonTransferMessage::parse(cell));
 
         let expected_jetton_transfer_msg = JettonTransferMessage {
             query_id: 8819263745311958,
