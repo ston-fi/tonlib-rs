@@ -94,9 +94,8 @@ impl Cell {
 
     pub fn parser(&self) -> CellParser {
         let bit_len = self.bit_len;
-        let cursor = Cursor::new(&self.data);
-        let bit_reader: BitReader<Cursor<&Vec<u8>>, BigEndian> =
-            BitReader::endian(cursor, BigEndian);
+        let cursor = Cursor::new(self.data.as_slice());
+        let bit_reader = BitReader::endian(cursor, BigEndian);
 
         CellParser {
             bit_len,
