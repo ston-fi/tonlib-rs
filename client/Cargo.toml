@@ -1,0 +1,56 @@
+[package]
+name = "tonlib-client"
+description = "Thin wrapper for tonlibjson"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+
+include = [
+    "src/*",
+    "resources/*",
+    "Cargo.toml"
+]
+
+[features]
+default=["state_cache", "emulate_get_method"]
+state_cache = []
+emulate_get_method = []
+no_avx512 = ["tonlib-sys/no_avx512"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+base64-serde.workspace = true
+
+crc.workspace = true
+dashmap.workspace = true
+futures.workspace = true
+hex.workspace = true
+
+lazy_static.workspace = true
+log.workspace = true
+log4rs.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
+moka.workspace = true
+pbkdf2.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde-aux.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-retry.workspace = true
+tokio-test.workspace = true
+tonlib-sys.workspace = true
+
+
+tonlib-core = {path = "../core"}
