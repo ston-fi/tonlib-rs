@@ -18,6 +18,7 @@ default=["state_cache", "emulate_get_method"]
 state_cache = []
 emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
+with_debug_info = ["tonlib-sys/with_debug_info"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
