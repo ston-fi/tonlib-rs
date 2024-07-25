@@ -7,7 +7,7 @@ mod contract_emulator_tests {
     use tonlib_client::emulator::{TvmEmulator, TvmEmulatorC7Builder};
     use tonlib_client::meta::MetaDataContent;
     use tonlib_client::tl::RawFullAccountState;
-    use tonlib_core::address::TonAddress;
+    use tonlib_core::TonAddress;
 
     use crate::common;
 

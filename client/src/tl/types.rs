@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
-use tonlib_core::transaction_id::TransactionId;
+use tonlib_core::{TonHash, TonTxId};
 
 use super::TonLibraryId;
 use crate::tl::stack::{TvmCell, TvmStack};
@@ -82,11 +82,11 @@ impl InternalTransactionId {
     }
 }
 
-impl From<TransactionId> for InternalTransactionId {
-    fn from(value: TransactionId) -> Self {
+impl From<TonTxId> for InternalTransactionId {
+    fn from(value: TonTxId) -> Self {
         InternalTransactionId {
             lt: value.lt,
-            hash: value.hash,
+            hash: value.hash.to_vec(),
         }
     }
 }
@@ -436,7 +436,7 @@ pub struct SmcLibraryResult {
 #[serde(tag = "@type", rename_all = "camelCase")]
 pub enum SmcLibraryQueryExt {
     #[serde(rename = "smc.libraryQueryExt.one")]
-    One { hash: [u8; 32] },
+    One { hash: TonHash },
 
     // tonlib_api.tl, line 190
     #[serde(rename = "smc.libraryQueryExt.scanBoc")]
@@ -578,7 +578,7 @@ mod tests {
     use std::borrow::Cow;
 
     use tokio_test::assert_err;
-    use tonlib_core::transaction_id::{TransactionId, TransactionIdParseError};
+    use tonlib_core::{TonTxId, TransactionIdParseError};
 
     use crate::tl::SmcMethodId;
 
@@ -586,7 +586,7 @@ mod tests {
     fn internal_transaction_id_parse_format_works() -> anyhow::Result<()> {
         let id_str =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3";
-        let tx_id: TransactionId = id_str.parse()?;
+        let tx_id: TonTxId = id_str.parse()?;
         assert_eq!(tx_id.lt, 33256211000003);
         assert_eq!(
             tx_id.hash_string(),
@@ -600,7 +600,7 @@ mod tests {
     #[test]
     fn internal_transaction_id_parse_base64_works() -> anyhow::Result<()> {
         let id_str = "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM=";
-        let tx_id: TransactionId = id_str.parse()?;
+        let tx_id: TonTxId = id_str.parse()?;
         assert_eq!(tx_id.lt, 33256211000003);
         assert_eq!(
             tx_id.hash_string(),
@@ -612,7 +612,7 @@ mod tests {
     #[test]
     fn internal_transaction_id_parse_base64_no_pad_works() -> anyhow::Result<()> {
         let id_str = "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM";
-        let tx_id: TransactionId = id_str.parse()?;
+        let tx_id: TonTxId = id_str.parse()?;
         assert_eq!(tx_id.lt, 33256211000003);
         assert_eq!(
             tx_id.hash_string(),
@@ -623,32 +623,32 @@ mod tests {
 
     #[test]
     fn internal_transaction_id_parse_err_works() -> anyhow::Result<()> {
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFa".parse(); // 1 symbol less
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003::uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // extra ':'
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // no ':'
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaMZ".parse(); // extra 'Z'
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM ".parse(); // extra space
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "z33256211000003:uY36AzqWPzu5mF8XPvLGyUSb54oEPsH8WWX+JKbWFaM".parse(); // invalid number
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3B4" // extra byte
                 .parse();
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615".parse(); // 1 byte less
         assert_err!(r);
-        let r: Result<TransactionId, TransactionIdParseError> =
+        let r: Result<TonTxId, TransactionIdParseError> =
             "33256211000003:b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3 " // space
                 .parse();
         assert_err!(r);

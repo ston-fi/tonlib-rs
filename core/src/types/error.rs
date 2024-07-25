@@ -15,3 +15,19 @@ impl TonAddressParseError {
         }
     }
 }
+
+#[derive(Error, Debug)]
+#[error("Invalid TransactionId (TxId: {txid}, message: {message})")]
+pub struct TransactionIdParseError {
+    txid: String,
+    message: String,
+}
+
+impl TransactionIdParseError {
+    pub fn new<T: ToString, M: ToString>(txid: T, message: M) -> TransactionIdParseError {
+        TransactionIdParseError {
+            txid: txid.to_string(),
+            message: message.to_string(),
+        }
+    }
+}

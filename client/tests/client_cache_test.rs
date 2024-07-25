@@ -8,7 +8,7 @@ use tokio_test::assert_ok;
 #[cfg(feature = "state_cache")]
 use tonlib_client::contract::TonContractFactory;
 #[cfg(feature = "state_cache")]
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 mod common;
 
 #[tokio::test]

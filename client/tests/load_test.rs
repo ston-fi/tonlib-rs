@@ -3,7 +3,7 @@ use rand::Rng;
 use tokio_test::assert_ok;
 use tonlib_client::client::TonClient;
 use tonlib_client::contract::{JettonMasterContract, JettonWalletContract, TonContractFactory};
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 mod common;
 

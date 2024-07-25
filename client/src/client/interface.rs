@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use super::{SmcLibraryQueryExt, SmcLibraryResult, SmcLibraryResultExt, TonLibraryId};
 use crate::client::{TonClientError, TonConnection};

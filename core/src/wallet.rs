@@ -6,12 +6,12 @@ use lazy_static::lazy_static;
 use nacl::sign::signature;
 pub use types::*;
 
-use crate::address::TonAddress;
 use crate::cell::{
     ArcCell, BagOfCells, Cell, CellBuilder, StateInit, StateInitBuilder, TonCellError,
 };
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
+use crate::{TonAddress, TonHash};
 
 pub const DEFAULT_WALLET_ID: i32 = 0x29a9a317;
 
@@ -118,7 +118,7 @@ impl WalletVersion {
         key_pair: &KeyPair,
         wallet_id: i32,
     ) -> Result<ArcCell, TonCellError> {
-        let public_key: [u8; 32] = key_pair
+        let public_key: TonHash = key_pair
             .public_key
             .clone()
             .try_into()
@@ -303,9 +303,9 @@ impl TonWallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::address::TonAddress;
     use crate::mnemonic::{Mnemonic, MnemonicError};
     use crate::wallet::{TonWallet, WalletVersion};
+    use crate::TonAddress;
 
     #[test]
     fn derive_wallet_works() -> Result<(), MnemonicError> {

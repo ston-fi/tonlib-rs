@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use tokio_test::assert_ok;
 use tonlib_client::contract::{JettonMasterContract, TonContractFactory};
 use tonlib_client::meta::{JettonMetaLoader, LoadMeta, MetaDataContent};
-use tonlib_core::address::TonAddress;
+use tonlib_core::{TonAddress, TonHash};
 
 mod common;
 
@@ -170,7 +170,7 @@ async fn test_jetton_image_data() -> anyhow::Result<()> {
     let meta_loader = assert_ok!(JettonMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&jetton_data.content).await);
 
-    const TARGET_IMAGE_HASH: [u8; 32] = [
+    const TARGET_IMAGE_HASH: TonHash = [
         45, 186, 67, 118, 224, 166, 76, 84, 0, 203, 69, 175, 47, 34, 164, 184, 36, 229, 51, 193,
         17, 18, 84, 70, 179, 240, 137, 163, 42, 147, 119, 220,
     ];

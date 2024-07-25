@@ -8,7 +8,7 @@ pub use cache::*;
 pub use library_loader::*;
 pub use library_provider::*;
 use tokio::sync::OnceCell;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use crate::client::{TonClient, TonClientError, TonClientInterface};
 use crate::contract::{LoadedSmcState, TonContract, TonContractError, TonContractState};

@@ -5,9 +5,9 @@ use std::io::Cursor;
 use bitstream_io::{BigEndian, ByteRead, ByteReader};
 
 use crate::cell::level_mask::LevelMask;
-use crate::cell::{
-    ArcCell, Cell, CellHash, MapTonCellError, TonCellError, DEPTH_BYTES, HASH_BYTES, MAX_LEVEL,
-};
+use crate::cell::{ArcCell, Cell, MapTonCellError, TonCellError, DEPTH_BYTES, MAX_LEVEL};
+use crate::types::{TON_HASH_BYTES, ZERO_HASH};
+use crate::TonHash;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum CellType {
@@ -20,7 +20,7 @@ pub(crate) enum CellType {
 
 #[derive(Debug, Clone)]
 struct Pruned {
-    hash: CellHash,
+    hash: TonHash,
     depth: u16,
 }
 
@@ -96,13 +96,13 @@ impl CellType {
 
     pub(crate) fn resolve_hashes_and_depths(
         &self,
-        hashes: Vec<CellHash>,
+        hashes: Vec<TonHash>,
         depths: Vec<u16>,
         data: &[u8],
         bit_len: usize,
         level_mask: LevelMask,
-    ) -> Result<([CellHash; 4], [u16; 4]), TonCellError> {
-        let mut resolved_hashes = [[0; 32]; 4];
+    ) -> Result<([TonHash; 4], [u16; 4]), TonCellError> {
+        let mut resolved_hashes = [ZERO_HASH; 4];
         let mut resolved_depths = [0; 4];
 
         for i in 0..4 {
@@ -161,7 +161,7 @@ impl CellType {
             }
 
             let expected_size: usize =
-                (2 + level_mask.apply(level - 1).hash_count() * (HASH_BYTES + DEPTH_BYTES)) * 8;
+                (2 + level_mask.apply(level - 1).hash_count() * (TON_HASH_BYTES + DEPTH_BYTES)) * 8;
 
             if bit_len != expected_size {
                 return Err(TonCellError::InvalidExoticCellData(format!(
@@ -174,7 +174,7 @@ impl CellType {
     }
 
     fn validate_library(&self, bit_len: usize) -> Result<(), TonCellError> {
-        const SIZE: usize = (1 + HASH_BYTES) * 8;
+        const SIZE: usize = (1 + TON_HASH_BYTES) * 8;
 
         if bit_len != SIZE {
             return Err(TonCellError::InvalidExoticCellData(format!(
@@ -193,7 +193,7 @@ impl CellType {
     ) -> Result<(), TonCellError> {
         let references = references.as_ref();
         // type + hash + depth
-        const SIZE: usize = (1 + HASH_BYTES + DEPTH_BYTES) * 8;
+        const SIZE: usize = (1 + TON_HASH_BYTES + DEPTH_BYTES) * 8;
 
         if bit_len != SIZE {
             return Err(TonCellError::InvalidExoticCellData(format!(
@@ -208,13 +208,14 @@ impl CellType {
             )));
         }
 
-        let proof_hash: [u8; HASH_BYTES] = data[1..(1 + HASH_BYTES)].try_into().map_err(|err| {
-            TonCellError::InvalidExoticCellData(format!(
-                "Can't get proof hash bytes from cell data, {}",
-                err
-            ))
-        })?;
-        let proof_depth_bytes = data[(1 + HASH_BYTES)..(1 + HASH_BYTES + 2)]
+        let proof_hash: [u8; TON_HASH_BYTES] =
+            data[1..(1 + TON_HASH_BYTES)].try_into().map_err(|err| {
+                TonCellError::InvalidExoticCellData(format!(
+                    "Can't get proof hash bytes from cell data, {}",
+                    err
+                ))
+            })?;
+        let proof_depth_bytes = data[(1 + TON_HASH_BYTES)..(1 + TON_HASH_BYTES + 2)]
             .try_into()
             .map_err(|err| {
                 TonCellError::InvalidExoticCellData(format!(
@@ -264,13 +265,13 @@ impl CellType {
             )));
         }
 
-        let proof_hash1: [u8; 32] = data[1..33].try_into().map_err(|err| {
+        let proof_hash1: TonHash = data[1..33].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
                 "Can't get proof hash bytes 1 from cell data, {}",
                 err
             ))
         })?;
-        let proof_hash2: [u8; 32] = data[33..65].try_into().map_err(|err| {
+        let proof_hash2: TonHash = data[33..65].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
                 "Can't get proof hash bytes 2 from cell data, {}",
                 err
@@ -354,7 +355,7 @@ impl CellType {
 
         let level = level_mask.level() as usize;
         let hashes = (0..level)
-            .map(|_| reader.read::<CellHash>())
+            .map(|_| reader.read::<TonHash>())
             .collect::<Result<Vec<_>, _>>()?;
         let depths = (0..level)
             .map(|_| reader.read::<u16>())

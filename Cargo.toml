@@ -8,7 +8,6 @@ resolver = "2"
 
 
 [workspace.package]
-name = "tonlib"
 version = "0.18.0-dev"
 edition = "2021"
 description = "Rust SDK for The Open Network"

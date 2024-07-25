@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::Mutex;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
 use crate::contract::{TonClientInterface, TonContractError, TonContractFactory};

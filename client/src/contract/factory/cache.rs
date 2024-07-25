@@ -6,7 +6,7 @@ use std::time::Duration;
 use futures::future::join_all;
 use futures::join;
 use moka::future::Cache;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use crate::client::{
     BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientInterface,

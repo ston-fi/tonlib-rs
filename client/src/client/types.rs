@@ -3,7 +3,7 @@ use std::sync::Arc;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use super::{
     BlocksShortTxId, TonClientError, DEFAULT_CONNECTION_CONCURRENCY_LIMIT,

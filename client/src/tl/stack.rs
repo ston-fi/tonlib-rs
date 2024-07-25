@@ -5,8 +5,8 @@ use std::hash::Hash;
 
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{BagOfCells, DictLoader};
+use tonlib_core::TonAddress;
 
 use crate::tl::error::TvmStackError;
 use crate::tl::Base64Standard;

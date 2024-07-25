@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use super::{ContractLibraryDict, LibraryLoader};
 use crate::contract::TonContractError;

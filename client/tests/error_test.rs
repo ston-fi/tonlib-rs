@@ -14,11 +14,10 @@ use tonlib_client::tl::{
     TlError, TonResultDiscriminants, TvmCell, TvmStackEntry as TlTvmStackEntry, TvmStackError,
 };
 use tonlib_client::types::TvmStackEntry;
-use tonlib_core::address::{TonAddress, TonAddressParseError};
 use tonlib_core::cell::{CellBuilder, CellSlice, TonCellError};
 use tonlib_core::message::TonMessageError;
 use tonlib_core::mnemonic::MnemonicError;
-use tonlib_core::transaction_id::TransactionIdParseError;
+use tonlib_core::{TonAddress, TonAddressParseError, TransactionIdParseError};
 
 mod common;
 

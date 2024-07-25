@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use num_bigint::{BigInt, BigUint};
 use strum::Display;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice, DictLoader};
+use tonlib_core::TonAddress;
 
 use crate::tl::{TvmCell, TvmNumber, TvmSlice, TvmStackEntry as TlTvmStackEntry};
 use crate::types::StackParseError;

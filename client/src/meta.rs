@@ -3,7 +3,7 @@ pub use ipfs_loader::*;
 pub use loader::*;
 use serde_json::Value;
 use tonlib_core::cell::{ArcCell, BagOfCells, SnakeFormattedDict, TonCellError};
-
+use tonlib_core::TonHash;
 mod error;
 mod ipfs_loader;
 mod loader;
@@ -14,22 +14,22 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
-
+use tonlib_core::types::ZERO_HASH;
 struct MetaDataField {
-    pub(crate) key: [u8; 32],
+    pub(crate) key: TonHash,
 }
 
 impl MetaDataField {
     fn new(name: &str) -> MetaDataField {
-        let key = Self::key_from_str(name).unwrap_or([0; 32]);
+        let key = Self::key_from_str(name).unwrap_or(ZERO_HASH);
         MetaDataField { key }
     }
 
-    fn key_from_str(k: &str) -> Result<[u8; 32], MetaLoaderError> {
+    fn key_from_str(k: &str) -> Result<TonHash, MetaLoaderError> {
         let mut hasher: Sha256 = Sha256::new();
         hasher.update(k);
         let slice = &hasher.finalize()[..];
-        TryInto::<[u8; 32]>::try_into(slice)
+        TryInto::<TonHash>::try_into(slice)
             .map_err(|e| MetaLoaderError::InternalError(e.to_string()))
     }
 

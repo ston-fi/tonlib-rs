@@ -20,11 +20,11 @@ use tonlib_client::tl::{
     InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, TonLibraryId,
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{
     key_extractor_256bit, value_extractor_cell, BagOfCells, GenericDictLoader,
 };
-use tonlib_core::transaction_id::TransactionId;
+use tonlib_core::types::ZERO_HASH;
+use tonlib_core::{TonAddress, TonTxId};
 
 mod common;
 
@@ -128,7 +128,7 @@ async fn client_smc_load_by_transaction_works() {
     let address = &assert_ok!(TonAddress::from_base64_url(
         "EQCVx4vipWfDkf2uNhTUkpT97wkzRXHm-N1cNn_kqcLxecxT"
     ));
-    let transaction_id = assert_ok!(TransactionId::from_str(
+    let transaction_id = assert_ok!(TonTxId::from_str(
         "32016630000001:91485a21ba6eaaa91827e357378fe332228d11f3644e802f7e0f873a11ce9c6f",
     ));
 
@@ -239,7 +239,7 @@ async fn test_client_blocks_get_transactions() {
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let mut t: [u8; 32] = [0; 32];
+            let mut t = ZERO_HASH;
             t.clone_from_slice(tx_id.account.as_slice());
             let addr = TonAddress::new(workchain, &t);
             let id = InternalTransactionId {

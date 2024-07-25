@@ -5,6 +5,7 @@ use num_bigint::{BigInt, BigUint};
 
 use super::Cell;
 use crate::cell::{CellSlice, TonCellError};
+use crate::TonHash;
 
 pub trait DictLoader<K, V>
 where
@@ -69,9 +70,9 @@ pub fn key_extractor_u64(bit_len: usize, key: &[u8]) -> Result<u64, TonCellError
     }
 }
 
-pub fn key_extractor_256bit(bit_len: usize, key: &[u8]) -> Result<[u8; 32], TonCellError> {
+pub fn key_extractor_256bit(bit_len: usize, key: &[u8]) -> Result<TonHash, TonCellError> {
     if bit_len == 256 {
-        TryInto::<[u8; 32]>::try_into(key).map_err(|e| TonCellError::InternalError(e.to_string()))
+        TryInto::<TonHash>::try_into(key).map_err(|e| TonCellError::InternalError(e.to_string()))
     } else {
         Err(TonCellError::CellParserError(format!(
             "Invalid key len: {}, expected 256 bits",

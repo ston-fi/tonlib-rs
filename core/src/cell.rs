@@ -26,6 +26,7 @@ pub use util::*;
 
 use crate::cell::cell_type::CellType;
 use crate::cell::level_mask::LevelMask;
+use crate::TonHash;
 
 mod bag_of_cells;
 mod bit_string;
@@ -41,14 +42,12 @@ mod slice;
 mod state_init;
 mod util;
 
-const HASH_BYTES: usize = 32;
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 
-pub type CellHash = [u8; HASH_BYTES];
 pub type ArcCell = Arc<Cell>;
 
-pub type SnakeFormattedDict = HashMap<CellHash, Vec<u8>>;
+pub type SnakeFormattedDict = HashMap<TonHash, Vec<u8>>;
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Cell {
@@ -57,7 +56,7 @@ pub struct Cell {
     references: Vec<ArcCell>,
     cell_type: CellType,
     level_mask: LevelMask,
-    hashes: [CellHash; 4],
+    hashes: [TonHash; 4],
     depths: [u16; 4],
 }
 
@@ -154,11 +153,11 @@ impl Cell {
         self.depths[level.min(3) as usize]
     }
 
-    pub fn cell_hash(&self) -> CellHash {
+    pub fn cell_hash(&self) -> TonHash {
         self.get_hash(MAX_LEVEL)
     }
 
-    pub fn get_hash(&self, level: u8) -> CellHash {
+    pub fn get_hash(&self, level: u8) -> TonHash {
         self.hashes[level.min(3) as usize]
     }
 
@@ -425,7 +424,7 @@ fn calculate_hashes_and_depths(
     bit_len: usize,
     references: &[ArcCell],
     level_mask: LevelMask,
-) -> Result<([CellHash; 4], [u16; 4]), TonCellError> {
+) -> Result<([TonHash; 4], [u16; 4]), TonCellError> {
     let hash_count = if cell_type == CellType::PrunedBranch {
         1
     } else {
@@ -436,7 +435,7 @@ fn calculate_hashes_and_depths(
     let hash_i_offset = total_hash_count - hash_count;
 
     let mut depths: Vec<u16> = Vec::with_capacity(hash_count);
-    let mut hashes: Vec<CellHash> = Vec::with_capacity(hash_count);
+    let mut hashes: Vec<TonHash> = Vec::with_capacity(hash_count);
 
     // Iterate through significant levels
     for (hash_i, level_i) in (0..=level_mask.level())

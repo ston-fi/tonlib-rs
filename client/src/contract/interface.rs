@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use super::TonContractError;
 use crate::client::TonConnection;

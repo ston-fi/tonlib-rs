@@ -1,7 +1,7 @@
 use std::io;
 
 use thiserror::Error;
-use tonlib_core::address::TonAddressParseError;
+use tonlib_core::TonAddressParseError;
 
 use crate::tl::{TlError, TonResult, TonResultDiscriminants};
 

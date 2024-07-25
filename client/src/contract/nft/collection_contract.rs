@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use num_bigint::BigUint;
 use num_traits::Zero;
 use strum::IntoStaticStr;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{ArcCell, BagOfCells};
+use tonlib_core::TonAddress;
 
 use crate::contract::factory::TonContractFactory;
 use crate::contract::{

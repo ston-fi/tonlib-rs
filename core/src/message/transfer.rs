@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use num_bigint::BigUint;
 
-use crate::address::TonAddress;
 use crate::cell::{ArcCell, Cell, CellBuilder};
 use crate::message::{TonMessageError, ZERO_COINS};
+use crate::TonAddress;
 
 pub struct TransferMessage {
     pub dest: TonAddress,
