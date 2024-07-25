@@ -1,15 +1,14 @@
-mod error;
-
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use crc::Crc;
-pub use error::*;
 use lazy_static::lazy_static;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use super::{TonAddressParseError, TonHash, TON_HASH_BYTES};
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -18,16 +17,16 @@ lazy_static! {
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct TonAddress {
     pub workchain: i32,
-    pub hash_part: [u8; 32],
+    pub hash_part: TonHash,
 }
 
 impl TonAddress {
     pub const NULL: TonAddress = TonAddress {
         workchain: 0,
-        hash_part: [0; 32],
+        hash_part: [0; TON_HASH_BYTES],
     };
 
-    pub fn new(workchain: i32, hash_part: &[u8; 32]) -> TonAddress {
+    pub fn new(workchain: i32, hash_part: &TonHash) -> TonAddress {
         TonAddress {
             workchain,
             hash_part: *hash_part,
@@ -324,11 +323,11 @@ mod tests {
     use serde_json::Value;
 
     use super::TonAddressParseError;
-    use crate::address::TonAddress;
+    use crate::{TonAddress, TonHash};
 
     #[test]
     fn format_works() -> Result<(), TonAddressParseError> {
-        let bytes: [u8; 32] =
+        let bytes: TonHash =
             hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
                 .unwrap()
                 .as_slice()
@@ -352,7 +351,7 @@ mod tests {
 
     #[test]
     fn parse_format_works() -> Result<(), TonAddressParseError> {
-        let bytes: [u8; 32] =
+        let bytes: TonHash =
             hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
                 .unwrap()
                 .as_slice()
@@ -378,7 +377,7 @@ mod tests {
 
     #[test]
     fn parse_works() -> Result<(), TonAddressParseError> {
-        let bytes: [u8; 32] =
+        let bytes: TonHash =
             hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
                 .unwrap()
                 .as_slice()
@@ -403,7 +402,7 @@ mod tests {
 
     #[test]
     fn try_from_works() -> Result<(), TonAddressParseError> {
-        let bytes: [u8; 32] =
+        let bytes: TonHash =
             hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
                 .unwrap()
                 .as_slice()

@@ -3,8 +3,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use error::*;
 use num_bigint::Sign;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{BagOfCells, Cell, CellBuilder};
+use tonlib_core::types::ZERO_HASH;
+use tonlib_core::{TonAddress, TonHash};
 pub use unsafe_emulator::*;
 
 use self::types::TvmEmulatorMessageResponse;
@@ -27,7 +28,7 @@ pub struct TvmEmulatorC7Builder<'a> {
     pub config: &'a [u8],
     pub balance: u64,
     pub unix_time: u64,
-    pub seed: [u8; 32],
+    pub seed: TonHash,
 }
 
 #[derive(Clone)]
@@ -36,7 +37,7 @@ pub struct TvmEmulatorC7 {
     pub config: Vec<u8>,
     pub balance: u64,
     pub unix_time: u64,
-    pub seed: [u8; 32],
+    pub seed: TonHash,
 }
 
 impl<'a> TvmEmulatorC7Builder<'a> {
@@ -51,11 +52,11 @@ impl<'a> TvmEmulatorC7Builder<'a> {
             config,
             balance,
             unix_time,
-            seed: [0; 32],
+            seed: ZERO_HASH,
         }
     }
 
-    pub fn with_seed(&mut self, seed: [u8; 32]) -> &mut Self {
+    pub fn with_seed(&mut self, seed: TonHash) -> &mut Self {
         self.seed = seed;
         self
     }

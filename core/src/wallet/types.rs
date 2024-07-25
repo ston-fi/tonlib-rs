@@ -1,9 +1,10 @@
 use crate::cell::{Cell, CellBuilder, TonCellError};
+use crate::TonHash;
 
 /// WalletVersion::V1R1 | WalletVersion::V1R2 | WalletVersion::V1R3 | WalletVersion::V2R1 | WalletVersion::V2R2
 pub struct WalletDataV1V2 {
     pub seqno: u32,
-    pub public_key: [u8; 32],
+    pub public_key: TonHash,
 }
 
 impl TryFrom<Cell> for WalletDataV1V2 {
@@ -33,7 +34,7 @@ impl TryFrom<WalletDataV1V2> for Cell {
 pub struct WalletDataV3 {
     pub seqno: u32,
     pub wallet_id: i32,
-    pub public_key: [u8; 32],
+    pub public_key: TonHash,
 }
 
 impl TryFrom<Cell> for WalletDataV3 {
@@ -69,7 +70,7 @@ impl TryFrom<WalletDataV3> for Cell {
 pub struct WalletDataV4 {
     pub seqno: u32,
     pub wallet_id: i32,
-    pub public_key: [u8; 32],
+    pub public_key: TonHash,
 }
 
 impl TryFrom<Cell> for WalletDataV4 {
@@ -108,7 +109,7 @@ impl TryFrom<WalletDataV4> for Cell {
 pub struct WalletDataHighloadV2R2 {
     pub wallet_id: i32,
     pub last_cleaned_time: u64,
-    pub public_key: [u8; 32],
+    pub public_key: TonHash,
 }
 
 impl TryFrom<Cell> for WalletDataHighloadV2R2 {

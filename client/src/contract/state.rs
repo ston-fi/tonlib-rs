@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::Cell;
+use tonlib_core::TonAddress;
 
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};

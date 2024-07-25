@@ -5,8 +5,8 @@ use std::sync::Arc;
 use base64::prelude::*;
 use num_bigint::BigUint;
 use num_traits::Zero;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{BagOfCells, CellBuilder, StateInit};
+use tonlib_core::TonAddress;
 
 #[test]
 fn account_proof_cell() {

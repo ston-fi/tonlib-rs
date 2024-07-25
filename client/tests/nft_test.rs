@@ -107,7 +107,7 @@ async fn test_get_nft_content_some() {
 #[tokio::test]
 async fn test_get_nft_collection_content_uri() {
     common::init_logging();
-    let client = common::new_mainnet_client().await;
+    let client = common::new_archive_mainnet_client().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
     let contract = factory.get_contract(&assert_ok!(
         "EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N".parse()

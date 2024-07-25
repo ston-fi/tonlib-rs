@@ -1,5 +1,6 @@
-use super::{ArcCell, CellHash};
+use super::ArcCell;
 use crate::cell::{Cell, CellBuilder, TonCellError};
+use crate::TonHash;
 
 pub struct StateInitBuilder {
     code: Option<ArcCell>,
@@ -58,7 +59,7 @@ impl StateInitBuilder {
 }
 
 impl StateInit {
-    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<CellHash, TonCellError> {
+    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<TonHash, TonCellError> {
         Ok(StateInitBuilder::new(code, data).build()?.cell_hash())
     }
 }

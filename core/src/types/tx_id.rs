@@ -7,22 +7,24 @@ use base64::engine::GeneralPurpose;
 use base64::Engine;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
+
+use super::{TonHash, TransactionIdParseError};
+use crate::types::TON_HASH_BYTES;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-pub struct TransactionId {
+pub struct TonTxId {
     pub lt: i64,
-    pub hash: Vec<u8>,
+    pub hash: TonHash,
 }
 
 lazy_static! {
-    pub static ref NULL_TRANSACTION_ID: TransactionId = TransactionId {
+    pub static ref NULL_TRANSACTION_ID: TonTxId = TonTxId {
         lt: 0i64,
-        hash: vec![0u8; 32]
+        hash: [0u8; TON_HASH_BYTES]
     };
 }
 
-impl TransactionId {
+impl TonTxId {
     pub fn hash_string(&self) -> String {
         hex::encode(self.hash.as_slice())
     }
@@ -31,10 +33,10 @@ impl TransactionId {
         format!("{}:{}", self.lt, self.hash_string())
     }
 
-    pub fn from_lt_hash(lt: i64, hash_str: &str) -> Result<TransactionId, TransactionIdParseError> {
-        let hash = if hash_str.len() == 64 {
+    pub fn from_lt_hash(lt: i64, hash_str: &str) -> Result<TonTxId, TransactionIdParseError> {
+        let hash: TonHash = if hash_str.len() == 64 {
             match hex::decode(hash_str) {
-                Ok(hash) => hash,
+                Ok(hash) => Self::tx_hash_to_array(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
                         format!("{}, {}", lt, hash_str),
@@ -55,7 +57,7 @@ impl TransactionId {
             let engine = GeneralPurpose::new(&char_set, config);
 
             match engine.decode(hash_str) {
-                Ok(hash) => hash,
+                Ok(hash) => Self::tx_hash_to_array(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
                         format!("{}, {}", lt, hash_str),
@@ -71,11 +73,28 @@ impl TransactionId {
             ));
         }
 
-        Ok(TransactionId { lt, hash })
+        Ok(TonTxId { lt, hash })
+    }
+
+    fn tx_hash_to_array(lt: i64, hash: Vec<u8>) -> Result<TonHash, TransactionIdParseError> {
+        if hash.len() == 32 {
+            match &hash.clone().try_into() {
+                Ok(array) => Ok(*array),
+                Err(_) => Err(TransactionIdParseError::new(
+                    format!("{}:{:?}", lt, hash),
+                    "Incorrect tx hash format".to_string(),
+                )),
+            }
+        } else {
+            Err(TransactionIdParseError::new(
+                format!("{}:{:?}", lt, hash),
+                "Incorrect tx hash format".to_string(),
+            ))
+        }
     }
 }
 
-impl FromStr for TransactionId {
+impl FromStr for TonTxId {
     type Err = TransactionIdParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -96,34 +115,18 @@ impl FromStr for TransactionId {
             }
         };
         let hash_str = parts[1];
-        TransactionId::from_lt_hash(lt, hash_str)
+        TonTxId::from_lt_hash(lt, hash_str)
     }
 }
 
-impl Display for TransactionId {
+impl Display for TonTxId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.to_formatted_string().as_str())
     }
 }
 
-impl Debug for TransactionId {
+impl Debug for TonTxId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.to_formatted_string().as_str())
-    }
-}
-
-#[derive(Error, Debug)]
-#[error("Invalid TransactionId (TxId: {txid}, message: {message})")]
-pub struct TransactionIdParseError {
-    txid: String,
-    message: String,
-}
-
-impl TransactionIdParseError {
-    pub fn new<T: ToString, M: ToString>(txid: T, message: M) -> TransactionIdParseError {
-        TransactionIdParseError {
-            txid: txid.to_string(),
-            message: message.to_string(),
-        }
     }
 }

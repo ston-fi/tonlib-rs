@@ -8,7 +8,7 @@ pub use jetton::*;
 pub use latest_transactions_cache::*;
 pub use nft::*;
 pub use state::*;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 pub use wallet::*;
 
 use crate::client::TonClientInterface;

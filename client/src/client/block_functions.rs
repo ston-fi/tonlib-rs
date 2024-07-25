@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use futures::FutureExt;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 use crate::client::{TonClientError, TonClientInterface, TxId};
 use crate::tl::{

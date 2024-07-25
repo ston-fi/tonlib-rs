@@ -5,9 +5,9 @@ use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
 
-use crate::address::TonAddress;
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
+use crate::TonAddress;
 
 const MAX_CELL_BITS: usize = 1023;
 const MAX_CELL_REFERENCES: usize = 4;
@@ -326,9 +326,9 @@ mod tests {
 
     use num_bigint::{BigInt, BigUint, Sign};
 
-    use crate::address::TonAddress;
     use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::{CellBuilder, TonCellError};
+    use crate::types::TonAddress;
 
     #[test]
     fn test_extend_and_invert_bits() -> Result<(), TonCellError> {

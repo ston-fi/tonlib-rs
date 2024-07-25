@@ -2,8 +2,8 @@
 use std::sync::Arc;
 
 use thiserror::Error;
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::TonCellError;
+use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
 use crate::emulator::TvmEmulatorError;

@@ -10,9 +10,9 @@ use tonlib_client::contract::{
     TonContractError, TonContractFactory, TonContractInterface, TonContractState,
 };
 use tonlib_client::types::TvmSuccess;
-use tonlib_core::address::TonAddress;
 use tonlib_core::mnemonic::Mnemonic;
 use tonlib_core::wallet::{TonWallet, WalletVersion};
+use tonlib_core::TonAddress;
 
 mod common;
 

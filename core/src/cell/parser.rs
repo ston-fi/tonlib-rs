@@ -4,9 +4,9 @@ use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
-use crate::address::TonAddress;
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
+use crate::TonAddress;
 
 pub struct CellParser<'a> {
     pub(crate) bit_len: usize,
@@ -215,8 +215,8 @@ mod tests {
     use bitstream_io::BitReader;
     use num_bigint::{BigInt, BigUint};
 
-    use crate::address::TonAddress;
     use crate::cell::CellParser;
+    use crate::TonAddress;
 
     fn create_parser(data: &[u8], bit_len: usize) -> CellParser {
         let cursor = Cursor::new(data);

@@ -9,7 +9,7 @@ use futures::future::join_all;
 use tokio_test::assert_ok;
 use tonlib_client::contract::{LatestContractTransactionsCache, TonContractFactory};
 use tonlib_client::tl::RawTransaction;
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 mod common;
 

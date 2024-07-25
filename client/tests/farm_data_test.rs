@@ -1,10 +1,10 @@
 use num_bigint::BigUint;
 use tokio_test::assert_ok;
 use tonlib_client::contract::{TonContractFactory, TonContractInterface};
-use tonlib_core::address::TonAddress;
 use tonlib_core::cell::{
     key_extractor_u8, value_extractor_uint, CellSlice, DictLoader, GenericDictLoader, TonCellError,
 };
+use tonlib_core::TonAddress;
 
 mod common;
 #[derive(Debug)]

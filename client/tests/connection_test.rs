@@ -12,7 +12,7 @@ use tonlib_client::config::MAINNET_CONFIG;
 use tonlib_client::tl::{
     KeyStoreType, SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState,
 };
-use tonlib_core::address::TonAddress;
+use tonlib_core::TonAddress;
 
 mod common;
 

@@ -1,9 +1,9 @@
 use num_bigint::BigUint;
 
 use super::JETTON_BURN;
-use crate::address::TonAddress;
 use crate::cell::{ArcCell, Cell, CellBuilder};
 use crate::message::{InvalidMessage, TonMessageError};
+use crate::TonAddress;
 
 /// Creates a body for jetton burn according to TL-B schema:
 ///
@@ -107,9 +107,9 @@ mod tests {
 
     use num_bigint::BigUint;
 
-    use crate::address::TonAddress;
     use crate::cell::BagOfCells;
     use crate::message::{JettonBurnMessage, TonMessageError};
+    use crate::TonAddress;
 
     const JETTON_BURN_WITHOUT_CUSTOM_PAYLOAD_INDICATOR_MSG: &str = "b5ee9c72010101010033000061595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea3";
     const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str = "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
