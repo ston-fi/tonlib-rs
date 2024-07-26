@@ -238,7 +238,8 @@ impl TvmEmulator {
                 Ok(())
             }
             TvmStackEntry::Slice(slice) => {
-                builder.store_reference(&slice.cell)?;
+                let cell = slice.into_cell()?;
+                builder.store_reference(&cell.into())?;
                 builder.store_byte(4)?;
                 builder.store_u32(10, slice.start_bit as u32)?; // st_bits
                 builder.store_u32(10, slice.end_bit as u32)?; // en_bits
