@@ -99,9 +99,11 @@ impl TvmStackEntry {
             TvmStackEntry::Cell(cell) => cell
                 .parse_fully(|r| r.load_address())
                 .map_err(StackParseError::CellError),
-            TvmStackEntry::Slice(slice) => slice
-                .parse_fully(|r| r.load_address())
-                .map_err(StackParseError::CellError),
+            TvmStackEntry::Slice(slice) => {
+                let cell = slice.into_cell()?;
+                cell.parse_fully(|r| r.load_address())
+                    .map_err(StackParseError::CellError)
+            }
             t => Err(StackParseError::InvalidEntryType {
                 expected: "Slice".to_string(),
                 found: t.clone(),
@@ -111,7 +113,8 @@ impl TvmStackEntry {
     pub fn get_string(&self) -> Result<String, StackParseError> {
         match self {
             TvmStackEntry::Slice(slice) => {
-                let data = slice.cell.data();
+                let cell = slice.into_cell()?;
+                let data = cell.data();
                 let value = String::from_utf8(data.to_vec())?;
                 Ok(value)
             }
