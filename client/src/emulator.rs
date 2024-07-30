@@ -1,9 +1,8 @@
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use error::*;
 use num_bigint::Sign;
-use tonlib_core::cell::{BagOfCells, Cell, CellBuilder};
+use tonlib_core::cell::{BagOfCells, Cell, CellBuilder, EMPTY_ARC_CELL, EMPTY_CELL};
 use tonlib_core::types::ZERO_HASH;
 use tonlib_core::{TonAddress, TonHash};
 pub use unsafe_emulator::*;
@@ -180,14 +179,14 @@ impl TvmEmulator {
             //     Cell{ data: [], bit_len: 0, references: [
             //     ] }
             // ] }
-            let empty_cell = CellBuilder::new().build()?;
             let root_cell = CellBuilder::new()
                 .store_u64(24, 0)?
-                .store_reference(&Arc::new(empty_cell))?
+                .store_reference(&EMPTY_ARC_CELL.clone())?
                 .build()?;
             root_cell
         } else {
-            let mut prev_cell: Cell = CellBuilder::new().build()?;
+            let empty_cell = EMPTY_CELL.clone();
+            let mut prev_cell: Cell = empty_cell;
             for i in 0..stack.len() {
                 let mut builder = CellBuilder::new();
                 builder.store_child(prev_cell)?;

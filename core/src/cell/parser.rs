@@ -1,10 +1,11 @@
 use std::io::Cursor;
+use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
-use super::ArcCell;
+use super::{ArcCell, Cell};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::TonAddress;
@@ -190,10 +191,14 @@ impl<'a> CellParser<'a> {
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
         let remaining_bits = self.remaining_bits();
-        if remaining_bits == 0 {
+        let remaining_refs = self.references.len() - self.next_ref;
+        if remaining_bits == 0 && remaining_refs == 0 {
             Ok(())
         } else {
-            Err(TonCellError::NonEmptyReader(remaining_bits))
+            Err(TonCellError::NonEmptyReader {
+                remaining_bits,
+                remaining_refs,
+            })
         }
     }
 
@@ -231,6 +236,28 @@ impl<'a> CellParser<'a> {
             Err(TonCellError::CellParserError(
                 "Not enough references to read".to_owned(),
             ))
+        }
+    }
+    // https://docs.ton.org/develop/data-formats/tl-b-types#eiher
+    pub fn load_either_cell_or_cell_ref(&mut self) -> Result<ArcCell, TonCellError> {
+        // TODO: think about how we can make it generic
+        let is_ref = self.load_bit()?;
+        if is_ref {
+            Ok(self.next_reference()?)
+        } else {
+            let remaining_bits = self.remaining_bits();
+            let data = self.load_bits(remaining_bits)?;
+            let result = Arc::new(Cell::new(data, remaining_bits, vec![], false)?);
+            Ok(result)
+        }
+    }
+    // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
+    pub fn load_maybe_cell_ref(&mut self) -> Result<Option<ArcCell>, TonCellError> {
+        let is_some = self.load_bit()?;
+        if is_some {
+            Ok(Some(self.next_reference()?))
+        } else {
+            Ok(None)
         }
     }
 }
