@@ -70,16 +70,11 @@ impl CellSlice {
 
     pub fn parser(&self) -> Result<CellParser, TonCellError> {
         let bit_len = self.end_bit - self.start_bit;
-        let cursor = Cursor::new(self.cell.data.as_slice());
-        let mut bit_reader = BitReader::endian(cursor, BigEndian);
-        bit_reader
-            .skip(self.start_bit as u32)
-            .map_cell_parser_error()?;
-
-        Ok(CellParser {
+        Ok(CellParser::new(
             bit_len,
-            bit_reader,
-        })
+            &self.cell.data,
+            &self.cell.references,
+        ))
     }
 
     #[allow(clippy::let_and_return)]

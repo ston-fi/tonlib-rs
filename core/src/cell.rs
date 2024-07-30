@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
-use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::{fmt, io};
@@ -10,7 +9,7 @@ pub use bag_of_cells::*;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use bit_string::*;
-use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
 pub use dict_loader::*;
 pub use error::*;
@@ -92,14 +91,7 @@ impl Cell {
     }
 
     pub fn parser(&self) -> CellParser {
-        let bit_len = self.bit_len;
-        let cursor = Cursor::new(self.data.as_slice());
-        let bit_reader = BitReader::endian(cursor, BigEndian);
-
-        CellParser {
-            bit_len,
-            bit_reader,
-        }
+        CellParser::new(self.bit_len, &self.data, &self.references)
     }
 
     #[allow(clippy::let_and_return)]
