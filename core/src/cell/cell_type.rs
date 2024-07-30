@@ -9,8 +9,9 @@ use crate::cell::{ArcCell, Cell, MapTonCellError, TonCellError, DEPTH_BYTES, MAX
 use crate::types::{TON_HASH_BYTES, ZERO_HASH};
 use crate::TonHash;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub(crate) enum CellType {
+    #[default]
     Ordinary,
     PrunedBranch,
     Library,

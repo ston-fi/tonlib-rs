@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use super::JETTON_TRANSFER;
-use crate::cell::{ArcCell, Cell, CellBuilder};
+use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
 use crate::message::{InvalidMessage, TonMessageError, ZERO_COINS};
 use crate::TonAddress;
 
@@ -29,7 +29,7 @@ pub struct JettonTransferMessage {
     ///  the amount of nanotons to be sent to the destination address.
     pub forward_ton_amount: BigUint,
     ///  optional custom data that should be sent to the destination address.
-    pub forward_payload: Option<ArcCell>,
+    pub forward_payload: ArcCell,
 }
 
 impl JettonTransferMessage {
@@ -41,7 +41,7 @@ impl JettonTransferMessage {
             response_destination: TonAddress::null(),
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
-            forward_payload: None,
+            forward_payload: EMPTY_ARC_CELL.clone(),
         }
     }
 
@@ -55,23 +55,23 @@ impl JettonTransferMessage {
         self
     }
 
-    pub fn with_custom_payload(&mut self, custom_payload: &ArcCell) -> &mut Self {
-        self.custom_payload = Some(custom_payload.clone());
+    pub fn with_custom_payload(&mut self, custom_payload: ArcCell) -> &mut Self {
+        self.custom_payload = Some(custom_payload);
         self
     }
 
     pub fn with_forward_payload(
         &mut self,
         forward_ton_amount: &BigUint,
-        forward_payload: &ArcCell,
+        forward_payload: ArcCell,
     ) -> &mut Self {
         self.forward_ton_amount.clone_from(forward_ton_amount);
-        self.forward_payload = Some(forward_payload.clone());
+        self.forward_payload = forward_payload;
         self
     }
 
     pub fn build(&self) -> Result<Cell, TonMessageError> {
-        if self.forward_ton_amount.is_zero() && self.forward_payload.is_some() {
+        if self.forward_ton_amount.is_zero() && self.forward_payload == *EMPTY_ARC_CELL {
             return Err(TonMessageError::ForwardTonAmountIsNegative);
         }
 
@@ -81,19 +81,9 @@ impl JettonTransferMessage {
         message.store_coins(&self.amount)?;
         message.store_address(&self.destination)?;
         message.store_address(&self.response_destination)?;
-        if let Some(cp) = self.custom_payload.as_ref() {
-            message.store_bit(true)?;
-            message.store_reference(cp)?;
-        } else {
-            message.store_bit(false)?;
-        }
+        message.store_maybe_cell_ref(&self.custom_payload)?;
         message.store_coins(&self.forward_ton_amount)?;
-        if let Some(fp) = self.forward_payload.as_ref() {
-            message.store_bit(true)?;
-            message.store_reference(fp)?;
-        } else {
-            message.store_bit(false)?;
-        }
+        message.store_either_cell_or_cell_ref(&self.forward_payload)?;
         Ok(message.build()?)
     }
 
@@ -113,32 +103,10 @@ impl JettonTransferMessage {
         let amount = parser.load_coins()?;
         let destination = parser.load_address()?;
         let response_destination = parser.load_address()?;
-        let has_custom_payload = parser.load_bit()?;
+        let custom_payload = parser.load_maybe_cell_ref()?;
         let forward_ton_amount = parser.load_coins()?;
-        let has_forward_payload = parser.load_bit()?;
+        let forward_payload = parser.load_either_cell_or_cell_ref()?;
         parser.ensure_empty()?;
-
-        let (custom_payload, forward_payload) = match (has_custom_payload, has_forward_payload) {
-            (true, true) => {
-                cell.expect_reference_count(2)?;
-                (
-                    Some(cell.reference(0)?.clone()),
-                    Some(cell.reference(1)?.clone()),
-                )
-            }
-            (true, false) => {
-                cell.expect_reference_count(1)?;
-                (Some(cell.reference(0)?.clone()), None)
-            }
-            (false, true) => {
-                cell.expect_reference_count(1)?;
-                (None, Some(cell.reference(0)?.clone()))
-            }
-            (false, false) => {
-                cell.expect_reference_count(0)?;
-                (None, None)
-            }
-        };
 
         let result = JettonTransferMessage {
             query_id,
@@ -186,9 +154,9 @@ mod tests {
             .unwrap(),
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Some(Arc::new(
+            forward_payload: Arc::new(
                 Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
-            )),
+            ),
         };
 
         assert_eq!(expected_jetton_transfer_msg, result_jetton_transfer_msg);
@@ -207,9 +175,9 @@ mod tests {
             .unwrap(),
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Some(Arc::new(
+            forward_payload: Arc::new(
                 Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
-            )),
+            ),
         };
 
         let result_cell = jetton_transfer_msg.build()?;

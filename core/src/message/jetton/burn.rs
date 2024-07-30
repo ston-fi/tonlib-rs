@@ -55,12 +55,8 @@ impl JettonBurnMessage {
         message.store_u64(64, self.query_id)?;
         message.store_coins(&self.amount)?;
         message.store_address(&self.response_destination)?;
-        if let Some(cp) = self.custom_payload.as_ref() {
-            message.store_bit(true)?;
-            message.store_reference(cp)?;
-        } else {
-            message.store_bit(false)?;
-        }
+        message.store_maybe_cell_ref(&self.custom_payload)?;
+
         Ok(message.build()?)
     }
 
@@ -79,17 +75,8 @@ impl JettonBurnMessage {
         }
         let amount = parser.load_coins()?;
         let response_destination = parser.load_address()?;
-        // Sometimes, there is no indication of a custom payload presence.
-        let has_custom_payload = parser.load_bit().unwrap_or(false);
+        let custom_payload = parser.load_maybe_cell_ref()?;
         parser.ensure_empty()?;
-
-        let custom_payload = if has_custom_payload {
-            cell.expect_reference_count(1)?;
-            Some(cell.reference(0)?.clone())
-        } else {
-            cell.expect_reference_count(0)?;
-            None
-        };
 
         let result = JettonBurnMessage {
             query_id,
@@ -111,18 +98,11 @@ mod tests {
     use crate::message::{JettonBurnMessage, TonMessageError};
     use crate::TonAddress;
 
-    const JETTON_BURN_WITHOUT_CUSTOM_PAYLOAD_INDICATOR_MSG: &str = "b5ee9c72010101010033000061595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea3";
-    const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str = "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
+    const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str =  "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
     const NOT_BURN: &str = "b5ee9c72010101010035000066595f07bc0000000000000001545d964b800800cd324c114b03f846373734c74b3c3287e1a8c2c732b5ea563a17c6276ef4af30";
 
     #[test]
     fn test_jetton_burn_parser() -> Result<(), TonMessageError> {
-        let boc_without_indicator =
-            BagOfCells::parse_hex(JETTON_BURN_WITHOUT_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
-        let cell_without_indicator = boc_without_indicator.single_root().unwrap();
-        let result_jetton_transfer_msg_without_indicator =
-            JettonBurnMessage::parse(cell_without_indicator)?;
-
         let boc_with_indicator =
             BagOfCells::parse_hex(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
         let cell_with_indicator = boc_with_indicator.single_root().unwrap();
@@ -139,10 +119,6 @@ mod tests {
             custom_payload: None,
         };
 
-        assert_eq!(
-            expected_jetton_transfer_msg,
-            result_jetton_transfer_msg_without_indicator
-        );
         assert_eq!(
             expected_jetton_transfer_msg,
             result_jetton_transfer_msg_with_indicator

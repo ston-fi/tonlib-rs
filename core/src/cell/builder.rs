@@ -14,6 +14,7 @@ const MAX_CELL_REFERENCES: usize = 4;
 
 pub struct CellBuilder {
     bit_writer: BitWriter<Vec<u8>, BigEndian>,
+    bits_to_write: usize,
     references: Vec<ArcCell>,
     is_cell_exotic: bool,
 }
@@ -23,6 +24,7 @@ impl CellBuilder {
         let bit_writer = BitWriter::endian(Vec::new(), BigEndian);
         CellBuilder {
             bit_writer,
+            bits_to_write: 0,
             references: Vec::new(),
             is_cell_exotic: false,
         }
@@ -34,6 +36,7 @@ impl CellBuilder {
 
     pub fn store_bit(&mut self, val: bool) -> Result<&mut Self, TonCellError> {
         self.bit_writer.write_bit(val).map_cell_builder_error()?;
+        self.bits_to_write += 1;
         Ok(self)
     }
 
@@ -41,6 +44,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -48,6 +52,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -55,6 +60,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -62,6 +68,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -69,6 +76,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -76,6 +84,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -251,6 +260,42 @@ impl CellBuilder {
         self.store_cell_data(cell)?;
         self.store_references(cell.references.as_slice())?;
         Ok(self)
+    }
+
+    // https://docs.ton.org/develop/data-formats/tl-b-types#either
+    pub fn store_either_cell_or_cell_ref(
+        // TODO: think about how we can make it generic
+        &mut self,
+        cell: &ArcCell,
+    ) -> Result<&mut Self, TonCellError> {
+        if cell.bit_len() < self.remaining_bits() {
+            self.store_bit(false)?;
+            self.store_cell(cell)?;
+        } else {
+            self.store_bit(true)?;
+            self.store_reference(cell)?;
+        }
+
+        Ok(self)
+    }
+
+    // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
+    pub fn store_maybe_cell_ref(
+        &mut self,
+        maybe_cell: &Option<ArcCell>,
+    ) -> Result<&mut Self, TonCellError> {
+        if let Some(cell) = maybe_cell {
+            self.store_bit(true)?;
+            self.store_reference(cell)?;
+        } else {
+            self.store_bit(false)?;
+        }
+
+        Ok(self)
+    }
+
+    pub fn remaining_bits(&self) -> usize {
+        MAX_CELL_BITS - self.bits_to_write
     }
 
     pub fn build(&mut self) -> Result<Cell, TonCellError> {

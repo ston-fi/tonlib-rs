@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 
 use super::JETTON_TRANSFER_NOTIFICATION;
-use crate::cell::{ArcCell, Cell, CellBuilder};
+use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
 use crate::message::{InvalidMessage, TonMessageError};
 use crate::TonAddress;
 
@@ -21,7 +21,7 @@ pub struct JettonTransferNotificationMessage {
     /// is address of the previous owner of transferred jettons.
     pub sender: TonAddress,
     ///  optional custom data that should be sent to the destination address.
-    pub forward_payload: Option<ArcCell>,
+    pub forward_payload: ArcCell,
 }
 
 impl JettonTransferNotificationMessage {
@@ -30,7 +30,7 @@ impl JettonTransferNotificationMessage {
             query_id: 0,
             amount: amount.clone(),
             sender: sender.clone(),
-            forward_payload: None,
+            forward_payload: EMPTY_ARC_CELL.clone(),
         }
     }
 
@@ -39,8 +39,8 @@ impl JettonTransferNotificationMessage {
         self
     }
 
-    pub fn with_forward_payload(&mut self, forward_payload: &ArcCell) -> &mut Self {
-        self.forward_payload = Some(forward_payload.clone());
+    pub fn with_forward_payload(&mut self, forward_payload: ArcCell) -> &mut Self {
+        self.forward_payload = forward_payload;
         self
     }
 
@@ -50,12 +50,8 @@ impl JettonTransferNotificationMessage {
         message.store_u64(64, self.query_id)?;
         message.store_coins(&self.amount)?;
         message.store_address(&self.sender)?;
-        if let Some(fp) = self.forward_payload.as_ref() {
-            message.store_bit(true)?;
-            message.store_reference(fp)?;
-        } else {
-            message.store_bit(false)?;
-        }
+        message.store_either_cell_or_cell_ref(&self.forward_payload)?;
+
         Ok(message.build()?)
     }
 
@@ -77,16 +73,8 @@ impl JettonTransferNotificationMessage {
         }
         let amount = parser.load_coins()?;
         let sender = parser.load_address()?;
-        let has_forward_payload = parser.load_bit()?;
+        let forward_payload = parser.load_either_cell_or_cell_ref()?;
         parser.ensure_empty()?;
-
-        let forward_payload = if has_forward_payload {
-            cell.expect_reference_count(1)?;
-            Some(cell.reference(0)?.clone())
-        } else {
-            cell.expect_reference_count(0)?;
-            None
-        };
 
         let result = JettonTransferNotificationMessage {
             query_id,
@@ -123,7 +111,7 @@ mod tests {
             amount: BigUint::from(20000000u64),
             sender: TonAddress::from_str("EQAd8QRKoA5sKcug9bwK6vMdmhSAoAxr8vvABvC1TCeTude5")
                 .unwrap(),
-            forward_payload: Some(Arc::new(
+            forward_payload: Arc::new(
                 Cell::new(
                     hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
                     886,
@@ -131,7 +119,7 @@ mod tests {
                     false,
                 )
                 .unwrap(),
-            )),
+            ),
         };
         let result_jetton_transfer_msg = JettonTransferNotificationMessage::parse(cell)?;
 
@@ -149,7 +137,7 @@ mod tests {
             amount: BigUint::from(20000000u64),
             sender: TonAddress::from_str("EQAd8QRKoA5sKcug9bwK6vMdmhSAoAxr8vvABvC1TCeTude5")
                 .unwrap(),
-            forward_payload: Some(Arc::new(
+            forward_payload: Arc::new(
                 Cell::new(
                     hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
                     886,
@@ -157,7 +145,7 @@ mod tests {
                     false,
                 )
                 .unwrap(),
-            )),
+            ),
         };
 
         let result_cell = jetton_transfer_notification_msg.build()?;

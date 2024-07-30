@@ -14,6 +14,7 @@ pub use builder::*;
 pub use dict_loader::*;
 pub use error::*;
 use hmac::digest::Digest;
+use lazy_static::lazy_static;
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive};
 pub use parser::*;
@@ -25,6 +26,7 @@ pub use util::*;
 
 use crate::cell::cell_type::CellType;
 use crate::cell::level_mask::LevelMask;
+use crate::types::DEFAULT_CELL_HASH;
 use crate::TonHash;
 
 mod bag_of_cells;
@@ -47,6 +49,11 @@ const MAX_LEVEL: u8 = 3;
 pub type ArcCell = Arc<Cell>;
 
 pub type SnakeFormattedDict = HashMap<TonHash, Vec<u8>>;
+
+lazy_static! {
+    pub static ref EMPTY_CELL: Cell = Cell::default();
+    pub static ref EMPTY_ARC_CELL: ArcCell = Arc::new(Cell::default());
+}
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Cell {
@@ -350,15 +357,22 @@ impl Debug for Cell {
             CellType::PrunedBranch | CellType::MerkleProof => 'p',
             CellType::MerkleUpdate => 'u',
         };
+
+        // Our completion tag ONLY shows that the last byte is incomplete
+        // It does not correspond to real completion tag defined in
+        // p1.0.2 of https://docs.ton.org/tvm.pdf for details
+        // Null termination of bit-string defined in that document is omitted for clarity
+        let completion_tag = if self.bit_len % 8 != 0 { "_" } else { "" };
         writeln!(
             f,
-            "Cell {}{{ data: [{}], bit_len: {}, references: [\n",
+            "Cell {}{{ data: [{}{}], bit_len: {}, references: [\n",
             t,
             self.data
                 .iter()
                 .map(|&byte| format!("{:02X}", byte))
                 .collect::<Vec<_>>()
                 .join(""),
+            completion_tag,
             self.bit_len,
         )?;
 
@@ -370,7 +384,25 @@ impl Debug for Cell {
             )?;
         }
 
-        write!(f, "] }}")
+        write!(
+            f,
+            "] cell_type: {:?}, level_mask: {:?}, hashes {:?}, depths {:?} }}",
+            self.cell_type, self.level_mask, self.hashes, self.depths
+        )
+    }
+}
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            data: Default::default(),
+            bit_len: Default::default(),
+            references: Default::default(),
+            cell_type: Default::default(),
+            level_mask: Default::default(),
+            hashes: [DEFAULT_CELL_HASH; 4],
+            depths: Default::default(),
+        }
     }
 }
 
@@ -558,4 +590,18 @@ fn write_ref_hashes(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::Cell;
+
+    #[test]
+    fn default_cell() {
+        let result = Cell::default();
+
+        let expected = Cell::new(vec![], 0, vec![], false).unwrap();
+
+        assert_eq!(result, expected)
+    }
 }
