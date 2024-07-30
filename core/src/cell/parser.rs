@@ -4,6 +4,7 @@ use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
+use super::ArcCell;
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::TonAddress;
@@ -11,9 +12,22 @@ use crate::TonAddress;
 pub struct CellParser<'a> {
     pub(crate) bit_len: usize,
     pub(crate) bit_reader: BitReader<Cursor<&'a [u8]>, BigEndian>,
+    pub(crate) references: &'a [ArcCell],
+    next_ref: usize,
 }
 
-impl CellParser<'_> {
+impl<'a> CellParser<'a> {
+    pub fn new(bit_len: usize, data: &'a [u8], references: &'a [ArcCell]) -> Self {
+        let cursor = Cursor::new(data);
+        let bit_reader = BitReader::endian(cursor, BigEndian);
+        CellParser {
+            bit_len,
+            bit_reader,
+            references,
+            next_ref: 0,
+        }
+    }
+
     pub fn remaining_bits(&mut self) -> usize {
         let pos = self.bit_reader.position_in_bits().unwrap_or_default() as usize;
         if self.bit_len > pos {
@@ -206,30 +220,33 @@ impl CellParser<'_> {
         }
         Ok(())
     }
+
+    pub fn next_reference(&mut self) -> Result<ArcCell, TonCellError> {
+        if self.next_ref < self.references.len() {
+            let reference = self.references[self.next_ref].clone();
+            self.next_ref += 1;
+
+            Ok(reference)
+        } else {
+            Err(TonCellError::CellParserError(
+                "Not enough references to read".to_owned(),
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
 
-    use bitstream_io::BitReader;
     use num_bigint::{BigInt, BigUint};
 
-    use crate::cell::CellParser;
+    use crate::cell::Cell;
     use crate::TonAddress;
-
-    fn create_parser(data: &[u8], bit_len: usize) -> CellParser {
-        let cursor = Cursor::new(data);
-        let reader = BitReader::new(cursor);
-        CellParser {
-            bit_len,
-            bit_reader: reader,
-        }
-    }
 
     #[test]
     fn test_load_bit() {
-        let mut parser = create_parser(&[0b10101010], 4);
+        let cell = Cell::new([0b10101010].to_vec(), 4, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert!(parser.load_bit().unwrap());
         assert!(!parser.load_bit().unwrap());
         assert!(parser.load_bit().unwrap());
@@ -239,18 +256,21 @@ mod tests {
 
     #[test]
     fn test_load_u8() {
-        let mut parser = create_parser(&[0b10101010], 4);
+        let cell = Cell::new([0b10101010].to_vec(), 4, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_u8(4).unwrap(), 0b1010);
         assert_eq!(parser.load_u8(1).is_err(), true);
     }
 
     #[test]
     fn test_load_i8() {
-        let mut parser = create_parser(&[0b10101010], 4);
+        let cell = Cell::new([0b10101010].to_vec(), 4, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_i8(4).unwrap(), 0b1010);
         assert_eq!(parser.load_i8(2).is_err(), true);
 
-        let mut parser = create_parser(&[0b10100110, 0b10101010], 13);
+        let cell = Cell::new([0b10100110, 0b10101010].to_vec(), 13, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_i8(4).unwrap(), 0b1010);
         assert_eq!(parser.load_i8(8).unwrap(), 0b01101010);
         assert_eq!(parser.load_i8(2).is_err(), true);
@@ -258,56 +278,65 @@ mod tests {
 
     #[test]
     fn test_load_u16() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 12);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 12, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_u16(8).unwrap(), 0b10101010);
         assert_eq!(parser.load_u16(8).is_err(), true);
     }
 
     #[test]
     fn test_load_i16() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 12);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 12, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_i16(9).unwrap(), 0b101010100);
         assert_eq!(parser.load_i16(4).is_err(), true);
     }
 
     #[test]
     fn test_load_u32() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 13);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 13, vec![], false).unwrap();
+        let mut parser = cell.parser();
+
         assert_eq!(parser.load_u32(8).unwrap(), 0b10101010);
         assert_eq!(parser.load_u32(8).is_err(), true);
     }
 
     #[test]
     fn test_load_i32() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 14);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_i32(10).unwrap(), 0b1010101001);
         assert_eq!(parser.load_i32(5).is_err(), true);
     }
 
     #[test]
     fn test_load_u64() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 13);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 13, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_u64(8).unwrap(), 0b10101010);
         assert_eq!(parser.load_u64(8).is_err(), true);
     }
 
     #[test]
     fn test_load_i64() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 14);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_i64(10).unwrap(), 0b1010101001);
         assert_eq!(parser.load_i64(5).is_err(), true);
     }
 
     #[test]
     fn test_load_int() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 14);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_int(10).unwrap(), BigInt::from(0b1010101001));
         assert_eq!(parser.load_int(5).is_err(), true);
     }
 
     #[test]
     fn test_load_uint() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 14);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(
             parser.load_uint(10).unwrap(),
             BigUint::from(0b1010101001u64)
@@ -317,7 +346,8 @@ mod tests {
 
     #[test]
     fn test_load_byte() {
-        let mut parser = create_parser(&[0b10101010, 0b01010101], 15);
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 15, vec![], false).unwrap();
+        let mut parser = cell.parser();
         parser.load_bit().unwrap();
         assert_eq!(parser.load_byte().unwrap(), 0b01010100u8);
         assert_eq!(parser.load_byte().is_err(), true);
@@ -325,10 +355,14 @@ mod tests {
 
     #[test]
     fn test_load_slice() {
-        let mut parser = create_parser(
-            &[0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010],
+        let cell = Cell::new(
+            [0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010].to_vec(),
             32,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
         parser.load_bit().unwrap();
         let mut slice = [0; 2];
         parser.load_slice(&mut slice).unwrap();
@@ -338,10 +372,14 @@ mod tests {
 
     #[test]
     fn test_load_bytes() {
-        let mut parser = create_parser(
-            &[0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010],
+        let cell = Cell::new(
+            [0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010].to_vec(),
             32,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
         parser.load_bit().unwrap();
         let slice = parser.load_bytes(2).unwrap();
         assert_eq!(slice, [0b01010100, 0b10101011]);
@@ -350,10 +388,14 @@ mod tests {
 
     #[test]
     fn test_load_bits_to_slice() {
-        let mut parser = create_parser(
-            &[0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010],
+        let cell = Cell::new(
+            [0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010].to_vec(),
             22,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
         parser.load_bit().unwrap();
         let mut slice = [0; 2];
         parser.load_bits_to_slice(12, &mut slice).unwrap();
@@ -363,10 +405,14 @@ mod tests {
 
     #[test]
     fn test_load_bits() {
-        let mut parser = create_parser(
-            &[0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010],
+        let cell = Cell::new(
+            [0b10101010, 0b01010101, 0b10101010, 0b10101010, 0b10101010].to_vec(),
             25,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
         parser.load_bit().unwrap();
         let slice = parser.load_bits(5).unwrap();
         assert_eq!(slice, [0b01010000]);
@@ -377,7 +423,8 @@ mod tests {
 
     #[test]
     fn test_load_utf8() {
-        let mut parser = create_parser("a1j\0".as_bytes(), 31);
+        let cell = Cell::new("a1j\0".as_bytes().to_vec(), 31, vec![], false).unwrap();
+        let mut parser = cell.parser();
         let string = parser.load_utf8(2).unwrap();
         assert_eq!(string, "a1");
         let string = parser.load_utf8(1).unwrap();
@@ -387,12 +434,18 @@ mod tests {
 
     #[test]
     fn test_load_coins() {
-        let mut parser = create_parser(
-            &[
+        let cell = Cell::new(
+            [
                 0b00011111, 0b11110011, 0b11110011, 0b11110011, 0b11110011, 0b00011111, 0b11110011,
-            ],
+            ]
+            .to_vec(),
             48,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
+
         assert_eq!(parser.load_coins().unwrap(), BigUint::from(0b11111111u64));
         assert_eq!(
             parser.load_coins().unwrap(),
@@ -403,20 +456,26 @@ mod tests {
 
     #[test]
     fn test_load_address() {
-        let mut parser = create_parser(&[0], 3);
+        let cell = Cell::new([0].to_vec(), 3, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
         assert_eq!(parser.load_address().is_err(), true);
 
         // with full addresses
-        let mut parser = create_parser(
-            &[
+        let cell = Cell::new(
+            [
                 0b10000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0b00010000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0b00000010, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ],
+            ]
+            .to_vec(),
             (3 + 8 + 32 * 8) * 3 - 1,
-        );
+            vec![],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
         assert_eq!(parser.load_address().is_err(), true);
@@ -424,7 +483,8 @@ mod tests {
 
     #[test]
     fn test_ensure_empty() {
-        let mut parser = create_parser(&[0b10101010], 7);
+        let cell = Cell::new([0b10101010].to_vec(), 7, vec![], false).unwrap();
+        let mut parser = cell.parser();
         parser.load_u8(4).unwrap();
         assert_eq!(parser.ensure_empty().is_err(), true);
         parser.load_u8(3).unwrap();
@@ -433,9 +493,28 @@ mod tests {
 
     #[test]
     fn test_skip_bits_not_enough_bits() {
-        let mut parser = create_parser(&[0b11111001, 0b00001010], 12);
+        let cell = Cell::new([0b11111001, 0b00001010].to_vec(), 12, vec![], false).unwrap();
+        let mut parser = cell.parser();
         assert_eq!(parser.skip_bits(5).is_ok(), true);
         assert_eq!(parser.load_bits(5).unwrap(), [0b00100000]);
         assert_eq!(parser.skip_bits(3).is_err(), true);
+    }
+
+    #[test]
+    fn test_parser_with_refs() {
+        let ref1 = Cell::new([0b11111001, 0b00001010].to_vec(), 12, vec![], false).unwrap();
+        let ref2 = Cell::new([0b11111001, 0b00001010].to_vec(), 12, vec![], false).unwrap();
+        let cell = Cell::new(
+            [0b11111001, 0b00001010].to_vec(),
+            12,
+            vec![ref1.into(), ref2.into()],
+            false,
+        )
+        .unwrap();
+        let mut parser = cell.parser();
+
+        assert_eq!(parser.next_reference().is_ok(), true);
+        assert_eq!(parser.next_reference().is_ok(), true);
+        assert_eq!(parser.next_reference().is_err(), true);
     }
 }
