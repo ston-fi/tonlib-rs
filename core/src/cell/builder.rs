@@ -264,7 +264,6 @@ impl CellBuilder {
 
     // https://docs.ton.org/develop/data-formats/tl-b-types#either
     pub fn store_either_cell_or_cell_ref(
-        // TODO: think about how we can make it generic
         &mut self,
         cell: &ArcCell,
     ) -> Result<&mut Self, TonCellError> {

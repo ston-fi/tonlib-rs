@@ -32,6 +32,7 @@ use crate::TonHash;
 mod bag_of_cells;
 mod bit_string;
 mod builder;
+
 mod cell_type;
 mod dict_loader;
 mod error;
@@ -337,6 +338,8 @@ impl Cell {
         Arc::new(self)
     }
 
+    /// It is recommended to use CellParser::next_reference() instead
+    #[deprecated]
     pub fn expect_reference_count(&self, expected_refs: usize) -> Result<(), TonCellError> {
         let ref_count = self.references.len();
         if ref_count != expected_refs {
@@ -365,7 +368,7 @@ impl Debug for Cell {
         let completion_tag = if self.bit_len % 8 != 0 { "_" } else { "" };
         writeln!(
             f,
-            "Cell {}{{ data: [{}{}], bit_len: {}, references: [\n",
+            "Cell {}{{ data: [{}{}]\n, bit_len: {}\n, references: [",
             t,
             self.data
                 .iter()
@@ -386,8 +389,18 @@ impl Debug for Cell {
 
         write!(
             f,
-            "] cell_type: {:?}, level_mask: {:?}, hashes {:?}, depths {:?} }}",
-            self.cell_type, self.level_mask, self.hashes, self.depths
+            "]\n cell_type: {:?}\n level_mask: {:?}\n hashes {:?}\n depths {:?}\n }}",
+            self.cell_type,
+            self.level_mask,
+            self.hashes
+                .iter()
+                .map(|h| h
+                    .iter()
+                    .map(|&byte| format!("{:02X}", byte))
+                    .collect::<Vec<_>>()
+                    .join(""))
+                .collect::<Vec<_>>(),
+            self.depths
         )
     }
 }

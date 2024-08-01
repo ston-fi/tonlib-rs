@@ -17,7 +17,7 @@ mod contract_emulator_tests {
     use tonlib_client::meta::MetaDataContent;
     use tonlib_client::types::TvmStackEntry;
     use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
-    use tonlib_core::message::JettonTransferMessage;
+    use tonlib_core::message::{JettonTransferMessage, TonMessage};
     use tonlib_core::TonAddress;
 
     use crate::common;
