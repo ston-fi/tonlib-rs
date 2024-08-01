@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 use super::JETTON_TRANSFER_NOTIFICATION;
 use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
-use crate::message::{InvalidMessage, TonMessageError};
+use crate::message::{InvalidMessage, TonMessage, TonMessageError};
 use crate::TonAddress;
 
 /// Creates a body for jetton transfer notification according to TL-B schema:
@@ -43,19 +43,21 @@ impl JettonTransferNotificationMessage {
         self.forward_payload = forward_payload;
         self
     }
+}
 
-    pub fn build(&self) -> Result<Cell, TonMessageError> {
-        let mut message = CellBuilder::new();
-        message.store_u32(32, JETTON_TRANSFER_NOTIFICATION)?;
-        message.store_u64(64, self.query_id)?;
-        message.store_coins(&self.amount)?;
-        message.store_address(&self.sender)?;
-        message.store_either_cell_or_cell_ref(&self.forward_payload)?;
+impl TonMessage for JettonTransferNotificationMessage {
+    fn build(&self) -> Result<Cell, TonMessageError> {
+        let mut builder = CellBuilder::new();
+        builder.store_u32(32, JETTON_TRANSFER_NOTIFICATION)?;
+        builder.store_u64(64, self.query_id)?;
+        builder.store_coins(&self.amount)?;
+        builder.store_address(&self.sender)?;
+        builder.store_either_cell_or_cell_ref(&self.forward_payload)?;
 
-        Ok(message.build()?)
+        Ok(builder.build()?)
     }
 
-    pub fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
+    fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
         let mut parser = cell.parser();
 
         let opcode: u32 = parser.load_u32(32)?;
@@ -95,7 +97,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::cell::{BagOfCells, Cell};
-    use crate::message::{JettonTransferNotificationMessage, TonMessageError};
+    use crate::message::{JettonTransferNotificationMessage, TonMessage, TonMessageError};
     use crate::TonAddress;
 
     const JETTON_TRANSFER_NOTIFICATION_MSG: &str = "b5ee9c720101020100a60001647362d09c000000d2c7ceef23401312d008003be20895401cd8539741eb7815d5e63b3429014018d7e5f7800de16a984f27730100dd25938561800f2465b65c76b1b562f32423676970b431319419d5f45ffd2eeb2155ce6ab7eacc78ee0250ef0300077c4112a8039b0a72e83d6f02babcc766852028031afcbef001bc2d5309e4ee700257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";

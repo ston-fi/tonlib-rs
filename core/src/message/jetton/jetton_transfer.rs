@@ -3,7 +3,7 @@ use num_traits::Zero;
 
 use super::JETTON_TRANSFER;
 use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
-use crate::message::{InvalidMessage, TonMessageError, ZERO_COINS};
+use crate::message::{InvalidMessage, TonMessage, TonMessageError, ZERO_COINS};
 use crate::TonAddress;
 
 /// Creates a body for jetton transfer according to TL-B schema:
@@ -69,9 +69,11 @@ impl JettonTransferMessage {
         self.forward_payload = forward_payload;
         self
     }
+}
 
-    pub fn build(&self) -> Result<Cell, TonMessageError> {
-        if self.forward_ton_amount.is_zero() && self.forward_payload == *EMPTY_ARC_CELL {
+impl TonMessage for JettonTransferMessage {
+    fn build(&self) -> Result<Cell, TonMessageError> {
+        if self.forward_ton_amount.is_zero() && self.forward_payload == EMPTY_ARC_CELL.clone() {
             return Err(TonMessageError::ForwardTonAmountIsNegative);
         }
 
@@ -87,7 +89,7 @@ impl JettonTransferMessage {
         Ok(message.build()?)
     }
 
-    pub fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
+    fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
         let mut parser = cell.parser();
 
         let opcode: u32 = parser.load_u32(32)?;
@@ -130,7 +132,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::cell::{BagOfCells, Cell};
-    use crate::message::{JettonTransferMessage, TonMessageError};
+    use crate::message::{JettonTransferMessage, TonMessage, TonMessageError};
     use crate::TonAddress;
 
     const JETTON_TRANSFER_MSG : &str="b5ee9c720101020100a800016d0f8a7ea5001f5512dab844d643b9aca00800ef3b9902a271b2a01c8938a523cfe24e71847aaeb6a620001ed44a77ac0e709c1033428f030100d7259385618009dd924373a9aad41b28cec02da9384d67363af2034fc2a7ccc067e28d4110de86e66deb002365dfa32dfd419308ebdf35e0f6ba7c42534bbb5dab5e89e28ea3e0455cc2d2f00257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";
@@ -143,6 +145,13 @@ mod tests {
 
         let result_jetton_transfer_msg = JettonTransferMessage::parse(cell)?;
 
+        let transfer_message_cell = Arc::new(Cell::new(
+            hex::decode(TRANSFER_PAYLOAD).unwrap(),
+            862,
+            vec![],
+            false,
+        )?);
+
         let expected_jetton_transfer_msg = JettonTransferMessage {
             query_id: 8819263745311958,
             amount: BigUint::from(1000000000u64),
@@ -154,9 +163,7 @@ mod tests {
             .unwrap(),
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Arc::new(
-                Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
-            ),
+            forward_payload: transfer_message_cell,
         };
 
         assert_eq!(expected_jetton_transfer_msg, result_jetton_transfer_msg);

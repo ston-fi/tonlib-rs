@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 use super::JETTON_BURN;
 use crate::cell::{ArcCell, Cell, CellBuilder};
-use crate::message::{InvalidMessage, TonMessageError};
+use crate::message::{InvalidMessage, TonMessage, TonMessageError};
 use crate::TonAddress;
 
 /// Creates a body for jetton burn according to TL-B schema:
@@ -44,12 +44,13 @@ impl JettonBurnMessage {
         self
     }
 
-    pub fn with_custom_payload(&mut self, custom_payload: &ArcCell) -> &mut Self {
-        self.custom_payload = Some(custom_payload.clone());
+    pub fn with_custom_payload(&mut self, custom_payload: ArcCell) -> &mut Self {
+        self.custom_payload = Some(custom_payload);
         self
     }
-
-    pub fn build(&self) -> Result<Cell, TonMessageError> {
+}
+impl TonMessage for JettonBurnMessage {
+    fn build(&self) -> Result<Cell, TonMessageError> {
         let mut message = CellBuilder::new();
         message.store_u32(32, JETTON_BURN)?;
         message.store_u64(64, self.query_id)?;
@@ -60,7 +61,7 @@ impl JettonBurnMessage {
         Ok(message.build()?)
     }
 
-    pub fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
+    fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
         let mut parser = cell.parser();
 
         let opcode: u32 = parser.load_u32(32)?;
@@ -95,7 +96,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::cell::BagOfCells;
-    use crate::message::{JettonBurnMessage, TonMessageError};
+    use crate::message::{JettonBurnMessage, TonMessage, TonMessageError};
     use crate::TonAddress;
 
     const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str =  "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
@@ -106,7 +107,7 @@ mod tests {
         let boc_with_indicator =
             BagOfCells::parse_hex(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
         let cell_with_indicator = boc_with_indicator.single_root().unwrap();
-        let result_jetton_transfer_msg_with_indicator =
+        let result_jetton_transfer_msg_with_indicator: JettonBurnMessage =
             JettonBurnMessage::parse(cell_with_indicator)?;
 
         let expected_jetton_transfer_msg = JettonBurnMessage {
