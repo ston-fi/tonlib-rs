@@ -178,6 +178,8 @@ pub struct RawTransaction {
     pub data: Vec<u8>,
     pub transaction_id: InternalTransactionId,
     #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub fee: i64,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub storage_fee: i64,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub other_fee: i64,
