@@ -31,7 +31,7 @@ pub trait JettonMasterContract: TonContractInterface {
         let method = JettonMasterMethods::GetJettonData.into();
         let address = self.address().clone();
 
-        let res = self.run_get_method(method, &Vec::new()).await?;
+        let res = self.run_get_method(method, Vec::new()).await?;
 
         let stack = res.stack;
         if stack.len() == JETTON_DATA_STACK_ELEMENTS {
@@ -71,7 +71,7 @@ pub trait JettonMasterContract: TonContractInterface {
             .map_cell_error(method, owner_address)?;
         let cell_slice = CellSlice::full_cell(cell).map_cell_error(method, owner_address)?;
         let slice = TvmStackEntry::Slice(cell_slice);
-        let res = self.run_get_method(method, &vec![slice]).await?;
+        let res = self.run_get_method(method, vec![slice]).await?;
         let stack = res.stack;
         if stack.len() == 1 {
             stack[0].get_address().map_stack_error(method, &address)

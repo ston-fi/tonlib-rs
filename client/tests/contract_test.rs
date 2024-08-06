@@ -34,7 +34,7 @@ pub struct PoolData {
 #[async_trait]
 pub trait PoolContract: TonContractInterface {
     async fn get_pool_data(&self) -> anyhow::Result<PoolData> {
-        let res = assert_ok!(self.run_get_method("get_pool_data", &Vec::new()).await);
+        let res = assert_ok!(self.run_get_method("get_pool_data", Vec::new()).await);
         if res.stack.len() == 10 {
             let pool_data = PoolData {
                 reserve0: assert_ok!(res.stack[0].get_biguint()),
@@ -58,7 +58,7 @@ pub trait PoolContract: TonContractInterface {
     }
 
     async fn invalid_method(&self) -> Result<TvmSuccess, TonContractError> {
-        self.run_get_method("invalid_method", &Vec::new()).await
+        self.run_get_method("invalid_method", Vec::new()).await
     }
 }
 

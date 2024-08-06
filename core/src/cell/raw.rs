@@ -336,6 +336,6 @@ mod tests {
             cells: vec![raw_cell],
             roots: vec![0],
         };
-        let _res = assert_eq!(raw_bag.serialize(false).is_ok(), true);
+        assert!(raw_bag.serialize(false).is_ok());
     }
 }
