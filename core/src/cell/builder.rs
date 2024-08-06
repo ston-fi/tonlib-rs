@@ -394,10 +394,7 @@ mod tests {
         let b = extend_and_invert_bits(9, &a)?;
         assert_eq!(b, BigUint::from_slice(&[0x1ffu32]));
 
-        assert_eq!(
-            extend_and_invert_bits(3, &BigUint::from(10u32)).is_err(),
-            true
-        );
+        assert!(extend_and_invert_bits(3, &BigUint::from(10u32)).is_err());
         Ok(())
     }
 

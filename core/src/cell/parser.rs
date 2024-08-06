@@ -278,7 +278,7 @@ mod tests {
         assert!(!parser.load_bit().unwrap());
         assert!(parser.load_bit().unwrap());
         assert!(!parser.load_bit().unwrap());
-        assert_eq!(parser.load_bit().is_err(), true);
+        assert!(parser.load_bit().is_err());
     }
 
     #[test]
@@ -286,7 +286,7 @@ mod tests {
         let cell = Cell::new([0b10101010].to_vec(), 4, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_u8(4).unwrap(), 0b1010);
-        assert_eq!(parser.load_u8(1).is_err(), true);
+        assert!(parser.load_u8(1).is_err());
     }
 
     #[test]
@@ -294,13 +294,13 @@ mod tests {
         let cell = Cell::new([0b10101010].to_vec(), 4, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_i8(4).unwrap(), 0b1010);
-        assert_eq!(parser.load_i8(2).is_err(), true);
+        assert!(parser.load_i8(2).is_err());
 
         let cell = Cell::new([0b10100110, 0b10101010].to_vec(), 13, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_i8(4).unwrap(), 0b1010);
         assert_eq!(parser.load_i8(8).unwrap(), 0b01101010);
-        assert_eq!(parser.load_i8(2).is_err(), true);
+        assert!(parser.load_i8(2).is_err());
     }
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 12, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_u16(8).unwrap(), 0b10101010);
-        assert_eq!(parser.load_u16(8).is_err(), true);
+        assert!(parser.load_u16(8).is_err());
     }
 
     #[test]
@@ -316,7 +316,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 12, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_i16(9).unwrap(), 0b101010100);
-        assert_eq!(parser.load_i16(4).is_err(), true);
+        assert!(parser.load_i16(4).is_err());
     }
 
     #[test]
@@ -325,7 +325,7 @@ mod tests {
         let mut parser = cell.parser();
 
         assert_eq!(parser.load_u32(8).unwrap(), 0b10101010);
-        assert_eq!(parser.load_u32(8).is_err(), true);
+        assert!(parser.load_u32(8).is_err());
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_i32(10).unwrap(), 0b1010101001);
-        assert_eq!(parser.load_i32(5).is_err(), true);
+        assert!(parser.load_i32(5).is_err());
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 13, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_u64(8).unwrap(), 0b10101010);
-        assert_eq!(parser.load_u64(8).is_err(), true);
+        assert!(parser.load_u64(8).is_err());
     }
 
     #[test]
@@ -349,7 +349,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_i64(10).unwrap(), 0b1010101001);
-        assert_eq!(parser.load_i64(5).is_err(), true);
+        assert!(parser.load_i64(5).is_err());
     }
 
     #[test]
@@ -357,7 +357,7 @@ mod tests {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_int(10).unwrap(), BigInt::from(0b1010101001));
-        assert_eq!(parser.load_int(5).is_err(), true);
+        assert!(parser.load_int(5).is_err());
     }
 
     #[test]
@@ -368,7 +368,7 @@ mod tests {
             parser.load_uint(10).unwrap(),
             BigUint::from(0b1010101001u64)
         );
-        assert_eq!(parser.load_uint(5).is_err(), true);
+        assert!(parser.load_uint(5).is_err());
     }
 
     #[test]
@@ -377,7 +377,7 @@ mod tests {
         let mut parser = cell.parser();
         parser.load_bit().unwrap();
         assert_eq!(parser.load_byte().unwrap(), 0b01010100u8);
-        assert_eq!(parser.load_byte().is_err(), true);
+        assert!(parser.load_byte().is_err());
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
         let mut slice = [0; 2];
         parser.load_slice(&mut slice).unwrap();
         assert_eq!(slice, [0b01010100, 0b10101011]);
-        assert_eq!(parser.load_slice(&mut slice).is_err(), true);
+        assert!(parser.load_slice(&mut slice).is_err());
     }
 
     #[test]
@@ -410,7 +410,7 @@ mod tests {
         parser.load_bit().unwrap();
         let slice = parser.load_bytes(2).unwrap();
         assert_eq!(slice, [0b01010100, 0b10101011]);
-        assert_eq!(parser.load_bytes(2).is_err(), true);
+        assert!(parser.load_bytes(2).is_err());
     }
 
     #[test]
@@ -427,7 +427,7 @@ mod tests {
         let mut slice = [0; 2];
         parser.load_bits_to_slice(12, &mut slice).unwrap();
         assert_eq!(slice, [0b01010100, 0b10100000]);
-        assert_eq!(parser.load_bits_to_slice(10, &mut slice).is_err(), true);
+        assert!(parser.load_bits_to_slice(10, &mut slice).is_err());
     }
 
     #[test]
@@ -445,7 +445,7 @@ mod tests {
         assert_eq!(slice, [0b01010000]);
         let slice = parser.load_bits(15).unwrap();
         assert_eq!(slice, [0b10010101, 0b01101010]);
-        assert_eq!(parser.load_bits(5).is_err(), true);
+        assert!(parser.load_bits(5).is_err());
     }
 
     #[test]
@@ -456,7 +456,7 @@ mod tests {
         assert_eq!(string, "a1");
         let string = parser.load_utf8(1).unwrap();
         assert_eq!(string, "j");
-        assert_eq!(parser.load_utf8(1).is_err(), true);
+        assert!(parser.load_utf8(1).is_err());
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
             parser.load_coins().unwrap(),
             BigUint::from(0b111100111111001111110011u64)
         );
-        assert_eq!(parser.load_coins().is_err(), true);
+        assert!(parser.load_coins().is_err());
     }
 
     #[test]
@@ -486,7 +486,7 @@ mod tests {
         let cell = Cell::new([0].to_vec(), 3, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
-        assert_eq!(parser.load_address().is_err(), true);
+        assert!(parser.load_address().is_err());
 
         // with full addresses
         let cell = Cell::new(
@@ -505,7 +505,7 @@ mod tests {
         let mut parser = cell.parser();
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
-        assert_eq!(parser.load_address().is_err(), true);
+        assert!(parser.load_address().is_err());
     }
 
     #[test]
@@ -513,18 +513,18 @@ mod tests {
         let cell = Cell::new([0b10101010].to_vec(), 7, vec![], false).unwrap();
         let mut parser = cell.parser();
         parser.load_u8(4).unwrap();
-        assert_eq!(parser.ensure_empty().is_err(), true);
+        assert!(parser.ensure_empty().is_err());
         parser.load_u8(3).unwrap();
-        assert_eq!(parser.ensure_empty().is_ok(), true);
+        assert!(parser.ensure_empty().is_ok());
     }
 
     #[test]
     fn test_skip_bits_not_enough_bits() {
         let cell = Cell::new([0b11111001, 0b00001010].to_vec(), 12, vec![], false).unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.skip_bits(5).is_ok(), true);
+        assert!(parser.skip_bits(5).is_ok());
         assert_eq!(parser.load_bits(5).unwrap(), [0b00100000]);
-        assert_eq!(parser.skip_bits(3).is_err(), true);
+        assert!(parser.skip_bits(3).is_err());
     }
 
     #[test]
@@ -540,8 +540,8 @@ mod tests {
         .unwrap();
         let mut parser = cell.parser();
 
-        assert_eq!(parser.next_reference().is_ok(), true);
-        assert_eq!(parser.next_reference().is_ok(), true);
-        assert_eq!(parser.next_reference().is_err(), true);
+        assert!(parser.next_reference().is_ok());
+        assert!(parser.next_reference().is_ok());
+        assert!(parser.next_reference().is_err());
     }
 }
