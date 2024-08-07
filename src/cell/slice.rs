@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bitstream_io::{BigEndian, BitRead, BitReader};
 
 use crate::cell::util::BitReadExt;
-use crate::cell::{ArcCell, Cell, CellBuilder, CellParser, MapTonCellError, TonCellError};
+use crate::cell::{ArcCell, Cell, CellParser, MapTonCellError, TonCellError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellSlice {
@@ -70,17 +70,11 @@ impl CellSlice {
 
     pub fn parser(&self) -> Result<CellParser, TonCellError> {
         let bit_len = self.end_bit - self.start_bit;
-        let cursor = Cursor::new(&self.cell.data);
-        let mut bit_reader: BitReader<Cursor<&Vec<u8>>, BigEndian> =
-            BitReader::endian(cursor, BigEndian);
-        bit_reader
-            .skip(self.start_bit as u32)
-            .map_cell_parser_error()?;
-
-        Ok(CellParser {
+        Ok(CellParser::new(
             bit_len,
-            bit_reader,
-        })
+            &self.cell.data,
+            &self.cell.references,
+        ))
     }
 
     #[allow(clippy::let_and_return)]
@@ -104,16 +98,6 @@ impl CellSlice {
         res
     }
 
-    pub fn into_cell(&self) -> Result<Cell, TonCellError> {
-        let mut reader = self.parser()?;
-        let significant_bits = self.end_bit - self.start_bit;
-        let slice = reader.load_bits(significant_bits);
-        CellBuilder::new()
-            .store_bits(significant_bits, slice?.as_slice())?
-            .store_references(&self.cell.references)?
-            .build()
-    }
-
     pub fn reference(&self, idx: usize) -> Result<&ArcCell, TonCellError> {
         if idx > self.end_ref - self.start_ref {
             return Err(TonCellError::InvalidIndex {
@@ -131,7 +115,7 @@ impl CellSlice {
     }
 
     /// Converts the slice to full `Cell` dropping references to original cell.
-    pub fn to_cell(&self) -> Result<Cell, TonCellError> {
+    pub fn into_cell(&self) -> Result<Cell, TonCellError> {
         let bit_len = self.end_bit - self.start_bit;
         let total_bytes = (bit_len + 7) / 8;
         let mut data = vec![0u8; total_bytes];

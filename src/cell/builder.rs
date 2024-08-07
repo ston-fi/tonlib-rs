@@ -14,6 +14,7 @@ const MAX_CELL_REFERENCES: usize = 4;
 
 pub struct CellBuilder {
     bit_writer: BitWriter<Vec<u8>, BigEndian>,
+    bits_to_write: usize,
     references: Vec<ArcCell>,
     is_cell_exotic: bool,
 }
@@ -23,6 +24,7 @@ impl CellBuilder {
         let bit_writer = BitWriter::endian(Vec::new(), BigEndian);
         CellBuilder {
             bit_writer,
+            bits_to_write: 0,
             references: Vec::new(),
             is_cell_exotic: false,
         }
@@ -34,6 +36,7 @@ impl CellBuilder {
 
     pub fn store_bit(&mut self, val: bool) -> Result<&mut Self, TonCellError> {
         self.bit_writer.write_bit(val).map_cell_builder_error()?;
+        self.bits_to_write += 1;
         Ok(self)
     }
 
@@ -41,6 +44,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -48,6 +52,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -55,6 +60,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -62,6 +68,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -69,6 +76,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -76,6 +84,7 @@ impl CellBuilder {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
+        self.bits_to_write += bit_len;
         Ok(self)
     }
 
@@ -253,6 +262,41 @@ impl CellBuilder {
         Ok(self)
     }
 
+    // https://docs.ton.org/develop/data-formats/tl-b-types#either
+    pub fn store_either_cell_or_cell_ref(
+        &mut self,
+        cell: &ArcCell,
+    ) -> Result<&mut Self, TonCellError> {
+        if cell.bit_len() < self.remaining_bits() {
+            self.store_bit(false)?;
+            self.store_cell(cell)?;
+        } else {
+            self.store_bit(true)?;
+            self.store_reference(cell)?;
+        }
+
+        Ok(self)
+    }
+
+    // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
+    pub fn store_maybe_cell_ref(
+        &mut self,
+        maybe_cell: &Option<ArcCell>,
+    ) -> Result<&mut Self, TonCellError> {
+        if let Some(cell) = maybe_cell {
+            self.store_bit(true)?;
+            self.store_reference(cell)?;
+        } else {
+            self.store_bit(false)?;
+        }
+
+        Ok(self)
+    }
+
+    pub fn remaining_bits(&self) -> usize {
+        MAX_CELL_BITS - self.bits_to_write
+    }
+
     pub fn build(&mut self) -> Result<Cell, TonCellError> {
         let mut trailing_zeros = 0;
         while !self.bit_writer.byte_aligned() {
@@ -325,14 +369,13 @@ mod tests {
     use std::str::FromStr;
 
     use num_bigint::{BigInt, BigUint, Sign};
-    use tokio_test::{assert_err, assert_ok};
 
     use crate::address::TonAddress;
     use crate::cell::builder::extend_and_invert_bits;
-    use crate::cell::CellBuilder;
+    use crate::cell::{CellBuilder, TonCellError};
 
     #[test]
-    fn test_extend_and_invert_bits() -> anyhow::Result<()> {
+    fn test_extend_and_invert_bits() -> Result<(), TonCellError> {
         let a = BigUint::from(1u8);
         let b = extend_and_invert_bits(8, &a)?;
         println!("a: {:0x}", a);
@@ -351,12 +394,12 @@ mod tests {
         let b = extend_and_invert_bits(9, &a)?;
         assert_eq!(b, BigUint::from_slice(&[0x1ffu32]));
 
-        assert_err!(extend_and_invert_bits(3, &BigUint::from(10u32)));
+        assert!(extend_and_invert_bits(3, &BigUint::from(10u32)).is_err());
         Ok(())
     }
 
     #[test]
-    fn write_bit() -> anyhow::Result<()> {
+    fn write_bit() -> Result<(), TonCellError> {
         let mut writer = CellBuilder::new();
         let cell = writer.store_bit(true)?.build()?;
         assert_eq!(cell.data, [0b1000_0000]);
@@ -368,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn write_u8() -> anyhow::Result<()> {
+    fn write_u8() -> Result<(), TonCellError> {
         let value = 234u8;
         let mut writer = CellBuilder::new();
         let cell = writer.store_u8(8, value)?.build()?;
@@ -381,7 +424,7 @@ mod tests {
     }
 
     #[test]
-    fn write_u32() -> anyhow::Result<()> {
+    fn write_u32() -> Result<(), TonCellError> {
         let value = 0xFAD45AADu32;
         let mut writer = CellBuilder::new();
         let cell = writer.store_u32(32, value)?.build()?;
@@ -394,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn write_u64() -> anyhow::Result<()> {
+    fn write_u64() -> Result<(), TonCellError> {
         let value = 0xFAD45AADAA12FF45;
         let mut writer = CellBuilder::new();
         let cell = writer.store_u64(64, value)?.build()?;
@@ -407,7 +450,7 @@ mod tests {
     }
 
     #[test]
-    fn write_slice() -> anyhow::Result<()> {
+    fn write_slice() -> Result<(), TonCellError> {
         let value = [0xFA, 0xD4, 0x5A, 0xAD, 0xAA, 0x12, 0xFF, 0x45];
         let mut writer = CellBuilder::new();
         let cell = writer.store_slice(&value)?.build()?;
@@ -420,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn write_str() -> anyhow::Result<()> {
+    fn write_str() -> Result<(), TonCellError> {
         let texts = ["hello", "Русский текст", "中华人民共和国", "\u{263A}😃"];
         for text in texts {
             let mut writer = CellBuilder::new();
@@ -437,8 +480,9 @@ mod tests {
     }
 
     #[test]
-    fn write_address() -> anyhow::Result<()> {
-        let addr = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    fn write_address() -> Result<(), TonCellError> {
+        let addr = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")
+            .unwrap();
 
         let mut writer = CellBuilder::new();
         let cell = writer.store_address(&addr)?.build()?;
@@ -457,10 +501,10 @@ mod tests {
     }
 
     #[test]
-    fn write_big_int() -> anyhow::Result<()> {
-        let value = BigInt::from_str("3")?;
+    fn write_big_int() -> Result<(), TonCellError> {
+        let value = BigInt::from_str("3").unwrap();
         let mut writer = CellBuilder::new();
-        assert_ok!(writer.store_int(33, &value));
+        writer.store_int(33, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
         let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
@@ -469,17 +513,18 @@ mod tests {
         // 256 bits (+ sign)
         let value = BigInt::from_str(
             "97887266651548624282413032824435501549503168134499591480902563623927645013201",
-        )?;
+        )
+        .unwrap();
         let mut writer = CellBuilder::new();
-        assert_ok!(writer.store_int(257, &value));
+        writer.store_int(257, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
         let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
         assert_eq!(written, value);
 
-        let value = BigInt::from_str("-5")?;
+        let value = BigInt::from_str("-5").unwrap();
         let mut writer = CellBuilder::new();
-        assert_ok!(writer.store_int(5, &value));
+        writer.store_int(5, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
         let written = BigInt::from_bytes_be(Sign::Plus, &cell.data[1..]);
@@ -489,38 +534,39 @@ mod tests {
     }
 
     #[test]
-    fn write_load_big_uint() -> anyhow::Result<()> {
-        let value = BigUint::from_str("3")?;
+    fn write_load_big_uint() -> Result<(), TonCellError> {
+        let value = BigUint::from_str("3").unwrap();
         let mut writer = CellBuilder::new();
         assert!(writer.store_uint(1, &value).is_err());
         let bits_for_tests = [256, 128, 64, 8];
 
         for bits_num in bits_for_tests.iter() {
-            assert_ok!(writer.store_uint(*bits_num, &value));
+            writer.store_uint(*bits_num, &value)?;
         }
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
         let mut cell_parser = cell.parser();
         for bits_num in bits_for_tests.iter() {
-            let written_value = assert_ok!(cell_parser.load_uint(*bits_num));
+            let written_value = cell_parser.load_uint(*bits_num)?;
             assert_eq!(written_value, value);
         }
 
         // 256 bit
         let value = BigUint::from_str(
             "97887266651548624282413032824435501549503168134499591480902563623927645013201",
-        )?;
+        )
+        .unwrap();
         let mut writer = CellBuilder::new();
         assert!(writer.store_uint(255, &value).is_err());
         let bits_for_tests = [496, 264, 256];
         for bits_num in bits_for_tests.iter() {
-            assert_ok!(writer.store_uint(*bits_num, &value));
+            writer.store_uint(*bits_num, &value)?;
         }
         let cell = writer.build()?;
         let mut cell_parser = cell.parser();
         println!("cell: {:?}", cell);
         for bits_num in bits_for_tests.iter() {
-            let written_value = assert_ok!(cell_parser.load_uint(*bits_num));
+            let written_value = cell_parser.load_uint(*bits_num)?;
             assert_eq!(written_value, value);
         }
 

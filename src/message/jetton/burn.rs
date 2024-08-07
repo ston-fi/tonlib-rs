@@ -3,9 +3,7 @@ use num_bigint::BigUint;
 use super::JETTON_BURN;
 use crate::address::TonAddress;
 use crate::cell::{ArcCell, Cell, CellBuilder};
-use crate::message::{InvalidMessage, RawMessageUtils, TonMessageError};
-use crate::tl::RawMessage;
-
+use crate::message::{InvalidMessage, TonMessageError};
 /// Creates a body for jetton burn according to TL-B schema:
 ///
 /// ```raw
@@ -13,6 +11,7 @@ use crate::tl::RawMessage;
 ///               response_destination:MsgAddress custom_payload:(Maybe ^Cell)
 ///               = InternalMsgBody;
 /// ```
+#[derive(Clone, Debug, PartialEq)]
 pub struct JettonBurnMessage {
     /// arbitrary request number.
     pub query_id: u64,
@@ -44,8 +43,8 @@ impl JettonBurnMessage {
         self
     }
 
-    pub fn with_custom_payload(&mut self, custom_payload: &ArcCell) -> &mut Self {
-        self.custom_payload = Some(custom_payload.clone());
+    pub fn with_custom_payload(&mut self, custom_payload: ArcCell) -> &mut Self {
+        self.custom_payload = Some(custom_payload);
         self
     }
 
@@ -55,17 +54,12 @@ impl JettonBurnMessage {
         message.store_u64(64, self.query_id)?;
         message.store_coins(&self.amount)?;
         message.store_address(&self.response_destination)?;
-        if let Some(cp) = self.custom_payload.as_ref() {
-            message.store_bit(true)?;
-            message.store_reference(cp)?;
-        } else {
-            message.store_bit(false)?;
-        }
+        message.store_maybe_cell_ref(&self.custom_payload)?;
+
         Ok(message.build()?)
     }
 
-    pub fn parse(msg: &RawMessage) -> Result<Self, TonMessageError> {
-        let cell = (&msg).get_raw_data_cell()?;
+    pub fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
         let mut parser = cell.parser();
 
         let opcode: u32 = parser.load_u32(32)?;
@@ -80,16 +74,8 @@ impl JettonBurnMessage {
         }
         let amount = parser.load_coins()?;
         let response_destination = parser.load_address()?;
-        let has_custom_payload = parser.load_bit()?;
+        let custom_payload = parser.load_maybe_cell_ref()?;
         parser.ensure_empty()?;
-
-        let custom_payload = if has_custom_payload {
-            cell.expect_reference_count(1)?;
-            Some(cell.reference(0)?.clone())
-        } else {
-            cell.expect_reference_count(0)?;
-            None
-        };
 
         let result = JettonBurnMessage {
             query_id,
@@ -98,5 +84,95 @@ impl JettonBurnMessage {
             custom_payload,
         };
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use num_bigint::BigUint;
+
+    use crate::address::TonAddress;
+    use crate::cell::BagOfCells;
+    use crate::message::{JettonBurnMessage, TonMessageError};
+
+    const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str =  "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
+    const NOT_BURN: &str = "b5ee9c72010101010035000066595f07bc0000000000000001545d964b800800cd324c114b03f846373734c74b3c3287e1a8c2c732b5ea563a17c6276ef4af30";
+
+    #[test]
+    fn test_jetton_burn_parser() -> Result<(), TonMessageError> {
+        let boc_with_indicator =
+            BagOfCells::parse_hex(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
+        let cell_with_indicator = boc_with_indicator.single_root().unwrap();
+        let result_jetton_transfer_msg_with_indicator: JettonBurnMessage =
+            JettonBurnMessage::parse(cell_with_indicator)?;
+
+        let expected_jetton_transfer_msg = JettonBurnMessage {
+            query_id: 667217747695,
+            amount: BigUint::from(528161u64),
+            response_destination: TonAddress::from_str(
+                "EQBYE3OMjPlkHPsc-Dxs9zXk66yXXvKr9vgbMIoOPi-XUa-f",
+            )
+            .unwrap(),
+            custom_payload: None,
+        };
+
+        assert_eq!(
+            expected_jetton_transfer_msg,
+            result_jetton_transfer_msg_with_indicator
+        );
+
+        let boc = BagOfCells::parse_hex(NOT_BURN).unwrap();
+        let cell = boc.single_root().unwrap();
+
+        let result_jetton_transfer_msg = JettonBurnMessage::parse(cell)?;
+
+        let expected_jetton_transfer_msg = JettonBurnMessage {
+            query_id: 1,
+            amount: BigUint::from(300000000000u64),
+            response_destination: TonAddress::from_str(
+                "EQBmmSYIpYH8IxubmmOlnhlD8NRhY5la9SsdC-MTt3pXmOSI",
+            )
+            .unwrap(),
+            custom_payload: None,
+        };
+
+        assert_eq!(expected_jetton_transfer_msg, result_jetton_transfer_msg);
+        Ok(())
+    }
+
+    #[test]
+    fn test_jetton_burn_builder() {
+        let result_cell = JettonBurnMessage::new(&BigUint::from(528161u64))
+            .with_query_id(667217747695)
+            .with_response_destination(
+                &TonAddress::from_str("EQBYE3OMjPlkHPsc-Dxs9zXk66yXXvKr9vgbMIoOPi-XUa-f").unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false).unwrap();
+        let expected_boc_serialized =
+            hex::decode(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
+
+        assert_eq!(expected_boc_serialized, result_boc_serialized);
+
+        let result_cell = JettonBurnMessage {
+            query_id: 1,
+            amount: BigUint::from(300000000000u64),
+            response_destination: TonAddress::from_str(
+                "EQBmmSYIpYH8IxubmmOlnhlD8NRhY5la9SsdC-MTt3pXmOSI",
+            )
+            .unwrap(),
+            custom_payload: None,
+        }
+        .build()
+        .unwrap();
+
+        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false).unwrap();
+        let expected_boc_serialized = hex::decode(NOT_BURN).unwrap();
+
+        assert_eq!(expected_boc_serialized, result_boc_serialized);
     }
 }
