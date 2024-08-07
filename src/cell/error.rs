@@ -29,8 +29,13 @@ pub enum TonCellError {
     #[error("Bad data ({0})")]
     InvalidExoticCellData(String),
 
-    #[error("Non-empty reader (Remaining bits: {0})")]
-    NonEmptyReader(usize),
+    #[error(
+        "Non-empty reader (Remaining bits: {remaining_bits}, Remaining refs: {remaining_refs})"
+    )]
+    NonEmptyReader {
+        remaining_bits: usize,
+        remaining_refs: usize,
+    },
 }
 
 pub trait MapTonCellError<R, E>

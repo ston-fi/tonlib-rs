@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
-use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::{fmt, io};
@@ -10,11 +9,12 @@ pub use bag_of_cells::*;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use bit_string::*;
-use bitstream_io::{BigEndian, BitReader, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
 pub use dict_loader::*;
 pub use error::*;
 use hmac::digest::Digest;
+use lazy_static::lazy_static;
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive};
 pub use parser::*;
@@ -26,10 +26,12 @@ pub use util::*;
 
 use crate::cell::cell_type::CellType;
 use crate::cell::level_mask::LevelMask;
+use crate::types::{TonHash, DEFAULT_CELL_HASH};
 
 mod bag_of_cells;
 mod bit_string;
 mod builder;
+
 mod cell_type;
 mod dict_loader;
 mod error;
@@ -41,14 +43,17 @@ mod slice;
 mod state_init;
 mod util;
 
-const HASH_BYTES: usize = 32;
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 
-pub type CellHash = [u8; HASH_BYTES];
 pub type ArcCell = Arc<Cell>;
 
-pub type SnakeFormattedDict = HashMap<CellHash, Vec<u8>>;
+pub type SnakeFormattedDict = HashMap<TonHash, Vec<u8>>;
+
+lazy_static! {
+    pub static ref EMPTY_CELL: Cell = Cell::default();
+    pub static ref EMPTY_ARC_CELL: ArcCell = Arc::new(Cell::default());
+}
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Cell {
@@ -57,7 +62,7 @@ pub struct Cell {
     references: Vec<ArcCell>,
     cell_type: CellType,
     level_mask: LevelMask,
-    hashes: [CellHash; 4],
+    hashes: [TonHash; 4],
     depths: [u16; 4],
 }
 
@@ -93,15 +98,7 @@ impl Cell {
     }
 
     pub fn parser(&self) -> CellParser {
-        let bit_len = self.bit_len;
-        let cursor = Cursor::new(&self.data);
-        let bit_reader: BitReader<Cursor<&Vec<u8>>, BigEndian> =
-            BitReader::endian(cursor, BigEndian);
-
-        CellParser {
-            bit_len,
-            bit_reader,
-        }
+        CellParser::new(self.bit_len, &self.data, &self.references)
     }
 
     #[allow(clippy::let_and_return)]
@@ -155,11 +152,11 @@ impl Cell {
         self.depths[level.min(3) as usize]
     }
 
-    pub fn cell_hash(&self) -> CellHash {
+    pub fn cell_hash(&self) -> TonHash {
         self.get_hash(MAX_LEVEL)
     }
 
-    pub fn get_hash(&self, level: u8) -> CellHash {
+    pub fn get_hash(&self, level: u8) -> TonHash {
         self.hashes[level.min(3) as usize]
     }
 
@@ -340,6 +337,8 @@ impl Cell {
         Arc::new(self)
     }
 
+    /// It is recommended to use CellParser::next_reference() instead
+    #[deprecated]
     pub fn expect_reference_count(&self, expected_refs: usize) -> Result<(), TonCellError> {
         let ref_count = self.references.len();
         if ref_count != expected_refs {
@@ -360,15 +359,22 @@ impl Debug for Cell {
             CellType::PrunedBranch | CellType::MerkleProof => 'p',
             CellType::MerkleUpdate => 'u',
         };
+
+        // Our completion tag ONLY shows that the last byte is incomplete
+        // It does not correspond to real completion tag defined in
+        // p1.0.2 of https://docs.ton.org/tvm.pdf for details
+        // Null termination of bit-string defined in that document is omitted for clarity
+        let completion_tag = if self.bit_len % 8 != 0 { "_" } else { "" };
         writeln!(
             f,
-            "Cell {}{{ data: [{}], bit_len: {}, references: [\n",
+            "Cell {}{{ data: [{}{}]\n, bit_len: {}\n, references: [",
             t,
             self.data
                 .iter()
                 .map(|&byte| format!("{:02X}", byte))
                 .collect::<Vec<_>>()
                 .join(""),
+            completion_tag,
             self.bit_len,
         )?;
 
@@ -380,7 +386,35 @@ impl Debug for Cell {
             )?;
         }
 
-        write!(f, "] }}")
+        write!(
+            f,
+            "]\n cell_type: {:?}\n level_mask: {:?}\n hashes {:?}\n depths {:?}\n }}",
+            self.cell_type,
+            self.level_mask,
+            self.hashes
+                .iter()
+                .map(|h| h
+                    .iter()
+                    .map(|&byte| format!("{:02X}", byte))
+                    .collect::<Vec<_>>()
+                    .join(""))
+                .collect::<Vec<_>>(),
+            self.depths
+        )
+    }
+}
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            data: Default::default(),
+            bit_len: Default::default(),
+            references: Default::default(),
+            cell_type: Default::default(),
+            level_mask: Default::default(),
+            hashes: [DEFAULT_CELL_HASH; 4],
+            depths: Default::default(),
+        }
     }
 }
 
@@ -426,7 +460,7 @@ fn calculate_hashes_and_depths(
     bit_len: usize,
     references: &[ArcCell],
     level_mask: LevelMask,
-) -> Result<([CellHash; 4], [u16; 4]), TonCellError> {
+) -> Result<([TonHash; 4], [u16; 4]), TonCellError> {
     let hash_count = if cell_type == CellType::PrunedBranch {
         1
     } else {
@@ -437,7 +471,7 @@ fn calculate_hashes_and_depths(
     let hash_i_offset = total_hash_count - hash_count;
 
     let mut depths: Vec<u16> = Vec::with_capacity(hash_count);
-    let mut hashes: Vec<CellHash> = Vec::with_capacity(hash_count);
+    let mut hashes: Vec<TonHash> = Vec::with_capacity(hash_count);
 
     // Iterate through significant levels
     for (hash_i, level_i) in (0..=level_mask.level())
@@ -568,4 +602,18 @@ fn write_ref_hashes(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::Cell;
+
+    #[test]
+    fn default_cell() {
+        let result = Cell::default();
+
+        let expected = Cell::new(vec![], 0, vec![], false).unwrap();
+
+        assert_eq!(result, expected)
+    }
 }

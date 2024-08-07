@@ -92,7 +92,13 @@ fn test_ton_cell_error_output() {
         },
     );
     log::error!("{}", TonCellError::InvalidAddressType(200));
-    log::error!("{}", TonCellError::NonEmptyReader(300));
+    log::error!(
+        "{}",
+        TonCellError::NonEmptyReader {
+            remaining_bits: 300,
+            remaining_refs: 3
+        }
+    );
 }
 
 #[test]
