@@ -1,4 +1,4 @@
-use super::ArcCell;
+use super::{ArcCell, CellHash};
 use crate::cell::{Cell, CellBuilder, TonCellError};
 use crate::types::TonHash;
 
