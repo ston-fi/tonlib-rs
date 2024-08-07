@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::cell::{ArcCell, BagOfCells, Cell, CellHash, RawBagOfCells, RawCell, TonCellError};
+use crate::cell::{ArcCell, BagOfCells, Cell, RawBagOfCells, RawCell, TonCellError};
+use crate::types::TonHash;
 
 #[derive(Debug, Clone)]
 struct IndexedCell {
@@ -35,7 +36,7 @@ pub(crate) fn convert_to_raw_boc(boc: &BagOfCells) -> Result<RawBagOfCells, TonC
     })
 }
 
-fn build_and_verify_index(roots: &[ArcCell]) -> HashMap<CellHash, RefCell<IndexedCell>> {
+fn build_and_verify_index(roots: &[ArcCell]) -> HashMap<TonHash, RefCell<IndexedCell>> {
     let mut current_cells: Vec<_> = roots.iter().map(Arc::clone).collect();
     let mut new_hash_index = 0;
     let mut cells_by_hash = HashMap::new();
@@ -89,7 +90,7 @@ fn build_and_verify_index(roots: &[ArcCell]) -> HashMap<CellHash, RefCell<Indexe
 
 fn root_indices(
     roots: &[ArcCell],
-    cells_dict: &HashMap<CellHash, RefCell<IndexedCell>>,
+    cells_dict: &HashMap<TonHash, RefCell<IndexedCell>>,
 ) -> Result<Vec<usize>, TonCellError> {
     roots
         .iter()
@@ -109,7 +110,7 @@ fn root_indices(
 
 fn raw_cells_from_cells(
     cells: impl Iterator<Item = ArcCell>,
-    cells_by_hash: &HashMap<CellHash, RefCell<IndexedCell>>,
+    cells_by_hash: &HashMap<TonHash, RefCell<IndexedCell>>,
 ) -> Result<Vec<RawCell>, TonCellError> {
     cells
         .map(|cell| raw_cell_from_cell(&cell, cells_by_hash))
@@ -118,7 +119,7 @@ fn raw_cells_from_cells(
 
 fn raw_cell_from_cell(
     cell: &Cell,
-    cells_by_hash: &HashMap<CellHash, RefCell<IndexedCell>>,
+    cells_by_hash: &HashMap<TonHash, RefCell<IndexedCell>>,
 ) -> Result<RawCell, TonCellError> {
     raw_cell_reference_indices(cell, cells_by_hash).map(|reference_indices| {
         RawCell::new(
@@ -133,7 +134,7 @@ fn raw_cell_from_cell(
 
 fn raw_cell_reference_indices(
     cell: &Cell,
-    cells_by_hash: &HashMap<CellHash, RefCell<IndexedCell>>,
+    cells_by_hash: &HashMap<TonHash, RefCell<IndexedCell>>,
 ) -> Result<Vec<usize>, TonCellError> {
     cell.references
         .iter()

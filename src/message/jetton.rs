@@ -1,4 +1,4 @@
-// Constants from jetton standart
+// Constants from jetton standard
 // https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md
 
 // crc32('transfer query_id:uint64 amount:VarUInteger 16 destination:MsgAddress response_destination:MsgAddress custom_payload:Maybe ^Cell forward_ton_amount:VarUInteger 16 forward_payload:Either Cell ^Cell = InternalMsgBody') = 0x8f8a7ea5 & 0x7fffffff = 0xf8a7ea5

@@ -1,5 +1,6 @@
-use super::{ArcCell, CellHash};
+use super::ArcCell;
 use crate::cell::{Cell, CellBuilder, TonCellError};
+use crate::types::TonHash;
 
 pub struct StateInitBuilder {
     code: Option<ArcCell>,
@@ -58,7 +59,7 @@ impl StateInitBuilder {
 }
 
 impl StateInit {
-    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<CellHash, TonCellError> {
+    pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<TonHash, TonCellError> {
         Ok(StateInitBuilder::new(code, data).build()?.cell_hash())
     }
 }
@@ -68,10 +69,10 @@ mod tests {
     use std::sync::Arc;
 
     use super::StateInitBuilder;
-    use crate::cell::CellBuilder;
+    use crate::cell::{CellBuilder, TonCellError};
 
     #[test]
-    fn test_state_init() -> anyhow::Result<()> {
+    fn test_state_init() -> Result<(), TonCellError> {
         let code = Arc::new(CellBuilder::new().store_string("code")?.build()?);
         let data = Arc::new(CellBuilder::new().store_string("data")?.build()?);
         let state_init = StateInitBuilder::new(&code, &data)
