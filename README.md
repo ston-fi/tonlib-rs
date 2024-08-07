@@ -29,7 +29,6 @@ sudo apt install build-essential cmake libsodium-dev libsecp256k1-dev lz4 liblz4
 
 For macOS:
 ```shell
-brew install --cask mactex
 brew install readline secp256k1 ccache pkgconfig cmake libsodium
 ```
 
