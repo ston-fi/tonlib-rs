@@ -191,7 +191,7 @@ impl<'a> CellParser<'a> {
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
         let remaining_bits = self.remaining_bits();
-        let remaining_refs = self.references.len() - self.next_ref; 
+        let remaining_refs = self.references.len() - self.next_ref;
         // if remaining_bits == 0 && remaining_refs == 0 { // todo: We will restore reference checking in in 0.18
         if remaining_bits == 0 {
             Ok(())
