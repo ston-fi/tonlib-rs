@@ -16,9 +16,9 @@ pub const JETTON_BURN: u32 = 0x595f07bc;
 pub const JETTON_BURN_NOTIFICATION: u32 = 0x7bdd97de;
 
 mod burn;
-mod jetton_transfer;
+mod transfer;
 mod transfer_notification;
 
 pub use burn::*;
-pub use jetton_transfer::*;
+pub use transfer::*;
 pub use transfer_notification::*;

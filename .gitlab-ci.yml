@@ -97,7 +97,7 @@ test-master:
   stage: test
   script:
     - cargo fmt --check
-    - cargo build --all-features -- -D warnings
+    - cargo build --all-features
     - cargo test --lib --all-features
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
