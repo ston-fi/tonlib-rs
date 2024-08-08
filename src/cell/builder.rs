@@ -89,18 +89,22 @@ impl CellBuilder {
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
-        if val.bits() as usize > bit_len {
+        let val_bits = if val.is_zero() {
+            0
+        } else {
+            val.bits() as usize
+        };
+
+        if val_bits > bit_len {
             return Err(TonCellError::cell_builder_error(format!(
                 "Value {} doesn't fit in {} bits (takes {} bits)",
-                val,
-                bit_len,
-                val.bits()
+                val, bit_len, val_bits
             )));
         }
         // example: bit_len=13, val=5. 5 = 00000101, we must store 0000000000101
         // leading_zeros_bits = 10
         // leading_zeros_bytes = 10 / 8 = 1
-        let leading_zero_bits = bit_len - val.bits() as usize;
+        let leading_zero_bits = bit_len - val_bits;
         let leading_zeros_bytes = leading_zero_bits / 8;
         for _ in 0..leading_zeros_bytes {
             self.store_byte(0)?;
@@ -113,9 +117,13 @@ impl CellBuilder {
         // and then store val's high byte in minimum number of bits
         let val_bytes = val.to_bytes_be();
         let high_bits_cnt = {
-            let cnt = val.bits() % 8;
+            let cnt = val_bits % 8;
             if cnt == 0 {
-                8
+                if val.is_zero() {
+                    0
+                } else {
+                    8
+                }
             } else {
                 cnt
             }
@@ -133,13 +141,17 @@ impl CellBuilder {
 
     pub fn store_int(&mut self, bit_len: usize, val: &BigInt) -> Result<&mut Self, TonCellError> {
         let (sign, mag) = val.clone().into_parts();
+
+        let mag_bits = if mag.is_zero() {
+            bit_len as u64
+        } else {
+            mag.bits()
+        };
         let bit_len = bit_len - 1; // reserve 1 bit for sign
-        if bit_len < mag.bits() as usize {
+        if bit_len < mag_bits as usize {
             return Err(TonCellError::cell_builder_error(format!(
                 "Value {} doesn't fit in {} bits (takes {} bits)",
-                val,
-                bit_len,
-                mag.bits()
+                val, bit_len, mag_bits
             )));
         }
         if sign == Sign::Minus {
@@ -369,6 +381,7 @@ mod tests {
     use std::str::FromStr;
 
     use num_bigint::{BigInt, BigUint, Sign};
+    use num_traits::Zero;
 
     use crate::address::TonAddress;
     use crate::cell::builder::extend_and_invert_bits;
@@ -567,9 +580,40 @@ mod tests {
         println!("cell: {:?}", cell);
         for bits_num in bits_for_tests.iter() {
             let written_value = cell_parser.load_uint(*bits_num)?;
+            println!("RES: {:?},{:?}", written_value, value);
+
             assert_eq!(written_value, value);
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_padding() -> Result<(), TonCellError> {
+        let mut writer = CellBuilder::new();
+        writer.store_uint(32, &BigUint::zero())?; //deadline
+
+        let cell = writer.build()?;
+
+        println!("{:?}", cell);
+        assert_eq!(cell.data.len(), 4);
+        assert_eq!(cell.bit_len, 32);
+        Ok(())
+    }
+
+    #[test]
+    fn test_padding_r() -> Result<(), TonCellError> {
+        let mut writer = CellBuilder::new();
+        writer.store_uint(32, &BigUint::zero())?; //deadline
+        writer.store_address(&TonAddress::null())?; //recipientAddress
+        writer.store_address(&TonAddress::null())?; //referralAddress
+        writer.store_bit(false)?; //fulfillPayload
+        writer.store_bit(false)?; //rejectPayload
+        let cell = writer.build()?;
+        println!("{:?}", cell);
+
+        assert_eq!(cell.data.len(), 5);
+        assert_eq!(cell.bit_len, 38);
         Ok(())
     }
 }
