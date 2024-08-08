@@ -175,7 +175,7 @@ async fn test_jetton_image_data() -> anyhow::Result<()> {
         17, 18, 84, 70, 179, 240, 137, 163, 42, 147, 119, 220,
     ];
     let mut hasher: Sha256 = Sha256::new();
-    hasher.update(&content_res.image_data.unwrap());
+    hasher.update(content_res.image_data.unwrap());
     let img_hash = hasher.finalize()[..].to_vec();
     assert_eq!(TARGET_IMAGE_HASH.to_vec(), img_hash);
 

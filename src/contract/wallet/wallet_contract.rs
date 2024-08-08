@@ -14,7 +14,7 @@ enum WalletContractMethods {
 pub trait TonWalletContract: TonContractInterface {
     async fn seqno(&self) -> Result<u32, TonContractError> {
         let method: &str = WalletContractMethods::Seqno.into();
-        let res = self.run_get_method("seqno", &Vec::new()).await?;
+        let res = self.run_get_method("seqno", Vec::new()).await?;
         let stack = res.stack;
         if stack.len() != 1 {
             Err(TonContractError::InvalidMethodResultStackSize {
@@ -31,7 +31,7 @@ pub trait TonWalletContract: TonContractInterface {
 
     async fn get_public_key(&self) -> Result<Vec<u8>, TonContractError> {
         let method: &str = WalletContractMethods::GetPublicKey.into();
-        let res = self.run_get_method(method, &Vec::new()).await?;
+        let res = self.run_get_method(method, Vec::new()).await?;
         let stack = res.stack;
         if stack.len() != 1 {
             Err(TonContractError::InvalidMethodResultStackSize {

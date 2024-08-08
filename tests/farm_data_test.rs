@@ -109,7 +109,7 @@ async fn test_get_farming_minter_data() {
 
     let stack = assert_ok!(
         contract
-            .run_get_method("get_farming_minter_data", &Vec::new())
+            .run_get_method("get_farming_minter_data", Vec::new())
             .await
     );
 
@@ -139,7 +139,7 @@ async fn test_get_farming_data() {
 
     let stack = assert_ok!(
         contract
-            .run_get_method("get_farming_data", &Vec::new())
+            .run_get_method("get_farming_data", Vec::new())
             .await
     );
 
