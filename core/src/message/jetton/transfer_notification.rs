@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 use super::JETTON_TRANSFER_NOTIFICATION;
 use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
-use crate::message::{InvalidMessage, TonMessage, TonMessageError};
+use crate::message::{HasOpcode, TonMessage, TonMessageError};
 use crate::TonAddress;
 
 /// Creates a body for jetton transfer notification according to TL-B schema:
@@ -34,11 +34,6 @@ impl JettonTransferNotificationMessage {
         }
     }
 
-    pub fn with_query_id(&mut self, query_id: u64) -> &mut Self {
-        self.query_id = query_id;
-        self
-    }
-
     pub fn with_forward_payload(&mut self, forward_payload: ArcCell) -> &mut Self {
         self.forward_payload = forward_payload;
         self
@@ -48,7 +43,7 @@ impl JettonTransferNotificationMessage {
 impl TonMessage for JettonTransferNotificationMessage {
     fn build(&self) -> Result<Cell, TonMessageError> {
         let mut builder = CellBuilder::new();
-        builder.store_u32(32, JETTON_TRANSFER_NOTIFICATION)?;
+        builder.store_u32(32, Self::opcode())?;
         builder.store_u64(64, self.query_id)?;
         builder.store_coins(&self.amount)?;
         builder.store_address(&self.sender)?;
@@ -62,17 +57,7 @@ impl TonMessage for JettonTransferNotificationMessage {
 
         let opcode: u32 = parser.load_u32(32)?;
         let query_id = parser.load_u64(64)?;
-        if opcode != JETTON_TRANSFER_NOTIFICATION {
-            let invalid = InvalidMessage {
-                opcode: Some(opcode),
-                query_id: Some(query_id),
-                message: format!(
-                    "Unexpected opcode.  {0:08x} expected",
-                    JETTON_TRANSFER_NOTIFICATION
-                ),
-            };
-            return Err(TonMessageError::InvalidMessage(invalid));
-        }
+
         let amount = parser.load_coins()?;
         let sender = parser.load_address()?;
         let forward_payload = parser.load_either_cell_or_cell_ref()?;
@@ -84,8 +69,23 @@ impl TonMessage for JettonTransferNotificationMessage {
             sender,
             forward_payload,
         };
+        result.verify_opcode(opcode)?;
 
         Ok(result)
+    }
+}
+
+impl HasOpcode for JettonTransferNotificationMessage {
+    fn set_query_id(&mut self, query_id: u64) {
+        self.query_id = query_id;
+    }
+
+    fn query_id(&self) -> u64 {
+        self.query_id
+    }
+
+    fn opcode() -> u32 {
+        JETTON_TRANSFER_NOTIFICATION
     }
 }
 

@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 use super::JETTON_BURN;
 use crate::cell::{ArcCell, Cell, CellBuilder};
-use crate::message::{InvalidMessage, TonMessage, TonMessageError};
+use crate::message::{HasOpcode, TonMessage, TonMessageError};
 use crate::TonAddress;
 
 /// Creates a body for jetton burn according to TL-B schema:
@@ -34,11 +34,6 @@ impl JettonBurnMessage {
         }
     }
 
-    pub fn with_query_id(&mut self, query_id: u64) -> &mut Self {
-        self.query_id = query_id;
-        self
-    }
-
     pub fn with_response_destination(&mut self, response_destination: &TonAddress) -> &mut Self {
         self.response_destination = response_destination.clone();
         self
@@ -49,16 +44,17 @@ impl JettonBurnMessage {
         self
     }
 }
+
 impl TonMessage for JettonBurnMessage {
     fn build(&self) -> Result<Cell, TonMessageError> {
-        let mut message = CellBuilder::new();
-        message.store_u32(32, JETTON_BURN)?;
-        message.store_u64(64, self.query_id)?;
-        message.store_coins(&self.amount)?;
-        message.store_address(&self.response_destination)?;
-        message.store_maybe_cell_ref(&self.custom_payload)?;
+        let mut builder = CellBuilder::new();
+        builder.store_u32(32, Self::opcode())?;
+        builder.store_u64(64, self.query_id)?;
+        builder.store_coins(&self.amount)?;
+        builder.store_address(&self.response_destination)?;
+        builder.store_maybe_cell_ref(&self.custom_payload)?;
 
-        Ok(message.build()?)
+        Ok(builder.build()?)
     }
 
     fn parse(cell: &Cell) -> Result<Self, TonMessageError> {
@@ -66,14 +62,7 @@ impl TonMessage for JettonBurnMessage {
 
         let opcode: u32 = parser.load_u32(32)?;
         let query_id = parser.load_u64(64)?;
-        if opcode != JETTON_BURN {
-            let invalid = InvalidMessage {
-                opcode: Some(opcode),
-                query_id: Some(query_id),
-                message: format!("Unexpected opcode.  {0:08x} expected", JETTON_BURN),
-            };
-            return Err(TonMessageError::InvalidMessage(invalid));
-        }
+
         let amount = parser.load_coins()?;
         let response_destination = parser.load_address()?;
         let custom_payload = parser.load_maybe_cell_ref()?;
@@ -85,7 +74,22 @@ impl TonMessage for JettonBurnMessage {
             response_destination,
             custom_payload,
         };
+        result.verify_opcode(opcode)?;
         Ok(result)
+    }
+}
+
+impl HasOpcode for JettonBurnMessage {
+    fn set_query_id(&mut self, query_id: u64) {
+        self.query_id = query_id;
+    }
+
+    fn query_id(&self) -> u64 {
+        self.query_id
+    }
+
+    fn opcode() -> u32 {
+        JETTON_BURN
     }
 }
 
@@ -96,7 +100,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::cell::BagOfCells;
-    use crate::message::{JettonBurnMessage, TonMessage, TonMessageError};
+    use crate::message::{HasOpcode, JettonBurnMessage, TonMessage, TonMessageError};
     use crate::TonAddress;
 
     const JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG: &str =  "b5ee9c72010101010033000062595f07bc0000009b5946deef3080f21800b026e71919f2c839f639f078d9ee6bc9d7592ebde557edf03661141c7c5f2ea2";
