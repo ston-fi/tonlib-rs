@@ -89,44 +89,33 @@ impl CellBuilder {
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
-        if val.bits() as usize > bit_len {
+        let minimum_bits_needed = if val.is_zero() { 1 } else { val.bits() } as usize;
+        if minimum_bits_needed > bit_len {
             return Err(TonCellError::cell_builder_error(format!(
                 "Value {} doesn't fit in {} bits (takes {} bits)",
-                val,
-                bit_len,
-                val.bits()
+                val, bit_len, minimum_bits_needed
             )));
         }
-        // example: bit_len=13, val=5. 5 = 00000101, we must store 0000000000101
-        // leading_zeros_bits = 10
-        // leading_zeros_bytes = 10 / 8 = 1
-        let leading_zero_bits = bit_len - val.bits() as usize;
-        let leading_zeros_bytes = leading_zero_bits / 8;
-        for _ in 0..leading_zeros_bytes {
-            self.store_byte(0)?;
+
+        let value_bytes = val.to_bytes_be();
+        let first_byte_bit_size = bit_len - (value_bytes.len() - 1) * 8;
+
+        for _ in 0..(first_byte_bit_size - 1) / 32 {
+            // fill full-bytes padding
+            self.store_u32(32, 0u32)?;
         }
-        // we must align high byte of val to specified bit_len, 00101 in our case
-        let extra_zeros = leading_zero_bits % 8;
-        for _ in 0..extra_zeros {
-            self.store_bit(false)?;
+
+        // fill first byte with required size
+        if first_byte_bit_size % 32 == 0 {
+            self.store_u32(32, value_bytes[0] as u32)?;
+        } else {
+            self.store_u32(first_byte_bit_size % 32, value_bytes[0] as u32)
+                .map_cell_builder_error()?;
         }
-        // and then store val's high byte in minimum number of bits
-        let val_bytes = val.to_bytes_be();
-        let high_bits_cnt = {
-            let cnt = val.bits() % 8;
-            if cnt == 0 {
-                8
-            } else {
-                cnt
-            }
-        };
-        let high_byte = val_bytes[0];
-        for i in 0..high_bits_cnt {
-            self.store_bit(high_byte & (1 << (high_bits_cnt - i - 1)) != 0)?;
-        }
-        // store the rest of val
-        for byte in val_bytes.iter().skip(1) {
-            self.store_byte(*byte)?;
+
+        // fill remaining bytes
+        for byte in value_bytes.iter().skip(1) {
+            self.store_u8(8, *byte).map_cell_builder_error()?;
         }
         Ok(self)
     }
@@ -369,6 +358,7 @@ mod tests {
     use std::str::FromStr;
 
     use num_bigint::{BigInt, BigUint, Sign};
+    use num_traits::Zero;
 
     use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::{CellBuilder, TonCellError};
@@ -570,6 +560,72 @@ mod tests {
             assert_eq!(written_value, value);
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_padding() -> Result<(), TonCellError> {
+        let mut writer = CellBuilder::new();
+
+        let n = BigUint::from(0x55a5f0f0u32);
+
+        writer.store_uint(32, &BigUint::zero())?;
+        writer.store_uint(32, &n)?;
+        writer.store_uint(31, &BigUint::zero())?;
+        writer.store_uint(31, &n)?;
+        writer.store_uint(35, &BigUint::zero())?;
+        writer.store_uint(35, &n)?;
+        let cell = writer.build()?;
+
+        println!("{:?}", cell);
+        assert_eq!(cell.data.len(), 25);
+        assert_eq!(cell.bit_len, 196);
+
+        let mut parser = cell.parser();
+        let result_zero = parser.load_uint(32)?;
+        let result_test_num = parser.load_uint(32)?;
+
+        assert_eq!(result_zero, BigUint::zero());
+        assert_eq!(result_test_num, n);
+        let result_zero = parser.load_uint(31)?;
+        let result_test_num = parser.load_uint(31)?;
+
+        assert_eq!(result_zero, BigUint::zero());
+        assert_eq!(result_test_num, n);
+        let result_zero = parser.load_uint(35)?;
+        let result_test_num = parser.load_uint(35)?;
+
+        assert_eq!(result_zero, BigUint::zero());
+
+        assert_eq!(result_test_num, n);
+        parser.ensure_empty()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_zero_alone() -> Result<(), TonCellError> {
+        let bitlens_to_test = [
+            1, 7, 8, 9, 30, 31, 32, 33, 127, 128, 129, 255, 256, 257, 300,
+        ];
+        for bitlen in bitlens_to_test {
+            let mut writer = CellBuilder::new();
+            writer.store_uint(bitlen, &BigUint::zero())?;
+
+            let cell = writer.build()?;
+
+            println!("{:?}", cell);
+            let taeget_bytelen = (bitlen + 7) / 8;
+            assert_eq!(cell.data.len(), taeget_bytelen);
+
+            assert_eq!(cell.bit_len, bitlen);
+
+            let mut parser = cell.parser();
+            let result_zero = parser.load_uint(bitlen)?;
+
+            assert_eq!(result_zero, BigUint::zero());
+            parser.ensure_empty()?;
+        }
         Ok(())
     }
 }
