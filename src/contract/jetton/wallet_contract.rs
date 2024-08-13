@@ -27,7 +27,7 @@ pub trait JettonWalletContract: TonContractInterface {
         let method = JettonWalletMethods::GetWalletData.into();
         let address = self.address().clone();
 
-        let res = self.run_get_method(method, &Vec::new()).await?;
+        let res = self.run_get_method(method, Vec::new()).await?;
 
         let stack = res.stack;
         if stack.len() == WALLET_DATA_STACK_ELEMENTS {

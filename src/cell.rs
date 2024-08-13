@@ -31,6 +31,7 @@ use crate::types::{TonHash, DEFAULT_CELL_HASH};
 mod bag_of_cells;
 mod bit_string;
 mod builder;
+
 mod cell_type;
 mod dict_loader;
 mod error;
@@ -418,7 +419,7 @@ impl Default for Cell {
 }
 
 fn get_repr_for_data(
-    (original_data, original_data_bit_len): (&[u8], usize),
+    original_data_bit_len: usize,
     (data, data_bit_len): (&[u8], usize),
     refs: &[ArcCell],
     level_mask: LevelMask,
@@ -432,7 +433,7 @@ fn get_repr_for_data(
 
     let mut writer = BitWriter::endian(Vec::with_capacity(buffer_len), BigEndian);
     let d1 = get_refs_descriptor(cell_type, refs, level_mask.apply(level).mask());
-    let d2 = get_bits_descriptor(original_data, original_data_bit_len);
+    let d2 = get_bits_descriptor(original_data_bit_len);
 
     // Write descriptors
     writer.write(8, d1).map_cell_parser_error()?;
@@ -504,7 +505,7 @@ fn calculate_hashes_and_depths(
 
         // Calculate Hash
         let repr = get_repr_for_data(
-            (data, bit_len),
+            bit_len,
             (current_data, current_bit_len),
             references,
             level_mask,
@@ -531,10 +532,8 @@ fn get_refs_descriptor(cell_type: CellType, references: &[ArcCell], level_mask: 
     references.len() as u8 + 8 * cell_type_var + level_mask as u8 * 32
 }
 
-fn get_bits_descriptor(data: &[u8], bit_len: usize) -> u8 {
-    let rest_bits = bit_len % 8;
-    let full_bytes = rest_bits == 0;
-    data.len() as u8 * 2 - !full_bytes as u8 // subtract 1 if the last byte is not full
+fn get_bits_descriptor(bit_len: usize) -> u8 {
+    (bit_len / 8 + (bit_len + 7) / 8) as u8
 }
 
 fn write_data(
