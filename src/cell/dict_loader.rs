@@ -187,16 +187,11 @@ mod test {
             .load_generic_dict(&loader)
             .unwrap();
 
-        let mut expected_result = HashMap::new();
-        expected_result.extend(
-            [
+            let expected_result: HashMap<u8, BigUint> = HashMap::from([
                 (0, BigUint::from(25965603044000000000u128)),
                 (1, BigUint::from(5173255344000000000u64)),
                 (2, BigUint::from(344883687000000000u64)),
-            ]
-            .iter()
-            .cloned(),
-        );
+            ]);
 
         assert_eq!(expected_result, result);
     }
