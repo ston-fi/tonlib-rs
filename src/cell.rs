@@ -317,7 +317,7 @@ impl Cell {
         if dict_loader.key_bit_len() - pp.bit_len() == 0 {
             let bytes = pp.get_value_as_bytes();
             let key = dict_loader.extract_key(bytes.as_slice())?;
-            let offset = parser.remaining_bits();
+            let offset = self.bit_len - parser.remaining_bits();
             let cell_slice = CellSlice::new_with_offset(self, offset)?;
             let value = dict_loader.extract_value(&cell_slice)?;
             map.insert(key, value);
