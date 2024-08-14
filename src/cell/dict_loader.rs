@@ -162,3 +162,38 @@ where
         self.bit_len
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use num_bigint::BigUint;
+
+    use crate::cell::{key_extractor_u8, value_extractor_uint, BagOfCells, GenericDictLoader};
+
+    #[test]
+    fn tmp() {
+        let dict_boc_str = "te6cckEBBgEAWgABGccNPKUADZm5MepOjMABAgHNAgMCASAEBQAnQAAAAAAAAAAAAAABMlF4tR2RgCAAJgAAAAAAAAAAAAABaFhaZZhr6AAAJgAAAAAAAAAAAAAAR8sYU4eC4AA1PIC5";
+        let dict_boc = BagOfCells::parse_base64(&dict_boc_str).unwrap();
+        let cell = dict_boc.single_root().unwrap();
+        let loader = GenericDictLoader::new(key_extractor_u8, value_extractor_uint, 8);
+        let result = cell
+            .reference(0)
+            .unwrap()
+            .load_generic_dict(&loader)
+            .unwrap();
+
+        let mut expected_result = HashMap::new();
+        expected_result.extend(
+            [
+                (0, BigUint::from(25965603044000000000u128)),
+                (1, BigUint::from(5173255344000000000u64)),
+                (2, BigUint::from(344883687000000000u64)),
+            ]
+            .iter()
+            .cloned(),
+        );
+
+        assert_eq!(expected_result, result);
+    }
+}
