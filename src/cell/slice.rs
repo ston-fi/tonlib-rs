@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bitstream_io::{BigEndian, BitRead, BitReader};
 
 use crate::cell::util::BitReadExt;
-use crate::cell::{ArcCell, Cell, CellParser, MapTonCellError, TonCellError};
+use crate::cell::{ArcCell, Cell, MapTonCellError, TonCellError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellSlice {
@@ -66,36 +66,6 @@ impl CellSlice {
             start_ref: 0,
             end_ref: ref_count,
         })
-    }
-
-    pub fn parser(&self) -> Result<CellParser, TonCellError> {
-        let bit_len = self.end_bit - self.start_bit;
-        Ok(CellParser::new(
-            bit_len,
-            &self.cell.data,
-            &self.cell.references,
-        ))
-    }
-
-    #[allow(clippy::let_and_return)]
-    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut reader = self.parser()?;
-        let res = parse(&mut reader);
-        res
-    }
-
-    #[allow(clippy::let_and_return)]
-    pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut reader = self.parser()?;
-        let res = parse(&mut reader);
-        reader.ensure_empty()?;
-        res
     }
 
     pub fn reference(&self, idx: usize) -> Result<&ArcCell, TonCellError> {
