@@ -9,8 +9,9 @@ use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
 use crate::TonAddress;
 
-const MAX_CELL_BITS: usize = 1023;
-const MAX_CELL_REFERENCES: usize = 4;
+pub(crate) const MAX_CELL_BITS: usize = 1023;
+pub(crate) const MAX_CELL_REFERENCES: usize = 4;
+pub(crate) const MAX_LEVEL_MASK: u32 = 3;
 
 pub struct CellBuilder {
     bit_writer: BitWriter<Vec<u8>, BigEndian>,

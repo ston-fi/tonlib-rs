@@ -420,7 +420,7 @@ impl Default for Cell {
 }
 
 fn get_repr_for_data(
-    (original_data, original_data_bit_len): (&[u8], usize),
+    original_data_bit_len: usize,
     (data, data_bit_len): (&[u8], usize),
     refs: &[ArcCell],
     level_mask: LevelMask,
@@ -433,8 +433,8 @@ fn get_repr_for_data(
     let buffer_len = 2 + data_len + (32 + 2) * refs.len();
 
     let mut writer = BitWriter::endian(Vec::with_capacity(buffer_len), BigEndian);
-    let d1 = get_refs_descriptor(cell_type, refs, level_mask.apply(level).mask());
-    let d2 = get_bits_descriptor(original_data, original_data_bit_len);
+    let d1 = get_refs_descriptor(cell_type, refs, level_mask.apply(level).mask())?;
+    let d2 = get_bits_descriptor(original_data_bit_len)?;
 
     // Write descriptors
     writer.write(8, d1).map_cell_parser_error()?;
@@ -506,7 +506,7 @@ fn calculate_hashes_and_depths(
 
         // Calculate Hash
         let repr = get_repr_for_data(
-            (data, bit_len),
+            bit_len,
             (current_data, current_bit_len),
             references,
             level_mask,
@@ -528,15 +528,39 @@ fn calculate_hashes_and_depths(
     cell_type.resolve_hashes_and_depths(hashes, depths, data, bit_len, level_mask)
 }
 
-fn get_refs_descriptor(cell_type: CellType, references: &[ArcCell], level_mask: u32) -> u8 {
-    let cell_type_var = (cell_type != CellType::Ordinary) as u8;
-    references.len() as u8 + 8 * cell_type_var + level_mask as u8 * 32
+/// Calculates d1 descriptor for cell
+/// See https://docs.ton.org/tvm.pdf 3.1.4 for details
+fn get_refs_descriptor(
+    cell_type: CellType,
+    references: &[ArcCell],
+    level_mask: u32,
+) -> Result<u8, TonCellError> {
+    if references.len() > MAX_CELL_REFERENCES {
+        Err(TonCellError::InvalidCellData(
+            ("Cell should not contain more than 4 references").to_string(),
+        ))
+    } else if level_mask > MAX_LEVEL_MASK {
+        Err(TonCellError::InvalidCellData(
+            ("Cell level mask can not be higher than 3").to_string(),
+        ))
+    } else {
+        let cell_type_var = (cell_type != CellType::Ordinary) as u8;
+        let d1 = references.len() as u8 + 8 * cell_type_var + level_mask as u8 * 32;
+        Ok(d1)
+    }
 }
 
-fn get_bits_descriptor(data: &[u8], bit_len: usize) -> u8 {
-    let rest_bits = bit_len % 8;
-    let full_bytes = rest_bits == 0;
-    data.len() as u8 * 2 - !full_bytes as u8 // subtract 1 if the last byte is not full
+/// Calculates d2 descriptor for cell
+/// See https://docs.ton.org/tvm.pdf 3.1.4 for details
+fn get_bits_descriptor(bit_len: usize) -> Result<u8, TonCellError> {
+    if bit_len > MAX_CELL_BITS {
+        Err(TonCellError::InvalidCellData(
+            ("Cell data length should not contain more than 1023 bits").to_string(),
+        ))
+    } else {
+        let d2 = (bit_len / 8 + (bit_len + 7) / 8) as u8;
+        Ok(d2)
+    }
 }
 
 fn write_data(
@@ -607,7 +631,11 @@ fn write_ref_hashes(
 
 #[cfg(test)]
 mod test {
-    use crate::cell::Cell;
+    use std::sync::Arc;
+
+    use super::cell_type::CellType;
+    use super::{get_bits_descriptor, get_refs_descriptor, Cell};
+    use crate::cell::CellBuilder;
 
     #[test]
     fn default_cell() {
@@ -616,5 +644,35 @@ mod test {
         let expected = Cell::new(vec![], 0, vec![], false).unwrap();
 
         assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn d1_descriptor_test() {
+        let empty_cell = Arc::new(CellBuilder::new().build().unwrap());
+
+        let r1 = get_refs_descriptor(CellType::Ordinary, &[], 0).unwrap();
+        assert_eq!(r1, 0);
+
+        let r2 = get_refs_descriptor(CellType::Ordinary, &[], 4).is_err();
+        assert!(r2);
+
+        let r3 = get_refs_descriptor(CellType::Ordinary, &[empty_cell.clone()], 3).unwrap();
+        assert_eq!(r3, 97);
+
+        let r4 =
+            get_refs_descriptor(CellType::Ordinary, vec![empty_cell; 5].as_slice(), 3).is_err();
+        assert!(r4);
+    }
+
+    #[test]
+    fn d2_descriptor_test() {
+        let r1 = get_bits_descriptor(0).unwrap();
+        assert_eq!(r1, 0);
+
+        let r2 = get_bits_descriptor(1023).unwrap();
+        assert_eq!(r2, 255);
+
+        let r3 = get_bits_descriptor(1024).is_err();
+        assert!(r3)
     }
 }

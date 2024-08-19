@@ -26,8 +26,11 @@ pub enum TonCellError {
     #[error("Invalid cell type for exotic cell (Type: {0:?})")]
     InvalidExoticCellType(Option<u8>),
 
-    #[error("Bad data ({0})")]
+    #[error("Invalid exotic cell data (({0})")]
     InvalidExoticCellData(String),
+
+    #[error("Invalid cell data ({0})")]
+    InvalidCellData(String),
 
     #[error(
         "Non-empty reader (Remaining bits: {remaining_bits}, Remaining refs: {remaining_refs})"
