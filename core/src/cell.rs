@@ -607,7 +607,7 @@ fn write_ref_hashes(
 
 #[cfg(test)]
 mod test {
-    use super::Cell;
+    use crate::cell::Cell;
 
     #[test]
     fn default_cell() {
