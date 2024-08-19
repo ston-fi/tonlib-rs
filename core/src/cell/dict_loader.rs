@@ -108,14 +108,18 @@ pub fn value_extractor_snake_formatted_string(
 
 pub fn value_extractor_uint(cell_slice: &CellSlice) -> Result<BigUint, TonCellError> {
     let bit_len = cell_slice.end_bit - cell_slice.start_bit;
-    cell_slice.parser()?.skip_bits(cell_slice.start_bit)?;
-    cell_slice.parser()?.load_uint(bit_len)
+    let mut parser = cell_slice.cell.parser();
+    parser.skip_bits(cell_slice.start_bit)?;
+    let result = parser.load_uint(bit_len)?;
+    Ok(result)
 }
 
 pub fn value_extractor_int(cell_slice: &CellSlice) -> Result<BigInt, TonCellError> {
     let bit_len = cell_slice.end_bit - cell_slice.start_bit;
-    cell_slice.parser()?.skip_bits(cell_slice.start_bit)?;
-    cell_slice.parser()?.load_int(bit_len)
+    let mut parser = cell_slice.cell.parser();
+    parser.skip_bits(cell_slice.start_bit)?;
+    let result = parser.load_int(bit_len)?;
+    Ok(result)
 }
 
 pub struct GenericDictLoader<K, V, KX, VX>
@@ -161,5 +165,35 @@ where
     }
     fn key_bit_len(&self) -> usize {
         self.bit_len
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use num_bigint::BigUint;
+
+    use crate::cell::{key_extractor_u8, value_extractor_uint, BagOfCells, GenericDictLoader};
+
+    #[test]
+    fn dict_loader_test() {
+        let dict_boc_str = "te6cckEBBgEAWgABGccNPKUADZm5MepOjMABAgHNAgMCASAEBQAnQAAAAAAAAAAAAAABMlF4tR2RgCAAJgAAAAAAAAAAAAABaFhaZZhr6AAAJgAAAAAAAAAAAAAAR8sYU4eC4AA1PIC5";
+        let dict_boc = BagOfCells::parse_base64(&dict_boc_str).unwrap();
+        let cell = dict_boc.single_root().unwrap();
+        let loader = GenericDictLoader::new(key_extractor_u8, value_extractor_uint, 8);
+        let result = cell
+            .reference(0)
+            .unwrap()
+            .load_generic_dict(&loader)
+            .unwrap();
+
+        let expected_result: HashMap<u8, BigUint> = HashMap::from([
+            (0, BigUint::from(25965603044000000000u128)),
+            (1, BigUint::from(5173255344000000000u64)),
+            (2, BigUint::from(344883687000000000u64)),
+        ]);
+
+        assert_eq!(expected_result, result);
     }
 }
