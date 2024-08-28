@@ -178,7 +178,7 @@ mod test {
     #[test]
     fn dict_loader_test() {
         let dict_boc_str = "te6cckEBBgEAWgABGccNPKUADZm5MepOjMABAgHNAgMCASAEBQAnQAAAAAAAAAAAAAABMlF4tR2RgCAAJgAAAAAAAAAAAAABaFhaZZhr6AAAJgAAAAAAAAAAAAAAR8sYU4eC4AA1PIC5";
-        let dict_boc = BagOfCells::parse_base64(&dict_boc_str).unwrap();
+        let dict_boc = BagOfCells::parse_base64(dict_boc_str).unwrap();
         let cell = dict_boc.single_root().unwrap();
         let loader = GenericDictLoader::new(key_extractor_u8, value_extractor_uint, 8);
         let result = cell
