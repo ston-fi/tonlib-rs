@@ -140,18 +140,16 @@ mod tests {
                 .store_u32(12, 123)
                 .unwrap()
                 .build()
-                .unwrap()
-                .into(),
+                .unwrap(),
         );
         let revoked_at = 123456;
-        let content = Some(
+        let content = Some(Arc::new(
             CellBuilder::new()
                 .store_u32(12, 456)
                 .unwrap()
                 .build()
                 .unwrap(),
-        )
-        .map(Arc::new);
+        ));
 
         let expected = OwnerInfoMessage {
             query_id,

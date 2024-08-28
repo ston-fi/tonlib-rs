@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn sbt_revoke_msg_test() {
         let query_id = 1234567890;
-        let expected = SbtRevokeMessage { query_id: query_id };
+        let expected = SbtRevokeMessage { query_id };
 
         let build_result = SbtRevokeMessage::new().with_query_id(query_id).build();
         assert!(build_result.is_ok());

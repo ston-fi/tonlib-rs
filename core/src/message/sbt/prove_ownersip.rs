@@ -114,8 +114,7 @@ mod tests {
                 .store_u32(12, 123)
                 .unwrap()
                 .build()
-                .unwrap()
-                .into(),
+                .unwrap(),
         );
 
         let expected = ProveOwnershipMessage {
