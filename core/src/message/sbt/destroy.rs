@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn sbt_destroy_msg_test() {
         let query_id = 1234567890;
-        let expected = SbtDestroyMessage { query_id: query_id };
+        let expected = SbtDestroyMessage { query_id };
 
         let build_result = SbtDestroyMessage::new().with_query_id(query_id).build();
         assert!(build_result.is_ok());
