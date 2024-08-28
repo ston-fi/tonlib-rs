@@ -248,7 +248,12 @@ impl<'a> CellParser<'a> {
         } else {
             let remaining_bits = self.remaining_bits();
             let data = self.load_bits(remaining_bits)?;
-            let result = Arc::new(Cell::new(data, remaining_bits, vec![], false)?);
+            let remaining_ref_count = self.references.len() - self.next_ref;
+            let mut references = vec![];
+            for _ in 0..remaining_ref_count {
+                references.push(self.next_reference()?)
+            }
+            let result = Arc::new(Cell::new(data, remaining_bits, references, false)?);
             Ok(result)
         }
     }
@@ -266,10 +271,12 @@ impl<'a> CellParser<'a> {
 #[cfg(test)]
 mod tests {
 
+    use std::sync::Arc;
+
     use num_bigint::{BigInt, BigUint};
 
     use crate::address::TonAddress;
-    use crate::cell::Cell;
+    use crate::cell::{Cell, CellBuilder};
 
     #[test]
     fn test_load_bit() {
@@ -544,5 +551,34 @@ mod tests {
         assert!(parser.next_reference().is_ok());
         assert!(parser.next_reference().is_ok());
         assert!(parser.next_reference().is_err());
+    }
+
+    #[test]
+    fn test_either_with_references() {
+        let reference_cell = Cell::new([0xA5, 0x5A].to_vec(), 12, vec![], false).unwrap();
+        let cell_either = Arc::new(
+            Cell::new(
+                [0xFF, 0xB0].to_vec(),
+                12,
+                vec![reference_cell.into()],
+                false,
+            )
+            .unwrap(),
+        );
+        let cell = CellBuilder::new()
+            .store_bit(true)
+            .unwrap()
+            .store_either_cell_or_cell_ref(&cell_either)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let mut parser = cell.parser();
+
+        let result_first_bit = parser.load_bit().unwrap();
+        let result_cell_either = parser.load_either_cell_or_cell_ref().unwrap();
+
+        assert!(result_first_bit);
+        assert_eq!(result_cell_either, cell_either);
     }
 }
