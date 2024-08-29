@@ -1,6 +1,6 @@
 [package]
 name = "tonlib"
-version = "0.17.4"
+version = "0.17.6"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -15,6 +15,7 @@ include = [
 default=[]
 state_cache = []
 emulate_get_method = []
+with_c_backtrace = ["tonlib-sys/with_debug_info"]
 no_avx512 = ["tonlib-sys/no_avx512"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
