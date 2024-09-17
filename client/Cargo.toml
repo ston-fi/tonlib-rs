@@ -56,4 +56,4 @@ tonlib-sys.workspace = true
 tonlib-core = "0.18.0" 
 
 [patch.crates-io]
-tonlib-core = { path = "../tonlib-core" }
+tonlib-core = { path = "../core" }
