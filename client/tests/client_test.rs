@@ -357,8 +357,8 @@ async fn test_get_shard_transactions_parse_address_correctly() {
         workchain: 0,
         shard: -4611686018427387904,
         seqno: 43256197,
-        root_hash: "yEteKr1hD3d20O/ZL+Y7AB2YD9xL1NZ9r0fXPwYlbYA=".to_string(),
-        file_hash: "VrzW8+EtGDYiaSiYQEou9N5+YWF2CeBzxmAMXUOZ5mE=".to_string(),
+        root_hash: "yEteKr1hD3d20O/ZL+Y7AB2YD9xL1NZ9r0fXPwYlbYA=".into(),
+        file_hash: "VrzW8+EtGDYiaSiYQEou9N5+YWF2CeBzxmAMXUOZ5mE=".into(),
     };
     let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
     assert!(!txs.is_empty());
