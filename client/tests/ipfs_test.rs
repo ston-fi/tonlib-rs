@@ -3,6 +3,8 @@ use tonlib_client::meta::{IpfsLoader, IpfsLoaderConfig};
 
 mod common;
 
+// this test is ignored due restrictions of cloudflare-ipfs.com
+#[ignore]
 #[tokio::test]
 async fn test_ipfs_http_gateway() {
     common::init_logging();
