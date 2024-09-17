@@ -71,7 +71,10 @@ async fn test_get_jetton_content_empty_external_meta() {
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BLKC"));
     assert_eq!(content_res.decimals, Some(8));
 }
+
+// this test is ignored due restrictions of cloudflare-ipfs.com
 #[tokio::test]
+#[ignore]
 async fn test_get_jetton_content_ipfs_uri() {
     common::init_logging();
     let client = common::new_mainnet_client().await;
