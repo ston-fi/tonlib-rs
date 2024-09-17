@@ -357,8 +357,12 @@ async fn test_get_shard_transactions_parse_address_correctly() {
         workchain: -1,
         shard: -9223372036854775808,
         seqno: 39812357,
-        root_hash: STANDARD.decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=").unwrap(),
-        file_hash:STANDARD.decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=").unwrap(),
+        root_hash: STANDARD
+            .decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")
+            .unwrap(),
+        file_hash: STANDARD
+            .decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")
+            .unwrap(),
     };
     let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
     assert!(!txs.is_empty());
@@ -368,11 +372,18 @@ async fn test_get_shard_transactions_parse_address_correctly() {
         workchain: -1,
         shard: -9223372036854775808,
         seqno: 39812359,
-        root_hash: STANDARD.decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=").unwrap(),
-        file_hash:STANDARD.decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=").unwrap(),
+        root_hash: STANDARD
+            .decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")
+            .unwrap(),
+        file_hash: STANDARD
+            .decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")
+            .unwrap(),
     };
 
-    assert!(client.get_shard_transactions(&not_a_block_shard).await.is_err());
+    assert!(client
+        .get_shard_transactions(&not_a_block_shard)
+        .await
+        .is_err());
 }
 
 #[tokio::test]
