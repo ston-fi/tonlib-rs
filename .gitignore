@@ -13,4 +13,6 @@
 .vscode/
 
 # Config
-/resources/config/local
+/client/resources/config/local
+/client/var
+/var

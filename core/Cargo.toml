@@ -1,0 +1,25 @@
+[package]
+name = "tonlib-core"
+description = "Data structures library for tonlib-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+resolver = "2"
+
+[dependencies]
+base64.workspace = true
+bitstream-io.workspace = true
+crc.workspace = true
+hex.workspace = true
+hmac.workspace = true
+lazy_static.workspace = true
+nacl.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
+pbkdf2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
