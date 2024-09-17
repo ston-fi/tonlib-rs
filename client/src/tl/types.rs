@@ -119,8 +119,10 @@ pub struct BlockIdExt {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub shard: i64,
     pub seqno: i32,
-    pub root_hash: String,
-    pub file_hash: String,
+    #[serde(with = "Base64Standard")]
+    pub root_hash: Vec<u8>,
+    #[serde(with = "Base64Standard")]
+    pub file_hash: Vec<u8>,
 }
 
 impl BlockIdExt {
