@@ -110,6 +110,7 @@ impl TvmStackEntry {
             }),
         }
     }
+
     pub fn get_string(&self) -> Result<String, StackParseError> {
         match self {
             TvmStackEntry::Slice(slice) => {
