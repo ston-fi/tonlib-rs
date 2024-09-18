@@ -49,3 +49,9 @@ tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
 tokio-test = "0.4"
 tonlib-sys = "=2024.8.0"
+
+# internal deps
+tonlib-core = { version = "0.18" }
+
+[workspace.patch.crates-io]
+tonlib-core = { path = "core" }
