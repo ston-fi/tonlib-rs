@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use super::NFT_TRANSFER;
-use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
+use crate::cell::{ArcCell, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
 use crate::message::{HasOpcode, TonMessage, TonMessageError, WithForwardPayload, ZERO_COINS};
 use crate::TonAddress;
 
@@ -32,6 +32,8 @@ pub struct NftTransferMessage {
     pub forward_ton_amount: BigUint,
     ///  optional custom data that should be sent to the destination address.
     pub forward_payload: ArcCell,
+
+    pub forward_payload_layout: EitherCellLayout,
 }
 
 impl NftTransferMessage {
@@ -43,6 +45,7 @@ impl NftTransferMessage {
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),
+            forward_payload_layout: EitherCellLayout::Native,
         }
     }
 
@@ -71,7 +74,8 @@ impl TonMessage for NftTransferMessage {
         builder.store_address(&self.response_destination)?;
         builder.store_maybe_cell_ref(&self.custom_payload)?;
         builder.store_coins(&self.forward_ton_amount)?;
-        builder.store_either_cell_or_cell_ref(&self.forward_payload)?;
+        builder
+            .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
         Ok(builder.build()?)
     }
 
@@ -95,6 +99,7 @@ impl TonMessage for NftTransferMessage {
             custom_payload,
             forward_ton_amount,
             forward_payload,
+            forward_payload_layout: EitherCellLayout::Native,
         };
         result.verify_opcode(opcode)?;
 
@@ -130,7 +135,7 @@ mod tests {
     use lazy_static::lazy_static;
     use num_bigint::BigUint;
 
-    use crate::cell::{ArcCell, BagOfCells, Cell};
+    use crate::cell::{ArcCell, BagOfCells, Cell, EitherCellLayout};
     use crate::message::{
         HasOpcode, NftTransferMessage, TonMessage, TonMessageError, WithForwardPayload,
     };
@@ -172,6 +177,7 @@ mod tests {
             custom_payload: None,
             forward_ton_amount,
             forward_payload: NFT_TRANSFER_PAYLOAD.clone(),
+            forward_payload_layout: EitherCellLayout::Native,
         };
 
         assert_eq!(expected_nft_transfer_msg, result_nft_transfer_msg);

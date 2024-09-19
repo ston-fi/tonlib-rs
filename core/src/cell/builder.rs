@@ -20,6 +20,13 @@ pub struct CellBuilder {
     is_cell_exotic: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum EitherCellLayout {
+    Native,
+    ToRef,
+    ToCell,
+}
+
 impl CellBuilder {
     pub fn new() -> CellBuilder {
         let bit_writer = BitWriter::endian(Vec::new(), BigEndian);
@@ -256,13 +263,26 @@ impl CellBuilder {
     pub fn store_either_cell_or_cell_ref(
         &mut self,
         cell: &ArcCell,
+        layout: EitherCellLayout,
     ) -> Result<&mut Self, TonCellError> {
-        if cell.bit_len() < self.remaining_bits() {
-            self.store_bit(false)?;
-            self.store_cell(cell)?;
-        } else {
-            self.store_bit(true)?;
-            self.store_reference(cell)?;
+        match layout {
+            EitherCellLayout::Native => {
+                if cell.bit_len() < self.remaining_bits() {
+                    self.store_bit(false)?;
+                    self.store_cell(cell)?;
+                } else {
+                    self.store_bit(true)?;
+                    self.store_reference(cell)?;
+                }
+            }
+            EitherCellLayout::ToRef => {
+                self.store_bit(true)?;
+                self.store_reference(cell)?;
+            }
+            EitherCellLayout::ToCell => {
+                self.store_bit(false)?;
+                self.store_cell(cell)?;
+            }
         }
 
         Ok(self)

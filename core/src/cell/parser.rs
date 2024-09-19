@@ -275,7 +275,7 @@ mod tests {
 
     use num_bigint::{BigInt, BigUint};
 
-    use crate::cell::{Cell, CellBuilder};
+    use crate::cell::{Cell, CellBuilder, EitherCellLayout};
     use crate::TonAddress;
 
     #[test]
@@ -568,7 +568,7 @@ mod tests {
         let cell = CellBuilder::new()
             .store_bit(true)
             .unwrap()
-            .store_either_cell_or_cell_ref(&cell_either)
+            .store_either_cell_or_cell_ref(&cell_either, EitherCellLayout::Native)
             .unwrap()
             .build()
             .unwrap();
