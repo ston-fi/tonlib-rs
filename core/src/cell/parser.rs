@@ -275,11 +275,7 @@ mod tests {
 
     use num_bigint::{BigInt, BigUint};
 
-<<<<<<< HEAD
     use crate::cell::{Cell, CellBuilder, EitherCellLayout};
-=======
-    use crate::cell::{Cell, CellBuilder};
->>>>>>> upstream/main
     use crate::TonAddress;
 
     #[test]
@@ -572,11 +568,7 @@ mod tests {
         let cell = CellBuilder::new()
             .store_bit(true)
             .unwrap()
-<<<<<<< HEAD
             .store_either_cell_or_cell_ref(&cell_either, EitherCellLayout::Native)
-=======
-            .store_either_cell_or_cell_ref(&cell_either)
->>>>>>> upstream/main
             .unwrap()
             .build()
             .unwrap();
