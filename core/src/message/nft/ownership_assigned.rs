@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 
 use super::NFT_OWNERSHIP_ASSIGNED;
-use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
+use crate::cell::{ArcCell, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
 use crate::message::{HasOpcode, TonMessage, TonMessageError, WithForwardPayload};
 use crate::TonAddress;
 
@@ -22,6 +22,8 @@ pub struct NftOwnershipAssignedMessage {
     pub prev_owner: TonAddress,
     ///  optional custom data that should be sent to the destination address.
     pub forward_payload: ArcCell,
+
+    pub forward_payload_layout: EitherCellLayout,
 }
 
 impl NftOwnershipAssignedMessage {
@@ -30,6 +32,7 @@ impl NftOwnershipAssignedMessage {
             query_id: 0,
             prev_owner: prev_owner.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),
+            forward_payload_layout: EitherCellLayout::Native,
         }
     }
 }
@@ -40,7 +43,8 @@ impl TonMessage for NftOwnershipAssignedMessage {
         builder.store_u32(32, Self::opcode())?;
         builder.store_u64(64, self.query_id)?;
         builder.store_address(&self.prev_owner)?;
-        builder.store_either_cell_or_cell_ref(&self.forward_payload)?;
+        builder
+            .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
         Ok(builder.build()?)
     }
 
@@ -57,6 +61,7 @@ impl TonMessage for NftOwnershipAssignedMessage {
             query_id,
             prev_owner,
             forward_payload,
+            forward_payload_layout: EitherCellLayout::Native,
         };
         result.verify_opcode(opcode)?;
         Ok(result)

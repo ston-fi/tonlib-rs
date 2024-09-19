@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 
 use super::JETTON_TRANSFER_NOTIFICATION;
-use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
+use crate::cell::{ArcCell, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
 use crate::message::{HasOpcode, TonMessage, TonMessageError};
 use crate::TonAddress;
 
@@ -22,6 +22,8 @@ pub struct JettonTransferNotificationMessage {
     pub sender: TonAddress,
     ///  optional custom data that should be sent to the destination address.
     pub forward_payload: ArcCell,
+
+    pub forward_payload_layout: EitherCellLayout,
 }
 
 impl JettonTransferNotificationMessage {
@@ -31,11 +33,17 @@ impl JettonTransferNotificationMessage {
             amount: amount.clone(),
             sender: sender.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),
+            forward_payload_layout: EitherCellLayout::Native,
         }
     }
 
     pub fn with_forward_payload(&mut self, forward_payload: ArcCell) -> &mut Self {
         self.forward_payload = forward_payload;
+        self
+    }
+
+    pub fn set_either_cell_layout(&mut self, layout: EitherCellLayout) -> &mut Self {
+        self.forward_payload_layout = layout;
         self
     }
 }
@@ -47,7 +55,8 @@ impl TonMessage for JettonTransferNotificationMessage {
         builder.store_u64(64, self.query_id)?;
         builder.store_coins(&self.amount)?;
         builder.store_address(&self.sender)?;
-        builder.store_either_cell_or_cell_ref(&self.forward_payload)?;
+        builder
+            .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
 
         Ok(builder.build()?)
     }
@@ -68,6 +77,7 @@ impl TonMessage for JettonTransferNotificationMessage {
             amount,
             sender,
             forward_payload,
+            forward_payload_layout: EitherCellLayout::Native,
         };
         result.verify_opcode(opcode)?;
 
@@ -96,7 +106,7 @@ mod tests {
 
     use num_bigint::BigUint;
 
-    use crate::cell::{BagOfCells, Cell};
+    use crate::cell::{BagOfCells, Cell, EitherCellLayout};
     use crate::message::{JettonTransferNotificationMessage, TonMessage, TonMessageError};
     use crate::TonAddress;
 
@@ -122,6 +132,7 @@ mod tests {
                 )
                 .unwrap(),
             ),
+            forward_payload_layout: EitherCellLayout::Native,
         };
         let result_jetton_transfer_msg = JettonTransferNotificationMessage::parse(cell)?;
 
@@ -148,6 +159,7 @@ mod tests {
                 )
                 .unwrap(),
             ),
+            forward_payload_layout: EitherCellLayout::Native,
         };
 
         let result_cell = jetton_transfer_notification_msg.build()?;
