@@ -3,7 +3,7 @@ use std::ops::{Add, ShlAssign};
 use num_bigint::BigUint;
 use num_traits::Zero;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct BitString {
     value: BigUint,
     bit_len: usize,

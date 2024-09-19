@@ -11,6 +11,7 @@ use base64::Engine;
 use bit_string::*;
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
+pub use dict_builder::*;
 pub use dict_loader::*;
 pub use error::*;
 use hmac::digest::Digest;
@@ -34,6 +35,7 @@ mod bit_string;
 mod builder;
 
 mod cell_type;
+mod dict_builder;
 mod dict_loader;
 mod error;
 mod level_mask;
