@@ -2,7 +2,11 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use super::JETTON_TRANSFER;
+<<<<<<< HEAD
 use crate::cell::{ArcCell, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
+=======
+use crate::cell::{ArcCell, Cell, CellBuilder, EMPTY_ARC_CELL};
+>>>>>>> upstream/main
 use crate::message::{HasOpcode, TonMessage, TonMessageError, WithForwardPayload, ZERO_COINS};
 use crate::TonAddress;
 
@@ -30,8 +34,11 @@ pub struct JettonTransferMessage {
     pub forward_ton_amount: BigUint,
     ///  optional custom data that should be sent to the destination address.
     pub forward_payload: ArcCell,
+<<<<<<< HEAD
 
     pub forward_payload_layout: EitherCellLayout,
+=======
+>>>>>>> upstream/main
 }
 
 impl JettonTransferMessage {
@@ -44,7 +51,10 @@ impl JettonTransferMessage {
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),
+<<<<<<< HEAD
             forward_payload_layout: EitherCellLayout::Native,
+=======
+>>>>>>> upstream/main
         }
     }
 
@@ -57,11 +67,14 @@ impl JettonTransferMessage {
         self.custom_payload = Some(custom_payload);
         self
     }
+<<<<<<< HEAD
 
     pub fn set_either_cell_layout(&mut self, layout: EitherCellLayout) -> &mut Self {
         self.forward_payload_layout = layout;
         self
     }
+=======
+>>>>>>> upstream/main
 }
 
 impl WithForwardPayload for JettonTransferMessage {
@@ -85,8 +98,12 @@ impl TonMessage for JettonTransferMessage {
         builder.store_address(&self.response_destination)?;
         builder.store_maybe_cell_ref(&self.custom_payload)?;
         builder.store_coins(&self.forward_ton_amount)?;
+<<<<<<< HEAD
         builder
             .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
+=======
+        builder.store_either_cell_or_cell_ref(&self.forward_payload)?;
+>>>>>>> upstream/main
         Ok(builder.build()?)
     }
 
@@ -112,7 +129,10 @@ impl TonMessage for JettonTransferMessage {
             custom_payload,
             forward_ton_amount,
             forward_payload,
+<<<<<<< HEAD
             forward_payload_layout: EitherCellLayout::Native,
+=======
+>>>>>>> upstream/main
         };
         result.verify_opcode(opcode)?;
 
@@ -142,7 +162,11 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::Zero;
 
+<<<<<<< HEAD
     use crate::cell::{BagOfCells, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
+=======
+    use crate::cell::{BagOfCells, Cell, CellBuilder, EMPTY_ARC_CELL};
+>>>>>>> upstream/main
     use crate::message::{JettonTransferMessage, TonMessage, TonMessageError, WithForwardPayload};
     use crate::TonAddress;
 
@@ -175,7 +199,10 @@ mod tests {
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
             forward_payload: transfer_message_cell,
+<<<<<<< HEAD
             forward_payload_layout: EitherCellLayout::Native,
+=======
+>>>>>>> upstream/main
         };
 
         assert_eq!(expected_jetton_transfer_msg, result_jetton_transfer_msg);
@@ -198,7 +225,10 @@ mod tests {
             forward_payload: Arc::new(
                 Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
             ),
+<<<<<<< HEAD
             forward_payload_layout: EitherCellLayout::Native,
+=======
+>>>>>>> upstream/main
         };
 
         let result_cell = jetton_transfer_msg.build()?;

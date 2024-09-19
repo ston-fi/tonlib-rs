@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.18.2-dev"
+version = "0.19.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -51,7 +51,7 @@ tokio-test = "0.4"
 tonlib-sys = "=2024.8.0"
 
 # internal deps
-tonlib-core = { version = "0.18" }
+tonlib-core = { version = "0.19" }
 
 [workspace.patch.crates-io]
 tonlib-core = { path = "core" }

@@ -52,4 +52,12 @@ tokio.workspace = true
 tokio-retry.workspace = true
 tokio-test.workspace = true
 tonlib-sys.workspace = true
+<<<<<<< HEAD
 tonlib-core.workspace = true
+=======
+
+tonlib-core = "0.18" 
+
+[patch.crates-io]
+tonlib-core = { path = "../core" }
+>>>>>>> upstream/main
