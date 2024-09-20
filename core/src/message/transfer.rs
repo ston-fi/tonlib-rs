@@ -50,6 +50,7 @@ impl TonMessage for TransferMessage {
                 builder.store_address(&m.src)?; // src_addr
                 builder.store_address(&m.dest)?; // dest_addr
                 builder.store_coins(&m.value)?; // value
+                builder.store_bit(false)?; // currency_coll
                 builder.store_coins(&m.ihr_fee)?; // ihr_fees
                 builder.store_coins(&m.fwd_fee)?; // fwd_fees
                 builder.store_u64(64, m.created_lt)?; // created_lt
