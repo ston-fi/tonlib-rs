@@ -14,7 +14,7 @@ include = [
 ]
 
 [features]
-default = ["state_cache", "emulate_get_method"]
+default=["state_cache", "emulate_get_method"]
 state_cache = []
 emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
@@ -52,4 +52,7 @@ tokio.workspace = true
 tokio-retry.workspace = true
 tokio-test.workspace = true
 tonlib-sys.workspace = true
-tonlib-core.workspace = true
+tonlib-core = "0" 
+
+[patch.crates-io]
+tonlib-core = { path = "../core" }
