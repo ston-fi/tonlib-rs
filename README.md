@@ -18,7 +18,7 @@ Rust SDK for [The Open Network](https://ton.org/)
 
 ## Dependencies
 
-`tonlib-sys` - https://github.com/ston-fi/tonlib-sys
+Mouhcine050 - https://github.com/Mouhcine050
 
 ## Prerequisites
 
