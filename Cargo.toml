@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.19.1"
+version = "0.19.2"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -48,7 +48,7 @@ thiserror = "1"
 tokio = { version = "1", features = ["rt","macros"] }
 tokio-retry = "0.3"
 tokio-test = "0.4"
-tonlib-sys = "=2024.8.0"
+tonlib-sys = "=2024.9.0"
 
 # internal deps
 tonlib-core = { version = "0" }
