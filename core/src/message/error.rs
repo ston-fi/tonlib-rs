@@ -19,7 +19,7 @@ pub enum TonMessageError {
     InvalidMessage(InvalidMessage),
 }
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq)]
 pub struct InvalidMessage {
     pub opcode: Option<u32>,
     pub query_id: Option<u64>,
@@ -33,5 +33,15 @@ impl fmt::Display for InvalidMessage {
             "InvalidMessage {{ opcode: {:?}, query_id: {:?}, message: {} }}",
             self.opcode, self.query_id, self.message
         )
+    }
+}
+
+impl std::fmt::Debug for InvalidMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InvalidMessage")
+            .field("opcode", &self.opcode.map(|op| format!("{:#x}", op)))
+            .field("query_id", &self.query_id)
+            .field("message", &self.message)
+            .finish()
     }
 }
