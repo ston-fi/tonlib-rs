@@ -1,9 +1,11 @@
-use crate::cell::{Cell, CellBuilder, TonCellError};
-use bitvec::prelude::{BitVec, Msb0};
-use num_bigint::BigUint;
 use std::collections::HashMap;
 use std::ops::BitXorAssign;
 use std::sync::Arc;
+
+use bitvec::prelude::{BitVec, Msb0};
+use num_bigint::BigUint;
+
+use crate::cell::{Cell, CellBuilder, TonCellError};
 
 pub type ValueWriter<V> = fn(&mut CellBuilder, &V) -> Result<(), TonCellError>;
 
@@ -220,9 +222,10 @@ fn calc_common_prefix_len(a: &BitVecBE, b: &BitVecBE) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use tokio_test::assert_ok;
+
     use super::*;
     use crate::cell::{key_extractor_u8, value_extractor_uint, BagOfCells, GenericDictLoader};
-    use tokio_test::assert_ok;
 
     #[test]
     fn test_build_uint_key() {
