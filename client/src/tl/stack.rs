@@ -5,7 +5,8 @@ use std::hash::Hash;
 
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tonlib_core::cell::{BagOfCells, DictLoader};
+use tonlib_core::cell::dict::{KeyExtractor, ValExtractor};
+use tonlib_core::cell::BagOfCells;
 use tonlib_core::TonAddress;
 
 use crate::tl::error::TvmStackError;
@@ -162,18 +163,20 @@ impl TvmStack {
             .map_err(TvmStackError::TonCellError)
     }
 
-    pub fn get_dict<K, V, L>(
+    pub fn get_dict<K, V>(
         &self,
         index: usize,
-        loader: &L,
+        key_size: usize,
+        key_extractor: KeyExtractor<K>,
+        val_extractor: ValExtractor<V>,
     ) -> Result<HashMap<K, V>, TvmStackError>
     where
         K: Hash + Eq + Clone,
-        L: DictLoader<K, V>,
     {
         let boc = self.get_boc(index)?;
         let cell = boc.single_root()?;
-        Ok(cell.load_generic_dict(loader)?)
+        let mut parser = cell.parser();
+        Ok(parser.load_dict(key_size, key_extractor, val_extractor)?)
     }
 
     fn get<T>(

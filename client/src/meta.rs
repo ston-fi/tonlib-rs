@@ -2,7 +2,7 @@ pub use error::*;
 pub use ipfs_loader::*;
 pub use loader::*;
 use serde_json::Value;
-use tonlib_core::cell::{ArcCell, BagOfCells, SnakeFormattedDict, TonCellError};
+use tonlib_core::cell::{ArcCell, BagOfCells, TonCellError};
 use tonlib_core::TonHash;
 mod error;
 mod ipfs_loader;
@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
+use tonlib_core::cell::dict::SnakeFormatDict;
 use tonlib_core::types::ZERO_HASH;
 struct MetaDataField {
     pub(crate) key: TonHash,
@@ -33,14 +34,14 @@ impl MetaDataField {
             .map_err(|e| MetaLoaderError::InternalError(e.to_string()))
     }
 
-    pub fn use_string_or(&self, src: Option<String>, dict: &SnakeFormattedDict) -> Option<String> {
+    pub fn use_string_or(&self, src: Option<String>, dict: &SnakeFormatDict) -> Option<String> {
         src.or(dict
             .get(&self.key)
             .cloned()
             .and_then(|vec| String::from_utf8(vec).ok()))
     }
 
-    pub fn use_value_or(&self, src: Option<Value>, dict: &SnakeFormattedDict) -> Option<Value> {
+    pub fn use_value_or(&self, src: Option<Value>, dict: &SnakeFormatDict) -> Option<Value> {
         src.or(dict
             .get(&self.key)
             .map(|attr_str| {
@@ -69,7 +70,7 @@ lazy_static! {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum MetaDataContent {
     External { uri: String },
-    Internal { dict: SnakeFormattedDict },
+    Internal { dict: SnakeFormatDict },
     // TODO: Replace with cell
     Unsupported { boc: BagOfCells },
 }
@@ -81,7 +82,7 @@ impl MetaDataContent {
         let content_representation = parser.load_byte()?;
         match content_representation {
             0 => {
-                let dict = cell.reference(0)?.load_snake_formatted_dict()?;
+                let dict = cell.reference(0)?.parser().load_dict_snake_format()?;
                 Ok(MetaDataContent::Internal { dict })
             }
             1 => {

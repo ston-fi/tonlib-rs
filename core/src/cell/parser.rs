@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -5,7 +7,9 @@ use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
+use super::dict::{DictParser, KeyExtractor, SnakeFormatDict, ValExtractor};
 use super::{ArcCell, Cell};
+use crate::cell::dict::extractors::{key_extractor_256bit, val_extractor_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::TonAddress;
@@ -187,6 +191,32 @@ impl<'a> CellParser<'a> {
             res += 1;
         }
         Ok(res)
+    }
+
+    pub fn load_dict<K: Eq + Hash, V>(
+        &mut self,
+        key_len: usize,
+        key_extractor: KeyExtractor<K>,
+        val_extractor: ValExtractor<V>,
+    ) -> Result<HashMap<K, V>, TonCellError> {
+        let mut dict_parser = DictParser::new(key_len, key_extractor, val_extractor);
+        dict_parser.parse(self)
+    }
+
+    ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
+    ///
+    ///Must be prefixed with 0x00 byte.
+    ///### TL-B scheme:
+    ///
+    /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
+    ///
+    /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
+    pub fn load_dict_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
+        self.load_dict(
+            256,
+            key_extractor_256bit,
+            val_extractor_snake_formatted_string,
+        )
     }
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {

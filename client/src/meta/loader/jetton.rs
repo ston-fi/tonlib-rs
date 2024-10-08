@@ -66,8 +66,8 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
     }
 }
 
-impl From<&SnakeFormattedDict> for JettonMetaData {
-    fn from(dict: &SnakeFormattedDict) -> Self {
+impl From<&SnakeFormatDict> for JettonMetaData {
+    fn from(dict: &SnakeFormatDict) -> Self {
         JettonMetaData {
             name: META_NAME.use_string_or(None, dict),
             uri: META_URI.use_string_or(None, dict),
