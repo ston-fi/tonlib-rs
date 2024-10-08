@@ -4,6 +4,7 @@
 /Cargo.lock
 /.cargo
 /doc
+/release.sh
 
 
 # Editors

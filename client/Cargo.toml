@@ -33,6 +33,11 @@ dashmap.workspace = true
 futures.workspace = true
 hex.workspace = true
 
+ton_liteapi.workspace = true
+adnl.workspace = true
+tokio-tower.workspace = true
+tower = {workspace = true, features = ["util"] }
+
 lazy_static.workspace = true
 log.workspace = true
 log4rs.workspace = true
@@ -52,7 +57,4 @@ tokio.workspace = true
 tokio-retry.workspace = true
 tokio-test.workspace = true
 tonlib-sys.workspace = true
-tonlib-core = "0" 
-
-[patch.crates-io]
-tonlib-core = { path = "../core" }
+tonlib-core.workspace = true

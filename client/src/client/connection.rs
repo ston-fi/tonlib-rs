@@ -20,6 +20,7 @@ use crate::types::TonMethodId;
 
 pub const DEFAULT_NOTIFICATION_QUEUE_LENGTH: usize = 10000;
 pub const DEFAULT_CONNECTION_CONCURRENCY_LIMIT: usize = 100;
+pub const DEFAULT_UPDATE_INIT_BLOCK: bool = true;
 
 struct RequestData {
     method: &'static str,

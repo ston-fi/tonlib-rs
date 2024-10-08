@@ -242,10 +242,7 @@ mod tests {
         if let Data::Leaf(_) = &root.data {}
         let (left, right) = match root.data {
             Data::Edge { left, right } => (left, right),
-            _ => {
-                assert!(false, "Expected edge, got leaf");
-                unreachable!()
-            }
+            _ => unreachable!("Expected edge, got leaf"),
         };
         assert_eq!(
             left.prefix,
@@ -253,21 +250,18 @@ mod tests {
         );
         match left.data {
             Data::Leaf(val) => assert_eq!(val, 42),
-            _ => assert!(false, "Expected leaf, got edge"),
+            _ => unreachable!("Expected leaf, got edge"),
         };
 
         assert_eq!(right.prefix, BitVecBE::from_slice(&[0b100])[32 - 2..]);
         let (left, right) = match right.data {
             Data::Edge { left, right } => (left, right),
-            _ => {
-                assert!(false, "Expected edge, got leaf");
-                unreachable!()
-            }
+            _ => unreachable!("Expected edge, got leaf"),
         };
         assert_eq!(left.prefix, BitVecBE::from_slice(&[0b0100010001])[32 - 9..]);
         match left.data {
             Data::Leaf(val) => assert_eq!(val, 16),
-            _ => assert!(false, "Expected leaf, got edge"),
+            _ => unreachable!("Expected leaf, got edge"),
         };
 
         assert_eq!(
@@ -276,7 +270,7 @@ mod tests {
         );
         match left.data {
             Data::Leaf(val) => assert_eq!(val, 16),
-            _ => assert!(false, "Expected leaf, got edge"),
+            _ => unreachable!("Expected leaf, got edge"),
         };
     }
 

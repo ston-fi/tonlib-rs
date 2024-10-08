@@ -55,7 +55,7 @@ pub fn init_logging() {
 
         let config = Config::builder()
             .appender(Appender::builder().build("stderr", Box::new(stderr)))
-            .build(Root::builder().appender("stderr").build(LevelFilter::Trace))
+            .build(Root::builder().appender("stderr").build(LevelFilter::Info))
             .unwrap();
 
         log4rs::init_config(config).unwrap();
