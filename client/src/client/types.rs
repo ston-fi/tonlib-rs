@@ -7,7 +7,7 @@ use tonlib_core::TonAddress;
 
 use super::{
     BlocksShortTxId, TonClientError, DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
-    DEFAULT_NOTIFICATION_QUEUE_LENGTH,
+    DEFAULT_NOTIFICATION_QUEUE_LENGTH, DEFAULT_UPDATE_INIT_BLOCK,
 };
 use crate::config::MAINNET_CONFIG;
 use crate::tl::{InternalTransactionId, TonNotification};
@@ -54,6 +54,8 @@ pub struct TonConnectionParams {
     pub notification_queue_length: usize,
     #[serde(default = "default_connection_concurrency_limit")]
     pub concurrency_limit: usize,
+    #[serde(default = "default_update_init_block")]
+    pub update_init_block: bool,
 }
 
 impl Default for TonConnectionParams {
@@ -66,6 +68,7 @@ impl Default for TonConnectionParams {
             keystore_dir: None,
             notification_queue_length: DEFAULT_NOTIFICATION_QUEUE_LENGTH,
             concurrency_limit: DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
+            update_init_block: DEFAULT_UPDATE_INIT_BLOCK,
         }
     }
 }
@@ -75,6 +78,10 @@ fn default_notification_queue_length() -> usize {
 
 fn default_connection_concurrency_limit() -> usize {
     DEFAULT_CONNECTION_CONCURRENCY_LIMIT
+}
+
+fn default_update_init_block() -> bool {
+    DEFAULT_UPDATE_INIT_BLOCK
 }
 
 lazy_static! {

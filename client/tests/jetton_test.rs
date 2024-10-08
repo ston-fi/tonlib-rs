@@ -94,22 +94,23 @@ async fn test_get_jetton_content_ipfs_uri() {
 }
 
 #[tokio::test]
-async fn test_get_semi_chain_layout_jetton_content() {
+async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    let contract = factory.get_contract(&assert_ok!(
-        "EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()
-    )); // jUSDC jetton
-    let res = assert_ok!(contract.get_jetton_data().await);
-    let meta_loader = assert_ok!(JettonMetaLoader::default());
-    let content_res = assert_ok!(meta_loader.load(&res.content).await);
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let addr = "EQB-MPwrd1G6WKNkLz_VnV6WqBDd142KMQv-g1O-8QUA3728".parse()?; // jUSDC jetton
+    let contract = factory.get_contract(&addr);
+    let res = contract.get_jetton_data().await?;
+    let meta_loader = JettonMetaLoader::default()?;
+    let content_res = meta_loader.load(&res.content).await?;
+    log::info!("content_res: {:?}", content_res);
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("jUSDC"));
     assert_eq!(
         content_res.name.as_ref().unwrap(),
         &String::from("USD Coin")
     );
     assert_eq!(content_res.decimals.unwrap(), 0x6);
+    Ok(())
 }
 
 #[tokio::test]

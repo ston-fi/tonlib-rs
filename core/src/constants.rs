@@ -1,0 +1,2 @@
+pub const MASTERCHAIN_ID: i32 = -1;
+pub const SHARD_FULL: u64 = 0x8000_0000_0000_0000u64;
