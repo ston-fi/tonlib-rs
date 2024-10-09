@@ -50,7 +50,7 @@ if [ "${should_proceed}" != "y" ]; then
     exit 0
 fi
 
-git commit -m "Release v${NEW_VERSION}"
+git commit -am "Release v${NEW_VERSION}"
 git tag v${NEW_VERSION}
 git push origin main
 
