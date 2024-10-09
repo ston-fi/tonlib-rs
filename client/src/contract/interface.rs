@@ -6,7 +6,7 @@ use tonlib_core::TonAddress;
 use super::TonContractError;
 use crate::client::TonConnection;
 use crate::contract::TonContractFactory;
-use crate::tl::RawFullAccountState;
+use crate::tl::{InternalTransactionId, RawFullAccountState};
 use crate::types::{TonMethodId, TvmStackEntry, TvmSuccess};
 
 pub struct LoadedSmcState {
@@ -21,6 +21,10 @@ pub trait TonContractInterface {
     fn address(&self) -> &TonAddress;
 
     async fn get_account_state(&self) -> Result<Arc<RawFullAccountState>, TonContractError>;
+    async fn get_account_state_by_transaction(
+        &self,
+        tx_id: &InternalTransactionId,
+    ) -> Result<RawFullAccountState, TonContractError>;
 
     async fn run_get_method<M, S>(
         &self,

@@ -29,28 +29,31 @@ use tonlib_core::{TonAddress, TonTxId};
 mod common;
 
 #[tokio::test]
-async fn test_client_get_account_state_of_inactive() {
+async fn test_client_get_masterchain_info() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    for _ in 0..100 {
-        let r = factory
-            .get_latest_account_state(assert_ok!(&TonAddress::from_base64_url(
-                "EQDOUwuz-6lH-IL-hqSHQSrFhoNjTNjKp04Wb5n2nkctCJTH",
-            )))
-            .await;
-        log::info!("{:?}", r);
-        assert!(r.is_ok());
-        if r.unwrap().frozen_hash != Vec::<u8>::new() {
-            panic!("Expected UnInited state")
-        }
-    }
-    drop(factory);
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    let (_, _) = client.get_masterchain_info().await?;
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_get_raw_account_state_works() {
+async fn test_client_get_account_state_of_inactive() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    for _ in 0..100 {
+        let addr = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+        let res = assert_ok!(factory.get_latest_account_state(&addr).await);
+        log::debug!("{:?}", res);
+        assert!(res.frozen_hash.is_empty(), "Expected Uninitialized state");
+    }
+    drop(factory);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let r = assert_ok!(
@@ -61,10 +64,11 @@ async fn client_get_raw_account_state_works() {
             .await
     );
     log::info!("{:?}", r);
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_get_raw_transactions_works() {
+async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
     let address = &assert_ok!(TonAddress::from_base64_url(
         "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
@@ -74,7 +78,7 @@ async fn client_get_raw_transactions_works() {
     while retries < max_retries {
         retries += 1;
         let client = common::new_mainnet_client().await;
-        let state = client.get_raw_account_state(address).await.unwrap();
+        let state = client.get_raw_account_state(address).await?;
         let r = client
             .get_raw_transactions(address, &state.last_transaction_id)
             .await;
@@ -86,15 +90,16 @@ async fn client_get_raw_transactions_works() {
                 .await;
             println!("{:?}", r);
             if r.is_ok() {
-                assert_eq!(r.unwrap().transactions.len(), cnt);
-                return;
+                assert_eq!(r?.transactions.len(), cnt);
+                return Ok(());
             }
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_run_get_method_works() {
+async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let address = &assert_ok!(TonAddress::from_base64_url(
@@ -119,10 +124,11 @@ async fn client_smc_run_get_method_works() {
     let future = conn.smc_run_get_method(id2, &method_id, stack);
     let r = assert_ok!(timeout(Duration::from_secs(2), future).await);
     log::info!("{:?}", r);
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_load_by_transaction_works() {
+async fn client_smc_load_by_transaction_works() -> anyhow::Result<()> {
     common::init_logging();
 
     let address = &assert_ok!(TonAddress::from_base64_url(
@@ -138,7 +144,7 @@ async fn client_smc_load_by_transaction_works() {
         retries += 1;
         let client = common::new_mainnet_client().await;
 
-        let state = client.get_raw_account_state(address).await.unwrap();
+        let state = client.get_raw_account_state(address).await?;
 
         log::info!("TRANSACTION_ID{}", &state.last_transaction_id);
 
@@ -151,13 +157,14 @@ async fn client_smc_load_by_transaction_works() {
             .await;
 
         if res.is_ok() {
-            return;
+            return Ok(());
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_get_code_works() {
+async fn client_smc_get_code_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let address = &assert_ok!(TonAddress::from_base64_url(
@@ -166,10 +173,11 @@ async fn client_smc_get_code_works() {
     let loaded_state = assert_ok!(client.smc_load(address).await);
     let cell = assert_ok!(loaded_state.conn.smc_get_code(loaded_state.id).await);
     log::info!("\n\r\x1b[1;35m-----------------------------------------CODE-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_get_data_works() {
+async fn client_smc_get_data_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let address = &assert_ok!(TonAddress::from_base64_url(
@@ -178,10 +186,11 @@ async fn client_smc_get_data_works() {
     let loaded_state = assert_ok!(client.smc_load(address).await);
     let cell = assert_ok!(loaded_state.conn.smc_get_data(loaded_state.id).await);
     log::info!("\n\r\x1b[1;35m-----------------------------------------DATA-----------------------------------------\x1b[0m:\n\r {:?}", STANDARD.encode(cell.bytes));
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_jetton_content_internal_uri_jusdt() {
+async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let address = &assert_ok!(TonAddress::from_base64_url(
@@ -190,10 +199,11 @@ async fn test_get_jetton_content_internal_uri_jusdt() {
     let loaded_state = assert_ok!(client.smc_load(address).await);
     let cell = assert_ok!(loaded_state.conn.smc_get_state(loaded_state.id).await);
     log::info!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}", cell);
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_get_block_header_works() {
+async fn client_get_block_header_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
@@ -206,10 +216,11 @@ async fn client_get_block_header_works() {
     let block_id_ext = assert_ok!(client.lookup_block(1, &block_id, 0, 0).await);
     let r = assert_ok!(client.get_block_header(&block_id_ext).await);
     log::info!("{:?}", r);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_client_blocks_get_transactions() {
+async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
@@ -250,10 +261,11 @@ async fn test_client_blocks_get_transactions() {
             log::info!("Tx: {:?}", tx.transactions[0])
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_client_blocks_get_transactions_ext() {
+async fn test_client_blocks_get_transactions_ext() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
@@ -290,19 +302,21 @@ async fn test_client_blocks_get_transactions_ext() {
             log::info!("Tx: {:?}", tx.transactions[0])
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_client_lite_server_get_info() {
+async fn test_client_lite_server_get_info() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_testnet_client().await;
     let info: LiteServerInfo = assert_ok!(client.lite_server_get_info().await);
 
     log::info!("{:?}", info);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_config_param() {
+async fn test_get_config_param() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
     let info = assert_ok!(client.get_config_param(0u32, 34u32).await);
@@ -311,21 +325,23 @@ async fn test_get_config_param() {
     let config_cell = assert_ok!(bag.single_root());
     let mut parser = config_cell.parser();
     let n = assert_ok!(parser.load_u8(8));
-    assert!(n == 0x12u8);
+    assert_eq!(n, 0x12u8);
+    Ok(())
 }
 
 #[tokio::test]
-pub async fn test_get_block_header() {
+pub async fn test_get_block_header() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
     let seqno = info.last;
     let headers = assert_ok!(client.get_block_header(&seqno).await);
     log::info!("{:?}", headers);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_shard_tx_ids() {
+async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
@@ -333,10 +349,11 @@ async fn test_get_shard_tx_ids() {
     assert!(!shards.shards.is_empty());
     let ids = assert_ok!(client.get_shard_tx_ids(&shards.shards[0]).await);
     log::info!("{:?}", ids);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_shard_transactions_works() {
+async fn test_get_shard_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
     let (_, info) = assert_ok!(client.get_masterchain_info().await);
@@ -345,24 +362,21 @@ async fn test_get_shard_transactions_works() {
     let txs = assert_ok!(client.get_shard_transactions(&shards.shards[0]).await);
     assert!(!txs.is_empty());
     log::info!("{:?}", txs);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_shard_transactions_parse_address_correctly() {
+async fn test_get_shard_transactions_parse_address_correctly() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_mainnet_client().await;
-    assert_ok!(client.sync().await);
+    client.sync().await?;
     // manually selected block with particular addresses format in transactions
     let block_shard = BlockIdExt {
         workchain: -1,
         shard: -9223372036854775808,
         seqno: 39812357,
-        root_hash: STANDARD
-            .decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")
-            .unwrap(),
-        file_hash: STANDARD
-            .decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")
-            .unwrap(),
+        root_hash: STANDARD.decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")?,
+        file_hash: STANDARD.decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")?,
     };
     let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
     assert!(!txs.is_empty());
@@ -372,38 +386,36 @@ async fn test_get_shard_transactions_parse_address_correctly() {
         workchain: -1,
         shard: -9223372036854775808,
         seqno: 39812359,
-        root_hash: STANDARD
-            .decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")
-            .unwrap(),
-        file_hash: STANDARD
-            .decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")
-            .unwrap(),
+        root_hash: STANDARD.decode("WFgmnfd3wuQR9HydL54EjcuDvLYM/SIwDbDxbNzDyjU=")?,
+        file_hash: STANDARD.decode("scgMz5C3n0uBeb2pdf2e8/BWlfzTB8FcRsNvvHgXKYM=")?,
     };
 
     assert!(client
         .get_shard_transactions(&not_a_block_shard)
         .await
         .is_err());
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_get_shards_transactions() {
+async fn test_get_shards_transactions() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
+    let (_, info) = client.get_masterchain_info().await?;
     let shards = assert_ok!(client.get_block_shards(&info.last).await);
     assert!(!shards.shards.is_empty());
     let shards_txs = assert_ok!(client.get_shards_transactions(&shards.shards).await);
     for s in shards_txs {
         log::info!("{:?} : {:?}", s.0, s.1);
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_missing_block_error() {
+async fn test_missing_block_error() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_testnet_client().await;
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
+    let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -417,13 +429,14 @@ async fn test_missing_block_error() {
             break;
         };
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_first_block_error() {
+async fn test_first_block_error() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_archive_testnet_client().await;
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
+    let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -431,13 +444,15 @@ async fn test_first_block_error() {
     };
     let res = client.lookup_block(1, &block_id, 0, 0).await;
     log::info!("{:?}", res);
+    assert_ok!(res);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_keep_connection_alive() {
+async fn test_keep_connection_alive() -> anyhow::Result<()> {
     common::init_logging();
     let client = &common::new_archive_testnet_client().await;
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
+    let (_, info) = client.get_masterchain_info().await?;
     let next_block_id = BlockId {
         workchain: info.last.workchain,
         shard: info.last.shard,
@@ -456,10 +471,11 @@ async fn test_keep_connection_alive() {
     let r3 = conn.lookup_block(1, &first_block_id, 0, 0).await;
     log::info!("R1: {:?}", r3);
     tokio::time::sleep(Duration::from_secs(1)).await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_mainnet_works() {
+async fn client_mainnet_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = assert_ok!(
         TonClient::builder()
@@ -468,11 +484,11 @@ async fn client_mainnet_works() {
             .build()
             .await
     );
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
-    let shards = assert_ok!(client.get_block_shards(&info.last).await);
-    let blocks_header = assert_ok!(client.get_block_header(&info.last).await);
+    let (_, info) = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
+    let blocks_header = client.get_block_header(&info.last).await?;
     assert!(!shards.shards.is_empty());
-    let shards_txs = assert_ok!(client.get_shards_transactions(&shards.shards).await);
+    let shards_txs = client.get_shards_transactions(&shards.shards).await?;
     for s in shards_txs {
         log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1.len());
     }
@@ -481,10 +497,11 @@ async fn client_mainnet_works() {
         info.last.seqno,
         blocks_header
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_testnet_works() {
+async fn client_testnet_works() -> anyhow::Result<()> {
     common::init_logging();
     let client = assert_ok!(
         TonClient::builder()
@@ -493,11 +510,11 @@ async fn client_testnet_works() {
             .build()
             .await
     );
-    let (_, info) = assert_ok!(client.get_masterchain_info().await);
-    let shards = assert_ok!(client.get_block_shards(&info.last).await);
+    let (_, info) = client.get_masterchain_info().await?;
+    let shards = client.get_block_shards(&info.last).await?;
     assert!(!shards.shards.is_empty());
-    let shards_txs = assert_ok!(client.get_shards_transactions(&shards.shards).await);
-    let blocks_header = assert_ok!(client.get_block_header(&info.last).await);
+    let shards_txs = client.get_shards_transactions(&shards.shards).await?;
+    let blocks_header = client.get_block_header(&info.last).await?;
     for s in shards_txs {
         log::info!(" BlockId: {:?}\n Transactions: {:?}", s.0, s.1);
     }
@@ -507,19 +524,20 @@ async fn client_testnet_works() {
         info.last.seqno,
         blocks_header
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_get_libraries() {
+async fn client_smc_get_libraries() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let library_hash_str = "TwFxJywhW4v4/urEaoV2iKS2X0/mH4IoYx9ifQ7anQA=";
     let library_hash = TonLibraryId {
-        id: assert_ok!(STANDARD.decode(library_hash_str)),
+        id: STANDARD.decode(library_hash_str)?,
     };
 
     let library_list = &[library_hash];
-    let smc_library_result = assert_ok!(client.smc_get_libraries(library_list).await);
+    let smc_library_result = client.smc_get_libraries(library_list).await?;
 
     log::info!(
         "smc_library_result {:?}",
@@ -531,14 +549,13 @@ async fn client_smc_get_libraries() {
     );
 
     // we just test that library code is a valid boc:
-    let boc = assert_ok!(BagOfCells::parse(
-        smc_library_result.result[0].data.as_slice()
-    ));
+    let boc = BagOfCells::parse(smc_library_result.result[0].data.as_slice())?;
     log::info!("smc_library_result {:?}", boc);
+    Ok(())
 }
 
 #[tokio::test]
-async fn client_smc_get_libraries_ext() {
+async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
     common::init_logging();
 
     let client = common::new_mainnet_client().await;
@@ -546,7 +563,7 @@ async fn client_smc_get_libraries_ext() {
     let address = assert_ok!(TonAddress::from_base64_url(
         "EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8"
     )); //jetton master
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let factory = TonContractFactory::builder(&client).build().await?;
     let contract = factory.get_contract(&address);
     let code = &assert_ok!(contract.get_account_state().await).code;
     let library_query = SmcLibraryQueryExt::ScanBoc {
@@ -567,15 +584,16 @@ async fn client_smc_get_libraries_ext() {
         assert_ok!(STANDARD.decode(library_hash))
     );
 
-    let boc = assert_ok!(BagOfCells::parse(&smc_libraries_ext_result.dict_boc));
-    let cell = assert_ok!(boc.single_root());
+    let boc = BagOfCells::parse(&smc_libraries_ext_result.dict_boc)?;
+    let cell = boc.single_root()?;
     let dict_loader = GenericDictLoader::new(key_extractor_256bit, value_extractor_cell, 256);
     let dict = assert_ok!(cell.load_generic_dict(&dict_loader));
 
     log::info!("DICT: {:?}", dict);
 
     assert_eq!(dict.len(), 1);
-    assert!(dict.contains_key(assert_ok!(STANDARD.decode(library_hash)).as_slice()));
+    assert!(dict.contains_key(STANDARD.decode(library_hash)?.as_slice()));
+    Ok(())
 }
 
 // This test fails on tonlib 2023.6, 2024.1 and 2024.3 either with:
@@ -590,13 +608,13 @@ async fn client_smc_get_libraries_ext() {
 //     (signal: 11, SIGSEGV: invalid memory reference)
 #[ignore]
 #[tokio::test]
-async fn dropping_invoke_test() {
+async fn dropping_invoke_test() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let address = assert_ok!(TonAddress::from_base64_url(
         "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
     ));
-    assert_ok!(client.get_raw_account_state(&address).await);
+    client.get_raw_account_state(&address).await?;
 
     let f = [
         abort_batch_invoke_get_raw_account_state(&client, Duration::from_millis(100)),
@@ -605,9 +623,13 @@ async fn dropping_invoke_test() {
     ];
 
     join_all(f).await;
+    Ok(())
 }
 
-async fn abort_batch_invoke_get_raw_account_state(client: &TonClient, dt: Duration) {
+async fn abort_batch_invoke_get_raw_account_state(
+    client: &TonClient,
+    dt: Duration,
+) -> anyhow::Result<()> {
     let address = assert_ok!(TonAddress::from_base64_url(
         "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
     ));
@@ -622,12 +644,13 @@ async fn abort_batch_invoke_get_raw_account_state(client: &TonClient, dt: Durati
 
     let res = result.iter().map(|r| r.is_ok()).collect::<Vec<_>>();
     log::info!("{:?}", res);
+    Ok(())
 }
 
 #[tokio::test]
-async fn archive_node_client_test() {
+async fn archive_node_client_test() -> anyhow::Result<()> {
     let tonlib_work_dir = "./var/tonlib";
-    create_dir_all(Path::new(tonlib_work_dir)).unwrap();
+    create_dir_all(Path::new(tonlib_work_dir))?;
     TonClient::set_log_verbosity_level(2);
 
     let mut client_builder = TonClientBuilder::new();
@@ -635,7 +658,8 @@ async fn archive_node_client_test() {
         .with_config(MAINNET_CONFIG)
         .with_keystore_dir(String::from(tonlib_work_dir))
         .with_connection_check(tonlib_client::client::ConnectionCheck::Archive);
-    let client = client_builder.build().await.unwrap();
-    let (_, master_info) = client.get_masterchain_info().await.unwrap();
+    let client = client_builder.build().await?;
+    let (_, master_info) = client.get_masterchain_info().await?;
     log::info!("master_info: {:?}", master_info);
+    Ok(())
 }

@@ -31,7 +31,8 @@ pub fn key_extractor_u8(bit_len: usize, key: &[u8]) -> Result<u8, TonCellError> 
 pub fn key_extractor_u16(bit_len: usize, key: &[u8]) -> Result<u16, TonCellError> {
     if bit_len == 16 {
         let arr: &[u8; 2] = key.try_into().map_err(|_| {
-            TonCellError::CellParserError("Insufficient bytes in the dictionary key.".to_string())
+            let msg = format!("Got {} bytes in key, expected 2", key.len());
+            TonCellError::CellParserError(msg)
         })?;
         Ok(u16::from_be_bytes(*arr))
     } else {
@@ -45,7 +46,8 @@ pub fn key_extractor_u16(bit_len: usize, key: &[u8]) -> Result<u16, TonCellError
 pub fn key_extractor_u32(bit_len: usize, key: &[u8]) -> Result<u32, TonCellError> {
     if bit_len == 32 {
         let arr: &[u8; 4] = key.try_into().map_err(|_| {
-            TonCellError::CellParserError("Insufficient bytes in the dictionary key.".to_string())
+            let msg = format!("Got {} bytes in key, expected 4", key.len());
+            TonCellError::CellParserError(msg)
         })?;
         Ok(u32::from_be_bytes(*arr))
     } else {
@@ -59,7 +61,8 @@ pub fn key_extractor_u32(bit_len: usize, key: &[u8]) -> Result<u32, TonCellError
 pub fn key_extractor_u64(bit_len: usize, key: &[u8]) -> Result<u64, TonCellError> {
     if bit_len == 64 {
         let arr: &[u8; 8] = key.try_into().map_err(|_| {
-            TonCellError::CellParserError("Insufficient bytes in the dictionary key.".to_string())
+            let msg = format!("Got {} bytes in key, expected 8", key.len());
+            TonCellError::CellParserError(msg)
         })?;
         Ok(u64::from_be_bytes(*arr))
     } else {
