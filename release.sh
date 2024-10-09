@@ -62,7 +62,6 @@ git checkout -b ${RELEASE_BRANCH_NAME}
 git config remote.${GITHUB_UPSTREAM_NAME}.url >&- || git remote add ${GITHUB_UPSTREAM_NAME} ${GITHUB_UPSTREAM_URL}
 git fetch ${GITHUB_UPSTREAM_NAME} main
 git merge ${GITHUB_UPSTREAM_NAME}/main
-git tag v${NEW_VERSION}
 
 echo "Upstream diff:"
 git diff ${GITHUB_UPSTREAM_NAME}/main
