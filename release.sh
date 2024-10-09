@@ -53,6 +53,7 @@ fi
 git commit -am "Release v${NEW_VERSION}"
 git tag v${NEW_VERSION}
 git push origin main
+git push origin v${NEW_VERSION}
 
 
 RELEASE_BRANCH_NAME="upstream-${NEW_VERSION}"
