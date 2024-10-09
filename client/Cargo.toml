@@ -58,3 +58,4 @@ tokio-retry.workspace = true
 tokio-test.workspace = true
 tonlib-sys.workspace = true
 tonlib-core.workspace = true
+
