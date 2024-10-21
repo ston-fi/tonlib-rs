@@ -399,7 +399,7 @@ mod tests {
     use num_traits::Zero;
 
     use crate::cell::builder::extend_and_invert_bits;
-    use crate::cell::dict::extractors::{key_extractor_u8, val_extractor_uint};
+    use crate::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
     use crate::cell::{CellBuilder, TonCellError};
     use crate::types::TonAddress;
 
@@ -682,7 +682,7 @@ mod tests {
         builder.store_dict(8, value_writer, data.clone())?;
         let cell = builder.build()?;
         let mut parser = cell.parser();
-        let parsed = parser.load_dict(8, key_extractor_u8, val_extractor_uint)?;
+        let parsed = parser.load_dict(8, key_reader_u8, val_reader_uint)?;
         assert_eq!(data, parsed);
         Ok(())
     }

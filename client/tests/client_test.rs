@@ -20,7 +20,7 @@ use tonlib_client::tl::{
     InternalTransactionId, LiteServerInfo, SmcLibraryQueryExt, TonLibraryId,
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
-use tonlib_core::cell::dict::extractors::{key_extractor_256bit, val_extractor_cell};
+use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
 use tonlib_core::cell::BagOfCells;
 use tonlib_core::types::ZERO_HASH;
 use tonlib_core::{TonAddress, TonTxId};
@@ -587,7 +587,7 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
     let cell = boc.single_root()?;
     let dict = assert_ok!(cell
         .parser()
-        .load_dict(256, key_extractor_256bit, val_extractor_cell));
+        .load_dict(256, key_reader_256bit, val_reader_cell));
 
     log::info!("DICT: {:?}", dict);
 

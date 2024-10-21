@@ -1,4 +1,4 @@
-use crate::cell::{CellBuilder, CellSlice, TonCellError};
+use crate::cell::{CellBuilder, CellParser, TonCellError};
 use crate::TonHash;
 use num_bigint::BigUint;
 use std::collections::HashMap;
@@ -11,6 +11,6 @@ pub(crate) enum LabelType {
 }
 
 pub type SnakeFormatDict = HashMap<TonHash, Vec<u8>>;
-pub type KeyExtractor<K> = fn(&BigUint) -> Result<K, TonCellError>;
-pub type ValExtractor<V> = fn(&CellSlice) -> Result<V, TonCellError>;
+pub type KeyReader<K> = fn(&BigUint) -> Result<K, TonCellError>;
+pub type ValReader<V> = fn(&mut CellParser) -> Result<V, TonCellError>;
 pub type ValWriter<V> = fn(&mut CellBuilder, V) -> Result<(), TonCellError>;

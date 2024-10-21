@@ -1,8 +1,8 @@
 use num_bigint::BigUint;
 use tokio_test::assert_ok;
 use tonlib_client::contract::{TonContractFactory, TonContractInterface};
-use tonlib_core::cell::dict::extractors::{key_extractor_u8, val_extractor_uint};
-use tonlib_core::cell::{CellSlice, TonCellError};
+use tonlib_core::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
+use tonlib_core::cell::{CellParser, TonCellError};
 use tonlib_core::TonAddress;
 
 mod common;
@@ -27,10 +27,8 @@ pub struct FarmDataParameters {
     pub status: u8,
 }
 
-fn val_extractor_farm_data_accrued(
-    cell_slice: &CellSlice,
-) -> Result<FarmDataAccrued, TonCellError> {
-    let data_cell = assert_ok!(cell_slice.reference(0));
+fn val_reader_farm_data_accrued(parser: &mut CellParser) -> Result<FarmDataAccrued, TonCellError> {
+    let data_cell = assert_ok!(parser.next_reference());
     let mut parser = data_cell.parser();
     let deposited_nanorewards = assert_ok!(parser.load_uint(150));
     let accrued_per_unit_nanorewards = assert_ok!(parser.load_uint(150));
@@ -52,10 +50,8 @@ fn val_extractor_farm_data_accrued(
     Ok(result)
 }
 
-fn val_extractor_farm_data_param(
-    cell_slice: &CellSlice,
-) -> Result<FarmDataParameters, TonCellError> {
-    let data_cell = assert_ok!(cell_slice.reference(0));
+fn val_reader_farm_data_param(parser: &mut CellParser) -> Result<FarmDataParameters, TonCellError> {
+    let data_cell = assert_ok!(parser.next_reference());
     let mut parser = data_cell.parser();
     let admin_fee = assert_ok!(parser.load_u16(16));
     let nanorewards_per_24h = assert_ok!(parser.load_uint(150));
@@ -94,11 +90,11 @@ async fn test_get_farming_minter_data() {
     }
 
     let farm_data_accrued =
-        assert_ok!(stack.stack[10].get_dict(8, key_extractor_u8, val_extractor_farm_data_accrued));
+        assert_ok!(stack.stack[10].get_dict(8, key_reader_u8, val_reader_farm_data_accrued));
     log::info!("farm_data_accrued: {:?}", farm_data_accrued);
 
     let farm_data_parameters =
-        assert_ok!(stack.stack[11].get_dict(8, key_extractor_u8, val_extractor_farm_data_param));
+        assert_ok!(stack.stack[11].get_dict(8, key_reader_u8, val_reader_farm_data_param));
     log::info!("farm_data_parameters: {:?}", farm_data_parameters);
 }
 
@@ -125,7 +121,7 @@ async fn test_get_farming_data() {
         log::info!("{:?}", element);
     }
 
-    let claimed_per_unit_dict = stack.stack[4].get_dict(8, key_extractor_u8, val_extractor_uint);
+    let claimed_per_unit_dict = stack.stack[4].get_dict(8, key_reader_u8, val_reader_uint);
 
     log::info!("{:?}", claimed_per_unit_dict);
 }

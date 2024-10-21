@@ -182,7 +182,9 @@ where
         let key_big = BigUint::from(key);
         let received_len_bits = key_big.bits();
         if received_len_bits as usize > key_len_bits {
-            let msg = format!("too big key, max_len: {key_len_bits}, got: {received_len_bits}");
+            let msg = format!(
+                "Invalid key length: Expected max_len={key_len_bits}, got len={received_len_bits}"
+            );
             return Err(InvalidInput(msg));
         }
         // add leading bit to maintain proper bits length

@@ -1,14 +1,14 @@
 mod builder;
-pub mod extractors;
 mod leading_bit_utils;
 mod parser;
+pub mod predefined_readers;
+pub mod predefined_writers;
 mod types;
-pub mod writers;
 
 pub(crate) use builder::DictBuilder;
 pub(crate) use parser::DictParser;
 
-pub use types::{KeyExtractor, SnakeFormatDict, ValExtractor, ValWriter};
+pub use types::{KeyReader, SnakeFormatDict, ValReader, ValWriter};
 
 #[cfg(test)]
 mod tests;

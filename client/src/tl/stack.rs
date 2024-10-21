@@ -5,7 +5,7 @@ use std::hash::Hash;
 
 use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tonlib_core::cell::dict::{KeyExtractor, ValExtractor};
+use tonlib_core::cell::dict::{KeyReader, ValReader};
 use tonlib_core::cell::BagOfCells;
 use tonlib_core::TonAddress;
 
@@ -167,8 +167,8 @@ impl TvmStack {
         &self,
         index: usize,
         key_size: usize,
-        key_extractor: KeyExtractor<K>,
-        val_extractor: ValExtractor<V>,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
     ) -> Result<HashMap<K, V>, TvmStackError>
     where
         K: Hash + Eq + Clone,
@@ -176,7 +176,7 @@ impl TvmStack {
         let boc = self.get_boc(index)?;
         let cell = boc.single_root()?;
         let mut parser = cell.parser();
-        Ok(parser.load_dict(key_size, key_extractor, val_extractor)?)
+        Ok(parser.load_dict(key_size, key_reader, val_reader)?)
     }
 
     fn get<T>(

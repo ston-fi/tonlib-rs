@@ -1,7 +1,7 @@
 use super::types::LabelType;
-use crate::cell::dict::{KeyExtractor, ValExtractor};
+use crate::cell::dict::{KeyReader, ValReader};
 use crate::cell::TonCellError::InvalidInput;
-use crate::cell::{CellBuilder, CellParser, CellSlice, TonCellError};
+use crate::cell::{CellParser, TonCellError};
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive};
 use std::collections::HashMap;
@@ -9,21 +9,21 @@ use std::hash::Hash;
 
 pub(crate) struct DictParser<K, V> {
     key_len_bits: usize,
-    key_extractor: KeyExtractor<K>,
-    val_extractor: ValExtractor<V>,
+    key_reader: KeyReader<K>,
+    val_reader: ValReader<V>,
     cur_key_prefix: BigUint, // store leading 1 to determinate len properly
 }
 
 impl<K: Eq + Hash, V> DictParser<K, V> {
     pub(crate) fn new(
         key_len_bits: usize,
-        key_extractor: KeyExtractor<K>,
-        val_extractor: ValExtractor<V>,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
     ) -> DictParser<K, V> {
         DictParser {
             key_len_bits,
-            key_extractor,
-            val_extractor,
+            key_reader,
+            val_reader,
             cur_key_prefix: BigUint::one(),
         }
     }
@@ -86,8 +86,8 @@ impl<K: Eq + Hash, V> DictParser<K, V> {
         if self.cur_key_prefix.bits() as usize == (self.key_len_bits + 1) {
             let mut key = BigUint::one() << self.key_len_bits;
             key ^= &self.cur_key_prefix;
-            let user_key = (self.key_extractor)(&key)?;
-            let user_value = self.extract_value(parser)?;
+            let user_key = (self.key_reader)(&key)?;
+            let user_value = (self.val_reader)(parser)?;
             dst.insert(user_key, user_value);
         } else {
             let left_ref = parser.next_reference()?;
@@ -113,16 +113,6 @@ impl<K: Eq + Hash, V> DictParser<K, V> {
             LabelType::Short
         };
         Ok(label)
-    }
-
-    fn extract_value(&self, parser: &mut CellParser) -> Result<V, TonCellError> {
-        let mut value_cell = CellBuilder::new();
-        value_cell.store_remaining_bits(parser)?;
-        while let Ok(cell_ref) = parser.next_reference() {
-            value_cell.store_reference(&cell_ref)?;
-        }
-        let cell_slice = CellSlice::full_cell(value_cell.build()?)?;
-        (self.val_extractor)(&cell_slice)
     }
 
     fn remain_suffix_bit_len(&self) -> usize {

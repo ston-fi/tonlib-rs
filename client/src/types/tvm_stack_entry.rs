@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use num_bigint::{BigInt, BigUint};
 use strum::Display;
-use tonlib_core::cell::dict::{KeyExtractor, ValExtractor};
+use tonlib_core::cell::dict::{KeyReader, ValReader};
 use tonlib_core::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice};
 use tonlib_core::TonAddress;
 
@@ -131,8 +131,8 @@ impl TvmStackEntry {
     pub fn get_dict<K, V>(
         &self,
         key_len: usize,
-        key_extractor: KeyExtractor<K>,
-        val_extractor: ValExtractor<V>,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
     ) -> Result<HashMap<K, V>, StackParseError>
     where
         K: Hash + Eq + Clone,
@@ -140,7 +140,7 @@ impl TvmStackEntry {
         match self {
             TvmStackEntry::Cell(cell) => {
                 let mut parser = cell.parser();
-                Ok(parser.load_dict(key_len, key_extractor, val_extractor)?)
+                Ok(parser.load_dict(key_len, key_reader, val_reader)?)
             }
 
             t => Err(StackParseError::InvalidEntryType {

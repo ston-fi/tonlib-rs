@@ -1,31 +1,31 @@
 use crate::cell::TonCellError::{InternalError, InvalidInput};
-use crate::cell::{Cell, CellSlice, TonCellError};
+use crate::cell::{ArcCell, Cell, CellParser, TonCellError};
 use crate::types::TON_HASH_BYTES;
 use crate::TonHash;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
 
-pub fn key_extractor_u8(raw_key: &BigUint) -> Result<u8, TonCellError> {
+pub fn key_reader_u8(raw_key: &BigUint) -> Result<u8, TonCellError> {
     validate_bit_len(raw_key, 8)?;
     ok_or_err(raw_key.to_u8())
 }
 
-pub fn key_extractor_u16(raw_key: &BigUint) -> Result<u16, TonCellError> {
+pub fn key_reader_u16(raw_key: &BigUint) -> Result<u16, TonCellError> {
     validate_bit_len(raw_key, 16)?;
     ok_or_err(raw_key.to_u16())
 }
 
-pub fn key_extractor_u32(raw_key: &BigUint) -> Result<u32, TonCellError> {
+pub fn key_reader_u32(raw_key: &BigUint) -> Result<u32, TonCellError> {
     validate_bit_len(raw_key, 32)?;
     ok_or_err(raw_key.to_u32())
 }
 
-pub fn key_extractor_u64(raw_key: &BigUint) -> Result<u64, TonCellError> {
+pub fn key_reader_u64(raw_key: &BigUint) -> Result<u64, TonCellError> {
     validate_bit_len(raw_key, 64)?;
     ok_or_err(raw_key.to_u64())
 }
 
-pub fn key_extractor_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
+pub fn key_reader_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
     validate_bit_len(val, TON_HASH_BYTES * 8)?;
     let digits = val.to_bytes_le();
     let key_digits = if digits.len() < 32 {
@@ -42,39 +42,37 @@ pub fn key_extractor_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
     Ok(slice)
 }
 
-pub fn key_extractor_uint(raw_key: &BigUint) -> Result<BigUint, TonCellError> {
+pub fn key_reader_uint(raw_key: &BigUint) -> Result<BigUint, TonCellError> {
     Ok(raw_key.clone())
 }
 
-pub fn key_extractor_decimal_string(raw_key: &BigUint) -> Result<String, TonCellError> {
-    Ok(key_extractor_uint(raw_key)?.to_str_radix(10))
+pub fn key_reader_decimal_string(raw_key: &BigUint) -> Result<String, TonCellError> {
+    Ok(key_reader_uint(raw_key)?.to_str_radix(10))
 }
 
-pub fn val_extractor_cell(cell_slice: &CellSlice) -> Result<Cell, TonCellError> {
-    cell_slice.into_cell()
+pub fn val_reader_cell(parser: &mut CellParser) -> Result<Cell, TonCellError> {
+    parser.load_remaining()
 }
 
-pub fn val_extractor_snake_formatted_string(
-    cell_slice: &CellSlice,
-) -> Result<Vec<u8>, TonCellError> {
+pub fn val_reader_ref_cell(parser: &mut CellParser) -> Result<ArcCell, TonCellError> {
+    parser.next_reference()
+}
+
+pub fn val_reader_snake_formatted_string(parser: &mut CellParser) -> Result<Vec<u8>, TonCellError> {
     let mut buffer = Vec::new();
-    cell_slice.reference(0)?.parse_snake_data(&mut buffer)?;
+    parser.next_reference()?.parse_snake_data(&mut buffer)?;
     Ok(buffer)
 }
 
-pub fn val_extractor_uint(cell_slice: &CellSlice) -> Result<BigUint, TonCellError> {
-    let bit_len = cell_slice.end_bit - cell_slice.start_bit;
-    let mut parser = cell_slice.cell.parser();
-    parser.skip_bits(cell_slice.start_bit)?;
-    let result = parser.load_uint(bit_len)?;
+pub fn val_reader_uint(parser: &mut CellParser) -> Result<BigUint, TonCellError> {
+    let remaining = parser.remaining_bits();
+    let result = parser.load_uint(remaining)?;
     Ok(result)
 }
 
-pub fn val_extractor_int(cell_slice: &CellSlice) -> Result<BigInt, TonCellError> {
-    let bit_len = cell_slice.end_bit - cell_slice.start_bit;
-    let mut parser = cell_slice.cell.parser();
-    parser.skip_bits(cell_slice.start_bit)?;
-    let result = parser.load_int(bit_len)?;
+pub fn val_reader_int(parser: &mut CellParser) -> Result<BigInt, TonCellError> {
+    let remaining = parser.remaining_bits();
+    let result = parser.load_int(remaining)?;
     Ok(result)
 }
 

@@ -4,8 +4,8 @@ use std::cmp::max;
 use std::sync::Arc;
 
 #[allow(dead_code)]
-pub fn val_writer_ref_cell(builder: &mut CellBuilder, val: &Arc<Cell>) -> Result<(), TonCellError> {
-    builder.store_reference(val)?;
+pub fn val_writer_ref_cell(builder: &mut CellBuilder, val: Arc<Cell>) -> Result<(), TonCellError> {
+    builder.store_reference(&val)?;
     Ok(())
 }
 
