@@ -52,6 +52,7 @@ test:
     - cargo build --release --features "state_cache"
     - cargo build --release --features "emulate_get_method"
     - cargo test --package tonlib-core
+    - cargo test --doc
     - cargo test --lib
     - cargo test --lib --features "state_cache"
     - cargo test --lib --features "emulate_get_method"

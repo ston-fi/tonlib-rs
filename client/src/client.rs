@@ -4,9 +4,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use crate::client::recent_init_block::get_recent_init_block;
-use crate::config::TonConfig;
-use crate::tl::*;
 use async_trait::async_trait;
 pub use block_functions::*;
 pub use block_stream::*;
@@ -21,6 +18,10 @@ use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 pub use types::*;
+
+use crate::client::recent_init_block::get_recent_init_block;
+use crate::config::TonConfig;
+use crate::tl::*;
 
 mod block_functions;
 mod block_stream;

@@ -1,11 +1,12 @@
-use crate::client::recent_init_block::lite::Connection;
-use crate::config::LiteEndpoint;
-use crate::tl::BlockIdExt;
 use anyhow::bail;
 use futures::future::join_all;
 use ton_liteapi::tl::response::BlockData;
 use tonlib_core::cell::BagOfCells;
 use tonlib_core::constants::{MASTERCHAIN_ID, SHARD_FULL};
+
+use crate::client::recent_init_block::lite::Connection;
+use crate::config::LiteEndpoint;
+use crate::tl::BlockIdExt;
 
 const BLOCK_INFO_TAG: u32 = 0x9bc7a987;
 
@@ -71,13 +72,13 @@ fn parse_key_block_seqno(block: &BlockData) -> anyhow::Result<u32> {
 }
 
 mod lite {
-    use crate::config::LiteEndpoint;
-    use adnl::AdnlPeer;
-    use base64::prelude::BASE64_STANDARD;
-    use base64::Engine;
     use std::error::Error;
     use std::net::{Ipv4Addr, SocketAddrV4};
     use std::time::Duration;
+
+    use adnl::AdnlPeer;
+    use base64::prelude::BASE64_STANDARD;
+    use base64::Engine;
     use tokio::net::TcpStream;
     use tokio::time::timeout;
     use tokio_tower::multiplex::Client;
@@ -92,6 +93,8 @@ mod lite {
     use ton_liteapi::types::LiteError;
     use tonlib_core::constants::{MASTERCHAIN_ID, SHARD_FULL};
     use tower::{Service, ServiceBuilder, ServiceExt};
+
+    use crate::config::LiteEndpoint;
 
     const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
     const REQ_TIMEOUT: Duration = Duration::from_secs(10);
