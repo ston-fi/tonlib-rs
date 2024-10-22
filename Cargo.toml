@@ -51,7 +51,6 @@ tokio-test = "0.4"
 ton_liteapi = { git = "https://github.com/ston-fi/lite-client", branch = "async", version = "0.1.0" }
 adnl = "2.0"
 tonlib-sys = "=2024.9.0"
-bitvec = "1.0"
 tokio-tower = "0.6.0"
 tower = "0.5.1"
 
