@@ -1,6 +1,7 @@
-use crate::tl::BlockIdExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::tl::BlockIdExt;
 
 pub const MAINNET_CONFIG: &str = include_str!("../resources/config/global.config.json");
 pub const TESTNET_CONFIG: &str = include_str!("../resources/config/testnet-global.config.json");

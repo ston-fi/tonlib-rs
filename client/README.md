@@ -1,24 +1,27 @@
-# Rust SDK for The Open Network
+# Rust client for The Open Network
 
-Rust SDK for [The Open Network](https://ton.org/)
+Rust client for [The Open Network](https://ton.org/)
 
 ## Features
 
-* Rust SDK for The Open Network
+* Rust client for The Open Network
 * Using `tonlibjson` as data provider
-* Support parsing and generation of Cells methods for more convenient interaction with data structures
-* Support of Wallet versions (3, 3 revision 2, 4 revision 2)
-* Derive wallet address
-* Support of TON Mnemonics
-* NaCL-compatible Ed25519 signing of transactions
 * Support jetton functions: getting of jetton data and wallet address for jetton
 * Support internal and external jetton metadata loading
 * Connection pooling & retries support for better server-level interaction
 * Support of IPFS jetton metadata
 
+### Feature flags
+- `state_cache` - Enables caching of ton contract states. This feature is recommended to use if the contract state received from blockchain is reused multiple times. 
+- `emulate_get_method` - Enables the usage of emulator to run get_methods locally. 
+- `no_avx512` - Forces dependent tonlib-sys to be built without avx512 instruction set.
+- `with_debug_info` - Enables debug information and stack-trace received from underlying  tonlibjson C++ code.
+
+
 ## Dependencies
 
 `tonlib-sys` - https://github.com/ston-fi/tonlib-sys
+`tonlib-core` - https://github.com/ston-fi/tonlib-rs
 
 ## Prerequisites
 
@@ -32,13 +35,6 @@ For macOS:
 brew install readline secp256k1 ccache pkgconfig cmake libsodium
 ```
 
-### Build library
-
-You can build the library using the following command:
-
-```bash
-cargo build
-```
 
 ## Usage
 
@@ -46,63 +42,23 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib = "0.19"
+tonlib-client = "0.19"
 ```
 
 Then, in your Rust code, you can import the library with:
 
 ```rust
-use tonlib;
+use tonlib_client;
 ```
 
-### Cell
-
-Creating a `Cell` and writing data to it:
-
-``` rust
-use anyhow::anyhow;
-use tonlib::address::TonAddress;
-use tonlib::cell::CellBuilder;
-
-fn write_cell() -> anyhow::Result<()> {
-let mut writer = CellBuilder::new();
-let addr = TonAddress::from_base64_url("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
-let cell = writer
-    .store_u32(32, 0xFAD45AADu32)?
-    .store_bit(true)?
-    .store_u8(8, 234u8)?
-    .store_slice(&[0xFA, 0xD4, 0x5A, 0xAD, 0xAA, 0x12, 0xFF, 0x45])?
-    .store_address(&addr)?
-    .store_string("Hello, TON")?
-    .build()?;
-    # Ok(())
-}
-```
-
- Reading data from a `Cell`:
-
-```rust
-use tonlib::cell::Cell;
-fn read_cell(cell: Cell) -> anyhow::Result<()> {
-    let mut reader = cell.parser();
-    let u32_value = reader.load_u32(32)?;
-    let bit_value = reader.load_bit()?;
-    let u8_value = reader.load_u8(8)?;
-    let bytes_value = reader.load_bytes(8)?;
-    let address_value = reader.load_address()?;
-    let str_value = reader.ensure_empty()?;
-    Ok(())
-}
-```
 
 ### TON blockchain client
 
 To call methods, create a client:
 
 ```rust
-
-use tonlib::client::TonClient;
-use tonlib::client::TonClientBuilder;
+use tonlib_client::client::TonClient;
+use tonlib_client::client::TonClientBuilder;
 async fn create_client()-> anyhow::Result<()>{
     TonClient::set_log_verbosity_level(2); //setup of logging level
     let client = TonClientBuilder::new()
@@ -121,9 +77,9 @@ Ok(())
 By default, the connection is made to mainnet. But you can also specify a test network when creating the client:
 
 ```rust
-use tonlib::config::TESTNET_CONFIG;
-use tonlib::client::TonConnectionParams;
-use tonlib::client::TonClientBuilder;
+use tonlib_client::config::TESTNET_CONFIG;
+use tonlib_client::client::TonConnectionParams;
+use tonlib_client::client::TonClientBuilder;
 async fn create_client_with_conn_params()-> anyhow::Result<()>{
     let client = TonClientBuilder::new()
         .with_connection_params(&TonConnectionParams {
@@ -132,6 +88,7 @@ async fn create_client_with_conn_params()-> anyhow::Result<()>{
             use_callbacks_for_network: false,
             ignore_cache: false,
             keystore_dir: None,
+            ..Default::default()
         })
         .with_pool_size(10)
         .build()
@@ -144,15 +101,17 @@ async fn create_client_with_conn_params()-> anyhow::Result<()>{
 After creating the client, you can call methods on the TON blockchain:
 
 ```rust
-use tonlib::address::TonAddress;
-use tonlib::tl::InternalTransactionId;
-use tonlib::tl::NULL_BLOCKS_ACCOUNT_TRANSACTION_ID;
-use tonlib::tl::BlocksTransactions;
-use tonlib::tl::BlocksShards;
-use tonlib::tl::BlockId;
-use tonlib::tl::BlocksMasterchainInfo;
-use tonlib::client::TonClient;
-use tonlib::client::TonClientInterface;
+use tonlib_core::TonAddress;
+use tonlib_client::tl::InternalTransactionId;
+use tonlib_core::types::ZERO_HASH;
+use tonlib_client::tl::NULL_BLOCKS_ACCOUNT_TRANSACTION_ID;
+use tonlib_client::tl::BlocksTransactions;
+use tonlib_client::tl::BlocksShards;
+use tonlib_client::tl::BlockId;
+use tonlib_client::tl::BlocksMasterchainInfo;
+use tonlib_client::client::TonClient;
+use tonlib_client::client::TonClientInterface;
+use tonlib_core::TonHash;
 
 async fn call_blockchain_methods()-> anyhow::Result<()>{
     let client = TonClient::builder().build().await?;
@@ -181,7 +140,7 @@ async fn call_blockchain_methods()-> anyhow::Result<()>{
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let mut t: Hash256Bit = ZERO_HASH;
+            let mut t: TonHash = ZERO_HASH;
             t.clone_from_slice(tx_id.account.as_slice());
             let addr = TonAddress::new(workchain, &t);
             let id = InternalTransactionId {
@@ -201,9 +160,9 @@ async fn call_blockchain_methods()-> anyhow::Result<()>{
 You can get the account state for any contract:
 
 ```rust
-use tonlib::address::TonAddress;
-use tonlib::client::TonClient;
-use crate::tonlib::client::TonClientInterface;
+use tonlib_core::TonAddress;
+use tonlib_client::client::TonClient;
+use crate::tonlib_client::client::TonClientInterface;
 
 async fn get_state()-> anyhow::Result<()>{  
     let client = TonClient::builder().build().await?;
@@ -224,10 +183,10 @@ async fn get_state()-> anyhow::Result<()>{
 Methods for working with tokens and wallets:
 
 ``` rust
-use tonlib::client::TonClient;
-use tonlib::contract::TonContractFactory;
-use crate::tonlib::contract::JettonMasterContract;
-use crate::tonlib::contract::JettonWalletContract;
+use tonlib_client::client::TonClient;
+use tonlib_client::contract::TonContractFactory;
+use tonlib_client::contract::JettonMasterContract;
+use tonlib_client::contract::JettonWalletContract;
 
 async fn method_call() -> anyhow::Result<()> { 
     let client = TonClient::builder().build().await?;
@@ -248,11 +207,11 @@ async fn method_call() -> anyhow::Result<()> {
 To load the metadata of the token, one may use generic `MetaLoader` and it type aliases: `JettonMetaLoader, NftItemMetaLoader NftColletionMetaLoader`:
 
 ```rust
-use tonlib::client::TonClient;
-use tonlib::contract::TonContractFactory;
-use tonlib::contract::JettonMasterContract;
-use tonlib::meta::JettonMetaLoader;
-use tonlib::meta::LoadMeta;
+use tonlib_client::client::TonClient;
+use tonlib_client::contract::TonContractFactory;
+use tonlib_client::contract::JettonMasterContract;
+use tonlib_client::meta::JettonMetaLoader;
+use tonlib_client::meta::LoadMeta;
 
 async fn load_meta() -> anyhow::Result<()> { 
     let client = TonClient::builder().build().await?;
@@ -271,10 +230,10 @@ Ok(())
 Get the wallet address for the token:
 
 ```rust
-use tonlib::address::TonAddress;
-use tonlib::client::TonClient;
-use tonlib::contract::TonContractFactory;
-use tonlib::contract::JettonMasterContract; 
+use tonlib_core::TonAddress;
+use tonlib_client::client::TonClient;
+use tonlib_client::contract::TonContractFactory;
+use tonlib_client::contract::JettonMasterContract; 
 
 async fn get_wallet_address() -> anyhow::Result<()> {
 
@@ -296,8 +255,8 @@ async fn get_wallet_address() -> anyhow::Result<()> {
 Create key pair from secret phrase ( )
 
 ```rust
-use tonlib::mnemonic::Mnemonic;
-use tonlib::mnemonic::KeyPair;
+use tonlib_core::mnemonic::Mnemonic;
+use tonlib_core::mnemonic::KeyPair;
 async fn create_key_pair() -> anyhow::Result<()> {
     let mnemonic = Mnemonic::new(
         vec![
@@ -320,20 +279,23 @@ Create a jetton transfer:
 
 use num_bigint::BigUint;
 use std::time::SystemTime;
-
-use tonlib::address::TonAddress;
-use tonlib::cell::BagOfCells;
-use tonlib::client::TonClient;
-use tonlib::client::TonClientInterface;
-use tonlib::contract::TonContractFactory;
-use tonlib::contract::JettonMasterContract;
-use tonlib::message::JettonTransferMessage;
-
-use tonlib::message::TransferMessage;
-use tonlib::mnemonic::KeyPair;
-use tonlib::mnemonic::Mnemonic;
-use tonlib::wallet::TonWallet;
-use tonlib::wallet::WalletVersion;
+use std::sync::Arc;
+use tonlib_core::TonAddress;
+use tonlib_core::cell::BagOfCells;
+use tonlib_client::client::TonClient;
+use tonlib_client::client::TonClientInterface;
+use tonlib_client::contract::TonContractFactory;
+use tonlib_client::contract::JettonMasterContract;
+use tonlib_core::message::JettonTransferMessage;
+use tonlib_core::message::TransferMessage;
+use tonlib_core::message::TonMessage;
+use tonlib_core::message::HasOpcode;
+use tonlib_core::mnemonic::KeyPair;
+use tonlib_core::mnemonic::Mnemonic;
+use tonlib_core::wallet::TonWallet;
+use tonlib_core::wallet::WalletVersion;
+use tonlib_core::message::CommonMsgInfo;
+use tonlib_core::message::ExternalIncomingMessage;
 
 async fn create_jetton_transfer() -> anyhow::Result<()> {
 
@@ -363,15 +325,21 @@ async fn create_jetton_transfer() -> anyhow::Result<()> {
         .with_response_destination(&self_address)
         .build()?;
     let ton_amount = BigUint::from(200000000u64); // 0.2 TON
-    let transfer = TransferMessage::new(&src, &ton_amount)
-        .with_data(jetton_transfer)
+    let external_msg_info = ExternalIncomingMessage{
+        src,
+        dest,
+        import_fee: ton_amount,
+    };
+    let common_msg_info = CommonMsgInfo::ExternalIncomingMessage(external_msg_info);
+    let transfer = TransferMessage::new(common_msg_info)
+        .with_data(jetton_transfer.into())
         .build()?;
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs() as u32;
-    let body = wallet.create_external_body(now + 60, seqno.try_into().unwrap(), vec![transfer])?;
+    let body = wallet.create_external_body(now + 60, seqno.try_into().unwrap(), vec![Arc::new(transfer)])?;
     let signed = wallet.sign_external_body(&body)?;
-    let wrapped = wallet.wrap_signed_body(signed)?;
+    let wrapped = wallet.wrap_signed_body(signed, true)?;
     let boc = BagOfCells::from_root(wrapped);
     let tx = boc.serialize(true)?;
 
@@ -388,17 +356,20 @@ Create a simple transfer:
 use anyhow::anyhow;
 use num_bigint::BigUint;
 use std::time::SystemTime;
+use std::sync::Arc;
 
-use tonlib::address::TonAddress;
-use tonlib::cell::BagOfCells;
-use tonlib::message::TransferMessage;
-use tonlib::wallet::TonWallet;
-use tonlib::client::TonClient;
-use tonlib::client::TonClientInterface;
-use tonlib::mnemonic::KeyPair;
-use tonlib::mnemonic::Mnemonic;
-use tonlib::wallet::WalletVersion;
-
+use tonlib_core::TonAddress;
+use tonlib_core::cell::BagOfCells;
+use tonlib_core::message::TransferMessage;
+use tonlib_core::wallet::TonWallet;
+use tonlib_client::client::TonClient;
+use tonlib_client::client::TonClientInterface;
+use tonlib_core::mnemonic::KeyPair;
+use tonlib_core::mnemonic::Mnemonic;
+use tonlib_core::wallet::WalletVersion;
+use tonlib_core::message::TonMessage;
+use tonlib_core::message::CommonMsgInfo;
+use tonlib_core::message::ExternalIncomingMessage;
 
 async fn create_simple_transfer() -> anyhow::Result<()> {
     let mnemonic = Mnemonic::new(
@@ -414,15 +385,22 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
 
     let client = TonClient::default().await?;
     let wallet = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
+    let src: TonAddress = "<source wallet address>".parse()?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let value = BigUint::from(10000000u64); // 0.01 TON
-    let transfer = TransferMessage::new(&dest, &value).build()?;
+    let external_msg_info = ExternalIncomingMessage{
+        src,
+        dest,
+        import_fee: value,
+    };
+    let common_msg_info = CommonMsgInfo::ExternalIncomingMessage(external_msg_info);
+    let transfer = TransferMessage::new(common_msg_info).build()?;
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs() as u32;
-    let body = wallet.create_external_body(now + 60, seqno, vec![transfer])?;
+    let body = wallet.create_external_body(now + 60, seqno, vec![Arc::new(transfer)])?;
     let signed = wallet.sign_external_body(&body)?;
-    let wrapped = wallet.wrap_signed_body(signed)?;
+    let wrapped = wallet.wrap_signed_body(signed, true)?;
     let boc = BagOfCells::from_root(wrapped);
     let tx = boc.serialize(true)?;
     let hash = client.send_raw_message_return_hash(tx.as_slice()).await?;
@@ -430,9 +408,6 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
     Ok(())
 }
 ```
-
-## Cross-compilation
-In order to cross-compile for specific cpu microachitecture set environment variable `TARGET_CPU_MARCH` to the required. Supported values are listen in https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
 ## Contributing
 
