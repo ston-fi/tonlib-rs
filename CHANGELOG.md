@@ -6,3 +6,5 @@
 ### v0.20.0
 * Impl #be-1604: update_recent_init_block on tonlib client init
 * Impl #be-1441: improve dict load/store
+### v0.20.1
+* Fix dependency pinning
