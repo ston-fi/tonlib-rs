@@ -6,8 +6,9 @@ use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
 
+use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
-use crate::cell::{serialize_dict, ArcCell, Cell, CellParser, ValueWriter};
+use crate::cell::{ArcCell, Cell, CellParser};
 use crate::TonAddress;
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
@@ -306,14 +307,15 @@ impl CellBuilder {
 
     pub fn store_dict<K, V>(
         &mut self,
-        data: HashMap<K, V>,
         key_len_bits: usize,
-        value_writer: ValueWriter<V>,
+        value_writer: ValWriter<V>,
+        data: HashMap<K, V>,
     ) -> Result<&mut Self, TonCellError>
     where
         BigUint: From<K>,
     {
-        let dict_cell = serialize_dict(data, key_len_bits, value_writer)?;
+        let dict_builder = DictBuilder::new(key_len_bits, value_writer, data)?;
+        let dict_cell = dict_builder.build()?;
         self.store_cell(&dict_cell)
     }
 
@@ -397,9 +399,8 @@ mod tests {
     use num_traits::Zero;
 
     use crate::cell::builder::extend_and_invert_bits;
-    use crate::cell::{
-        key_extractor_u8, value_extractor_uint, CellBuilder, GenericDictLoader, TonCellError,
-    };
+    use crate::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
+    use crate::cell::{CellBuilder, TonCellError};
     use crate::types::TonAddress;
 
     #[test]
@@ -669,19 +670,19 @@ mod tests {
 
     #[test]
     fn test_store_dict() -> Result<(), TonCellError> {
-        let mut writer = CellBuilder::new();
+        let mut builder = CellBuilder::new();
         let mut data = HashMap::new();
         data.insert(1u8, BigUint::from(2u8));
         data.insert(3u8, BigUint::from(4u8));
 
-        let value_writer = |writer: &mut CellBuilder, value: &BigUint| {
-            writer.store_uint(8, value)?;
+        let value_writer = |writer: &mut CellBuilder, value: BigUint| {
+            writer.store_uint(8, &value)?;
             Ok(())
         };
-        writer.store_dict(data.clone(), 8, value_writer)?;
-        let cell = writer.build()?;
-        let loader = GenericDictLoader::new(key_extractor_u8, value_extractor_uint, 8);
-        let parsed = cell.load_generic_dict(&loader)?;
+        builder.store_dict(8, value_writer, data.clone())?;
+        let cell = builder.build()?;
+        let mut parser = cell.parser();
+        let parsed = parser.load_dict(8, key_reader_u8, val_reader_uint)?;
         assert_eq!(data, parsed);
         Ok(())
     }

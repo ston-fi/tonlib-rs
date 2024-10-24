@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::ops::Deref;
@@ -8,16 +7,11 @@ use std::{fmt, io};
 pub use bag_of_cells::*;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use bit_string::*;
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
-pub use dict_builder::*;
-pub use dict_loader::*;
 pub use error::*;
 use hmac::digest::Digest;
 use lazy_static::lazy_static;
-use num_bigint::BigUint;
-use num_traits::{One, ToPrimitive};
 pub use parser::*;
 pub use raw::*;
 use sha2::Sha256;
@@ -31,12 +25,10 @@ use crate::types::DEFAULT_CELL_HASH;
 use crate::TonHash;
 
 mod bag_of_cells;
-mod bit_string;
 mod builder;
 
 mod cell_type;
-mod dict_builder;
-mod dict_loader;
+pub mod dict;
 mod error;
 mod level_mask;
 mod parser;
@@ -45,13 +37,10 @@ mod raw_boc_from_boc;
 mod slice;
 mod state_init;
 mod util;
-
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 
 pub type ArcCell = Arc<Cell>;
-
-pub type SnakeFormattedDict = HashMap<TonHash, Vec<u8>>;
 
 lazy_static! {
     pub static ref EMPTY_CELL: Cell = Cell::default();
@@ -171,23 +160,6 @@ impl Cell {
         URL_SAFE_NO_PAD.encode(self.cell_hash())
     }
 
-    ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
-    ///
-    ///Must be prefixed with 0x00 byte.
-    ///### TL-B scheme:
-    ///
-    /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
-    ///
-    /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
-    pub fn load_snake_formatted_dict(&self) -> Result<SnakeFormattedDict, TonCellError> {
-        let dict_loader = GenericDictLoader::new(
-            key_extractor_256bit,
-            value_extractor_snake_formatted_string,
-            256,
-        );
-        self.load_generic_dict(&dict_loader)
-    }
-
     pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
         let mut cell: &Cell = self;
         let mut first_cell = true;
@@ -246,94 +218,6 @@ impl Cell {
                 }
             }
         }
-    }
-
-    pub fn load_generic_dict<K, V, L>(&self, dict_loader: &L) -> Result<HashMap<K, V>, TonCellError>
-    where
-        K: Hash + Eq + Clone,
-        L: DictLoader<K, V>,
-    {
-        let mut map: HashMap<K, V> = HashMap::new();
-        self.dict_to_hashmap::<K, V, L>(BitString::new(), &mut map, dict_loader)?;
-        Ok(map)
-    }
-
-    ///Port of https://github.com/ton-community/ton/blob/17b7e9e6154131399d57507b0c4a178752342fd8/src/boc/dict/parseDict.ts#L55
-    fn dict_to_hashmap<K, V, L>(
-        &self,
-        prefix: BitString,
-        map: &mut HashMap<K, V>,
-        dict_loader: &L,
-    ) -> Result<(), TonCellError>
-    where
-        K: Hash + Eq,
-        L: DictLoader<K, V>,
-    {
-        let mut parser = self.parser();
-
-        let lb0 = parser.load_bit()?;
-        let mut pp = prefix;
-        let prefix_length;
-        if !lb0 {
-            // Short label detected
-            prefix_length = parser.load_unary_length()?;
-            // Read prefix
-            if prefix_length != 0 {
-                let val = parser.load_uint(prefix_length)?;
-                pp.shl_assign_and_add(prefix_length, val);
-            }
-        } else {
-            let lb1 = parser.load_bit()?;
-            if !lb1 {
-                // Long label detected
-                prefix_length = parser
-                    .load_uint(
-                        ((dict_loader.key_bit_len() - pp.bit_len() + 1) as f32)
-                            .log2()
-                            .ceil() as usize,
-                    )?
-                    .to_usize()
-                    .unwrap();
-                if prefix_length != 0 {
-                    let val = parser.load_uint(prefix_length)?;
-                    pp.shl_assign_and_add(prefix_length, val);
-                }
-            } else {
-                // Same label detected
-                let bit = parser.load_bit()?;
-                prefix_length = parser
-                    .load_uint(
-                        ((dict_loader.key_bit_len() - pp.bit_len() + 1) as f32)
-                            .log2()
-                            .ceil() as usize,
-                    )?
-                    .to_usize()
-                    .unwrap();
-                if bit {
-                    pp.shl_assign_and_fill(prefix_length);
-                } else {
-                    pp.shl_assign(prefix_length)
-                }
-            }
-        }
-
-        if dict_loader.key_bit_len() - pp.bit_len() == 0 {
-            let bytes = pp.get_value_as_bytes();
-            let key = dict_loader.extract_key(bytes.as_slice())?;
-            let offset = self.bit_len - parser.remaining_bits();
-            let cell_slice = CellSlice::new_with_offset(self, offset)?;
-            let value = dict_loader.extract_value(&cell_slice)?;
-            map.insert(key, value);
-        } else {
-            // NOTE: Left and right branches are implicitly contain prefixes '0' and '1'
-            let left = self.reference(0)?;
-            let right = self.reference(1)?;
-            pp.shl_assign(1);
-            left.dict_to_hashmap(pp.clone(), map, dict_loader)?;
-            pp = pp + BigUint::one();
-            right.dict_to_hashmap(pp, map, dict_loader)?;
-        }
-        Ok(())
     }
 
     pub fn to_arc(self) -> ArcCell {
@@ -539,11 +423,11 @@ fn get_refs_descriptor(
 ) -> Result<u8, TonCellError> {
     if references.len() > MAX_CELL_REFERENCES {
         Err(TonCellError::InvalidCellData(
-            ("Cell should not contain more than 4 references").to_string(),
+            "Cell should not contain more than 4 references".to_string(),
         ))
     } else if level_mask > MAX_LEVEL_MASK {
         Err(TonCellError::InvalidCellData(
-            ("Cell level mask can not be higher than 3").to_string(),
+            "Cell level mask can not be higher than 3".to_string(),
         ))
     } else {
         let cell_type_var = (cell_type != CellType::Ordinary) as u8;
@@ -557,7 +441,7 @@ fn get_refs_descriptor(
 fn get_bits_descriptor(bit_len: usize) -> Result<u8, TonCellError> {
     if bit_len > MAX_CELL_BITS {
         Err(TonCellError::InvalidCellData(
-            ("Cell data length should not contain more than 1023 bits").to_string(),
+            "Cell data length should not contain more than 1023 bits".to_string(),
         ))
     } else {
         let d2 = (bit_len / 8 + (bit_len + 7) / 8) as u8;

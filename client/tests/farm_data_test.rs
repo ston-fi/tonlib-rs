@@ -1,9 +1,8 @@
 use num_bigint::BigUint;
 use tokio_test::assert_ok;
 use tonlib_client::contract::{TonContractFactory, TonContractInterface};
-use tonlib_core::cell::{
-    key_extractor_u8, value_extractor_uint, CellSlice, DictLoader, GenericDictLoader, TonCellError,
-};
+use tonlib_core::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
+use tonlib_core::cell::{CellParser, TonCellError};
 use tonlib_core::TonAddress;
 
 mod common;
@@ -28,75 +27,48 @@ pub struct FarmDataParameters {
     pub status: u8,
 }
 
-struct FarmDataAccruedLoader {}
+fn val_reader_farm_data_accrued(parser: &mut CellParser) -> Result<FarmDataAccrued, TonCellError> {
+    let data_cell = assert_ok!(parser.next_reference());
+    let mut parser = data_cell.parser();
+    let deposited_nanorewards = assert_ok!(parser.load_uint(150));
+    let accrued_per_unit_nanorewards = assert_ok!(parser.load_uint(150));
+    let accrued_fee_nanorewards = assert_ok!(parser.load_uint(150));
+    let claimed_nanorewards = assert_ok!(parser.load_uint(150));
+    let claimed_fee_nanorewards = assert_ok!(parser.load_uint(150));
+    let accrued_nanorewards = assert_ok!(parser.load_uint(150));
+    let last_update_time = assert_ok!(parser.load_u64(64));
 
-impl DictLoader<u8, FarmDataParameters> for FarmDataParametersLoader {
-    fn extract_key(&self, key: &[u8]) -> Result<u8, TonCellError> {
-        key_extractor_u8(self.key_bit_len(), key)
-    }
-
-    fn extract_value(&self, cell_slice: &CellSlice) -> Result<FarmDataParameters, TonCellError> {
-        let data_cell = assert_ok!(cell_slice.reference(0));
-        let mut parser = data_cell.parser();
-        let admin_fee = assert_ok!(parser.load_u16(16));
-        let nanorewards_per_24h = assert_ok!(parser.load_uint(150));
-        let unrestricted_deposit_rewards = assert_ok!(parser.load_bit());
-        let reward_token_wallet = assert_ok!(parser.load_address());
-        let can_change_fee = assert_ok!(parser.load_bit());
-        let status = assert_ok!(parser.load_u8(8));
-        let result = FarmDataParameters {
-            admin_fee,
-            nanorewards_per_24h,
-            unrestricted_deposit_rewards,
-            reward_token_wallet,
-            can_change_fee,
-            status,
-        };
-        Ok(result)
-    }
-
-    fn key_bit_len(&self) -> usize {
-        8
-    }
+    let result = FarmDataAccrued {
+        deposited_nanorewards,
+        accrued_per_unit_nanorewards,
+        accrued_fee_nanorewards,
+        claimed_nanorewards,
+        claimed_fee_nanorewards,
+        accrued_nanorewards,
+        last_update_time,
+    };
+    Ok(result)
 }
 
-struct FarmDataParametersLoader {}
-
-impl DictLoader<u8, FarmDataAccrued> for FarmDataAccruedLoader {
-    fn extract_key(&self, key: &[u8]) -> Result<u8, TonCellError> {
-        key_extractor_u8(self.key_bit_len(), key)
-    }
-
-    fn extract_value(&self, cell_slice: &CellSlice) -> Result<FarmDataAccrued, TonCellError> {
-        let data_cell = assert_ok!(cell_slice.reference(0));
-        let mut parser = data_cell.parser();
-        let deposited_nanorewards = assert_ok!(parser.load_uint(150));
-        let accrued_per_unit_nanorewards = assert_ok!(parser.load_uint(150));
-        let accrued_fee_nanorewards = assert_ok!(parser.load_uint(150));
-        let claimed_nanorewards = assert_ok!(parser.load_uint(150));
-        let claimed_fee_nanorewards = assert_ok!(parser.load_uint(150));
-        let accrued_nanorewards = assert_ok!(parser.load_uint(150));
-        let last_update_time = assert_ok!(parser.load_u64(64));
-
-        let result = FarmDataAccrued {
-            deposited_nanorewards,
-            accrued_per_unit_nanorewards,
-            accrued_fee_nanorewards,
-            claimed_nanorewards,
-            claimed_fee_nanorewards,
-            accrued_nanorewards,
-            last_update_time,
-        };
-        Ok(result)
-    }
-
-    fn key_bit_len(&self) -> usize {
-        8
-    }
+fn val_reader_farm_data_param(parser: &mut CellParser) -> Result<FarmDataParameters, TonCellError> {
+    let data_cell = assert_ok!(parser.next_reference());
+    let mut parser = data_cell.parser();
+    let admin_fee = assert_ok!(parser.load_u16(16));
+    let nanorewards_per_24h = assert_ok!(parser.load_uint(150));
+    let unrestricted_deposit_rewards = assert_ok!(parser.load_bit());
+    let reward_token_wallet = assert_ok!(parser.load_address());
+    let can_change_fee = assert_ok!(parser.load_bit());
+    let status = assert_ok!(parser.load_u8(8));
+    let result = FarmDataParameters {
+        admin_fee,
+        nanorewards_per_24h,
+        unrestricted_deposit_rewards,
+        reward_token_wallet,
+        can_change_fee,
+        status,
+    };
+    Ok(result)
 }
-
-static FARM_DATA_ACCRUED_LOADER: FarmDataAccruedLoader = FarmDataAccruedLoader {};
-static FARM_DATA_PARAMETERS_LOADER: FarmDataParametersLoader = FarmDataParametersLoader {};
 
 #[tokio::test]
 async fn test_get_farming_minter_data() {
@@ -117,10 +89,12 @@ async fn test_get_farming_minter_data() {
         log::info!("{:?}", element);
     }
 
-    let farm_data_accrued = assert_ok!(stack.stack[10].get_dict(&FARM_DATA_ACCRUED_LOADER));
+    let farm_data_accrued =
+        assert_ok!(stack.stack[10].get_dict(8, key_reader_u8, val_reader_farm_data_accrued));
     log::info!("farm_data_accrued: {:?}", farm_data_accrued);
 
-    let farm_data_parameters = assert_ok!(stack.stack[11].get_dict(&FARM_DATA_PARAMETERS_LOADER));
+    let farm_data_parameters =
+        assert_ok!(stack.stack[11].get_dict(8, key_reader_u8, val_reader_farm_data_param));
     log::info!("farm_data_parameters: {:?}", farm_data_parameters);
 }
 
@@ -147,9 +121,7 @@ async fn test_get_farming_data() {
         log::info!("{:?}", element);
     }
 
-    let loader = GenericDictLoader::new(key_extractor_u8, value_extractor_uint, 8);
-
-    let claimed_per_unit_dict = stack.stack[4].get_dict(&loader);
+    let claimed_per_unit_dict = stack.stack[4].get_dict(8, key_reader_u8, val_reader_uint);
 
     log::info!("{:?}", claimed_per_unit_dict);
 }

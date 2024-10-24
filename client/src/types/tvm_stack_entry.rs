@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use num_bigint::{BigInt, BigUint};
 use strum::Display;
-use tonlib_core::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice, DictLoader};
+use tonlib_core::cell::dict::{KeyReader, ValReader};
+use tonlib_core::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellSlice};
 use tonlib_core::TonAddress;
 
 use crate::tl::{TvmCell, TvmNumber, TvmSlice, TvmStackEntry as TlTvmStackEntry};
@@ -127,15 +128,19 @@ impl TvmStackEntry {
         }
     }
 
-    pub fn get_dict<K, V, L>(&self, loader: &L) -> Result<HashMap<K, V>, StackParseError>
+    pub fn get_dict<K, V>(
+        &self,
+        key_len: usize,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
+    ) -> Result<HashMap<K, V>, StackParseError>
     where
         K: Hash + Eq + Clone,
-        L: DictLoader<K, V>,
     {
         match self {
             TvmStackEntry::Cell(cell) => {
-                let result: HashMap<K, V> = cell.load_generic_dict(loader)?;
-                Ok(result)
+                let mut parser = cell.parser();
+                Ok(parser.load_dict(key_len, key_reader, val_reader)?)
             }
 
             t => Err(StackParseError::InvalidEntryType {

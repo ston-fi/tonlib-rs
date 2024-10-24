@@ -139,7 +139,8 @@ async fn read_item_metadata_content(
                 .reference(0)
                 .map_cell_error("get_nft_data", item_address)?;
             let dict = reference
-                .load_snake_formatted_dict()
+                .parser()
+                .load_dict_snake_format()
                 .map_cell_error("get_nft_data", item_address)?;
             Ok(MetaDataContent::Internal { dict })
         }

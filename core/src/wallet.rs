@@ -281,7 +281,7 @@ impl TonWallet {
     ) -> Result<Cell, TonMessageError> {
         let mut wrap_builder = CellBuilder::new();
         wrap_builder
-            .store_u8(2, 2)? // No idea
+            .store_u8(2, 2)? // mark 2 first bits (1, 0) as external message
             .store_address(&TonAddress::NULL)? // src
             .store_address(&self.address)? // dest
             .store_coins(&ZERO_COINS)?; // import fee

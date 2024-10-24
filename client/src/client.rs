@@ -4,9 +4,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use crate::client::recent_init_block::get_recent_init_block;
-use crate::config::TonConfig;
-use crate::tl::*;
 use async_trait::async_trait;
 pub use block_functions::*;
 pub use block_stream::*;
@@ -22,6 +19,8 @@ use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 pub use types::*;
 
+use crate::tl::*;
+
 mod block_functions;
 mod block_stream;
 mod builder;
@@ -29,8 +28,10 @@ mod callback;
 mod connection;
 mod error;
 mod interface;
-mod recent_init_block;
 mod types;
+
+#[cfg(feature = "liteapi")]
+mod recent_init_block;
 
 /// Check on perform upon connection
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -183,15 +184,28 @@ fn retry_condition(error: &TonClientError) -> bool {
     }
 }
 
+#[cfg(not(feature = "liteapi"))]
 async fn patch_init_block(
     params: &TonConnectionParams,
 ) -> Result<TonConnectionParams, TonClientError> {
+    log::warn!("Feature 'liteapi' is disabled, patch_init_block does nothing");
+    Ok(params.clone())
+}
+
+#[cfg(feature = "liteapi")]
+async fn patch_init_block(
+    params: &TonConnectionParams,
+) -> Result<TonConnectionParams, TonClientError> {
+    use crate::config::TonConfig;
+
     let mut ton_config = TonConfig::from_json(&params.config).map_err(|e| {
         let msg = format!("Fail to parse config: {}", e);
         TonClientError::InternalError(msg)
     })?;
 
-    let recent_init_block = match get_recent_init_block(&ton_config.liteservers).await {
+    let recent_init_block = match recent_init_block::get_recent_init_block(&ton_config.liteservers)
+        .await
+    {
         Some(block) => block,
         None => {
             let msg = "Failed to update init_block: update it manually in network_config.json (https://docs.ton.org/develop/howto/network-configs)";

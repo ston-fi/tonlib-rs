@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -5,7 +7,9 @@ use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::identities::Zero;
 
-use super::{ArcCell, Cell};
+use super::dict::{DictParser, KeyReader, SnakeFormatDict, ValReader};
+use super::{ArcCell, Cell, CellBuilder};
+use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::TonAddress;
@@ -161,6 +165,15 @@ impl<'a> CellParser<'a> {
         }
     }
 
+    pub fn load_remaining(&mut self) -> Result<Cell, TonCellError> {
+        let mut builder = CellBuilder::new();
+        builder.store_remaining_bits(self)?;
+        builder.store_references(&self.references[self.next_ref..])?;
+        let cell = builder.build();
+        self.next_ref = self.references.len();
+        cell
+    }
+
     pub fn load_address(&mut self) -> Result<TonAddress, TonCellError> {
         self.ensure_enough_bits(2)?;
         let tp = self.bit_reader.read::<u8>(2).map_cell_parser_error()?;
@@ -187,6 +200,28 @@ impl<'a> CellParser<'a> {
             res += 1;
         }
         Ok(res)
+    }
+
+    pub fn load_dict<K: Eq + Hash, V>(
+        &mut self,
+        key_len: usize,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
+    ) -> Result<HashMap<K, V>, TonCellError> {
+        let mut dict_parser = DictParser::new(key_len, key_reader, val_reader);
+        dict_parser.parse(self)
+    }
+
+    ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
+    ///
+    ///Must be prefixed with 0x00 byte.
+    ///### TL-B scheme:
+    ///
+    /// ``` tail#_ {bn:#} b:(bits bn) = SnakeData ~0; ```
+    ///
+    /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
+    pub fn load_dict_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
+        self.load_dict(256, key_reader_256bit, val_reader_snake_formatted_string)
     }
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
