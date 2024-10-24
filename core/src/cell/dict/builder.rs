@@ -1,9 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
-
 use super::leading_bit_utils::{
     add_leading_bit, all_bits_same, common_prefix_len, remove_leading_bit,
 };
@@ -11,6 +5,10 @@ use super::types::LabelType;
 use crate::cell::dict::ValWriter;
 use crate::cell::TonCellError::InvalidInput;
 use crate::cell::{Cell, CellBuilder, TonCellError};
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub(crate) struct DictBuilder<V> {
     value_writer: ValWriter<V>,

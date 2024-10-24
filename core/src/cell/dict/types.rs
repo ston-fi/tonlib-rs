@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
-use num_bigint::BigUint;
-
 use crate::cell::{CellBuilder, CellParser, TonCellError};
 use crate::TonHash;
+use num_bigint::BigUint;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub(crate) enum LabelType {

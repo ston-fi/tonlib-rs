@@ -1,16 +1,14 @@
 // tests cover parser & builder together, so make sense to keep them in the same module
-use std::collections::HashMap;
-use std::ops::Deref;
-
-use num_bigint::BigUint;
-use tokio_test::assert_ok;
-
 use crate::cell::dict::predefined_readers::{
     key_reader_256bit, key_reader_u16, key_reader_u32, key_reader_u64, key_reader_u8,
     key_reader_uint, val_reader_ref_cell, val_reader_uint,
 };
 use crate::cell::dict::predefined_writers::{val_writer_ref_cell, val_writer_unsigned_min_size};
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder};
+use num_bigint::BigUint;
+use std::collections::HashMap;
+use std::ops::Deref;
+use tokio_test::assert_ok;
 
 #[test]
 fn test_blockchain_data() -> anyhow::Result<()> {
