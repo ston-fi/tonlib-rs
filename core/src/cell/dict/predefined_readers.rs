@@ -1,9 +1,10 @@
+use num_bigint::{BigInt, BigUint};
+use num_traits::ToPrimitive;
+
 use crate::cell::TonCellError::{InternalError, InvalidInput};
 use crate::cell::{ArcCell, Cell, CellParser, TonCellError};
 use crate::types::TON_HASH_BYTES;
 use crate::TonHash;
-use num_bigint::{BigInt, BigUint};
-use num_traits::ToPrimitive;
 
 pub fn key_reader_u8(raw_key: &BigUint) -> Result<u8, TonCellError> {
     validate_bit_len(raw_key, 8)?;

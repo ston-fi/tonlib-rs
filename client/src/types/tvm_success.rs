@@ -11,18 +11,7 @@ pub struct TvmSuccess {
     pub gas_used: i32,
 }
 
-impl TvmSuccess {
-    #[inline(always)]
-    pub fn exit_success(&self) -> bool {
-        self.vm_exit_code == 0 || self.vm_exit_code == 1
-    }
-
-    #[inline(always)]
-    pub fn exit_error(&self) -> bool {
-        !self.exit_success()
-    }
-}
-
+"actions"
 #[derive(Debug)]
 pub struct TvmMsgSuccess {
     pub new_code: ArcCell,

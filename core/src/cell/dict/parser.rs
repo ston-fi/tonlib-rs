@@ -1,11 +1,13 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
+use num_bigint::BigUint;
+use num_traits::{One, ToPrimitive};
+
 use super::types::LabelType;
 use crate::cell::dict::{KeyReader, ValReader};
 use crate::cell::TonCellError::InvalidInput;
 use crate::cell::{CellParser, TonCellError};
-use num_bigint::BigUint;
-use num_traits::{One, ToPrimitive};
-use std::collections::HashMap;
-use std::hash::Hash;
 
 pub(crate) struct DictParser<K, V> {
     key_len_bits: usize,
