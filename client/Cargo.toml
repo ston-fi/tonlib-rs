@@ -19,6 +19,7 @@ state_cache = []
 emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
 with_debug_info = ["tonlib-sys/with_debug_info"]
+liteapi = ["dep:ton_liteapi"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -33,7 +34,7 @@ dashmap.workspace = true
 futures.workspace = true
 hex.workspace = true
 
-ton_liteapi.workspace = true
+ton_liteapi = {workspace = true, optional = true }
 adnl.workspace = true
 tokio-tower.workspace = true
 tower = {workspace = true, features = ["util"] }

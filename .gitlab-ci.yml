@@ -20,27 +20,15 @@ variables:
 
 
 .snippets:
-  get-cache:
-    - |
-      if [ "$CI_COMMIT_REF_NAME" != "$CI_DEFAULT_BRANCH" ]; then
-        export CACHE_FALLBACK_KEY="cache-$CI_DEFAULT_BRANCH-$CI_RUNNER_ID-non-protected";
-      else
-        export CACHE_FALLBACK_KEY="cache-main-$CI_RUNNER_ID-protected";
-      fi
-      echo "Using cache key: cache-$CI_COMMIT_REF_SLUG"
-      echo "Fallback cache key: $CACHE_FALLBACK_KEY"
-
-cache:
-  key: shared-cache
-  paths:
-    - target/
-    - .cargo/
-  
+  check-cache:
+    # cleanup cache if it's too big. 4GB cache takes 1min to download/upload. Build from scratch takes about 2.5min.
+    # so take about 6GB as a limit
+    - if [ $(du -sc target/ .cargo/ | tail -n 1 | awk '{print $1}') -gt 6000000 ]; then rm -rf target .cargo; fi
 
 test:
   stage: test
   before_script:
-    - !reference [.snippets, get-cache]  
+    - !reference [.snippets, check-cache]
   script:
     - cargo fmt --check
     - cargo +nigntly fmt --check
@@ -51,20 +39,26 @@ test:
     - cargo build --release
     - cargo build --release --features "state_cache"
     - cargo build --release --features "emulate_get_method"
-    - cargo test --package tonlib-core
-    - cargo test --doc
-    - cargo test --lib
-    - cargo test --lib --features "state_cache"
-    - cargo test --lib --features "emulate_get_method"
+    - cargo test --release --package tonlib-core
+    - cargo test --release --doc
+    - cargo test --release --lib
+    - cargo test --release --lib --features "state_cache"
+    - cargo test --release --lib --features "emulate_get_method"
+  cache:
+    key: cache-$CI_COMMIT_REF_SLUG
+    fallback_keys: [ cache-$CI_DEFAULT_BRANCH ]
+    paths: [ .cargo, target ]
+    policy: pull-push
   tags:
     - zen4
   rules:
     - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
+  interruptible: true
 
 integration_test:
   stage: test
   before_script:
-    - !reference [.snippets, get-cache]
+    - !reference [.snippets, check-cache]
   script:
     - cargo install cargo-nextest
     - cargo nextest run --release  
@@ -73,33 +67,52 @@ integration_test:
   tags:
     - zen4
   when: manual
+  cache:
+    key: cache-$CI_COMMIT_REF_SLUG
+    fallback_keys: [ cache-$CI_DEFAULT_BRANCH ]
+    paths: [ .cargo, target ]
+    policy: pull
+  interruptible: true
 
 test-mr:
   tags:
     - zen4
   stage: test
   before_script:
-    - !reference [.snippets, get-cache]
+    - !reference [.snippets, check-cache]
   script:
     - cargo fmt --check
-    - cargo clippy --release  
-    - cargo clippy --release --features "state_cache"
-    - cargo clippy --release --features "emulate_get_method"
-    - cargo build --release  
-    - cargo build --release --features "state_cache" 
-    - cargo build --release --features "emulate_get_method"
-    - cargo test --lib --all-features
+    - cargo clippy --release --no-default-features
+    - cargo build --release --no-default-features
+    - cargo test --release --lib --no-default-features
+    - cargo clippy --release --all-features
+    - cargo build --release --all-features
+    - cargo test --release --lib --all-features
+
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  cache:
+    key: cache-$CI_COMMIT_REF_SLUG
+    fallback_keys: [ cache-$CI_DEFAULT_BRANCH ]
+    paths: [ .cargo, target ]
+    policy: pull
+  interruptible: true
 
 test-master:
   tags:
     - zen4
   stage: test
+  before_script:
+    - !reference [ .snippets, check-cache ]
   script:
     - cargo fmt --check
-    - cargo build --all-features
-    - cargo test --lib --all-features
+    - cargo build --release --all-features
+    - cargo test --release --lib --all-features
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
+  cache:
+    key: cache-$CI_COMMIT_REF_SLUG
+    fallback_keys: [ cache-$CI_DEFAULT_BRANCH ]
+    paths: [ .cargo, target ]
+    policy: pull-push
+  interruptible: true
