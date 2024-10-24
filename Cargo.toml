@@ -55,4 +55,4 @@ tokio-tower = "0.6.0"
 tower = "0.5.1"
 
 # internal deps
-tonlib-core = { version = "0", path = "core" }
+tonlib-core = { version = "0.20", path = "core" }
