@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::tl::BlockIdExt;
-
 pub const MAINNET_CONFIG: &str = include_str!("../resources/config/global.config.json");
 pub const TESTNET_CONFIG: &str = include_str!("../resources/config/testnet-global.config.json");
 
@@ -15,6 +13,7 @@ pub(crate) struct TonConfig {
     validator: Validator,
 }
 
+#[cfg(feature = "liteapi")]
 impl TonConfig {
     pub fn from_json(config: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(config)
@@ -27,7 +26,10 @@ impl TonConfig {
         self.validator.init_block["seqno"].as_i64().unwrap_or(0) as i32
     }
 
-    pub fn set_init_block(&mut self, block_id: &BlockIdExt) -> Result<(), serde_json::Error> {
+    pub fn set_init_block(
+        &mut self,
+        block_id: &crate::tl::BlockIdExt,
+    ) -> Result<(), serde_json::Error> {
         self.validator.init_block = serde_json::to_value(block_id)?;
         Ok(())
     }
