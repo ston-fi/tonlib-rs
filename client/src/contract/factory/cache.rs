@@ -9,7 +9,7 @@ use moka::future::Cache;
 use tonlib_core::TonAddress;
 
 use crate::client::{
-    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientInterface,
+    BlockStream, BlockStreamItem, TonBlockFunctions, TonClient, TonClientError, TonClientInterface,
 };
 use crate::contract::{LoadedSmcState, TonContractError};
 use crate::tl::{InternalTransactionId, RawFullAccountState};
@@ -111,12 +111,25 @@ impl ContractFactoryCache {
         let tx_id_cache = &self.inner.tx_id_cache;
         let maybe_tx_id = tx_id_cache.get(address).await;
         let state = if let Some(tx_id) = maybe_tx_id {
-            client
+            let maybe_result = client
                 .get_raw_account_state_by_transaction(address, &tx_id)
-                .await?
+                .await;
+            match maybe_result {
+                Ok(result) => Ok(result),
+                Err(e) => match e {
+                    TonClientError::TonlibError { ref message, .. }
+                        if message == "transaction hash mismatch" =>
+                    {
+                        log::warn!("Failed to get_raw_account_state_by_transaction. Falling back to latest account state{:?}", e);
+                        let r = client.get_raw_account_state(address).await?;
+                        Ok(r)
+                    }
+                    _ => return Err(TonContractError::ClientError(e)),
+                },
+            }
         } else {
-            client.get_raw_account_state(address).await?
-        };
+            client.get_raw_account_state(address).await
+        }?;
         Ok(Arc::new(state))
     }
 
