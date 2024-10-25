@@ -31,7 +31,6 @@ test:
     - !reference [.snippets, check-cache]
   script:
     - cargo fmt --check
-    - cargo +nigntly fmt --check
     - cargo clippy --release   
     - cargo clippy --features "state_cache" --release
     - cargo clippy --features "emulate_get_method" --release

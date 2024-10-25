@@ -1,7 +1,9 @@
-use crate::cell::{Cell, CellBuilder, TonCellError};
-use num_bigint::{BigInt, BigUint};
 use std::cmp::max;
 use std::sync::Arc;
+
+use num_bigint::{BigInt, BigUint};
+
+use crate::cell::{Cell, CellBuilder, TonCellError};
 
 #[allow(dead_code)]
 pub fn val_writer_ref_cell(builder: &mut CellBuilder, val: Arc<Cell>) -> Result<(), TonCellError> {
