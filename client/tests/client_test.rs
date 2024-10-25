@@ -67,6 +67,20 @@ async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn client_get_raw_account_state_by_tx_works_on_fresh_pool() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+
+    let address =
+        &TonAddress::from_base64_url("EQBw_0u4LyoweyLGjyAiGg0W_wozq4S5EAQwLIsx15a4U4ar").unwrap();
+    let contract = factory.get_contract(address);
+    let r = assert_ok!(contract.get_account_state().await);
+    log::info!("{:?}", r);
+    Ok(())
+}
+
+#[tokio::test]
 async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
     common::init_logging();
     let address = &assert_ok!(TonAddress::from_base64_url(
