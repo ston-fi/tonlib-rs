@@ -42,7 +42,7 @@ To use this library in your Rust application, add the following to your Cargo.to
 
 ```toml
 [dependencies]
-tonlib-client = "0.19"
+tonlib-client = "0.20"
 ```
 
 Then, in your Rust code, you can import the library with:
