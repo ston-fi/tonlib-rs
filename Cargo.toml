@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.20.0"
+version = "0.20.1"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -55,4 +55,4 @@ tokio-tower = "0.6.0"
 tower = "0.5.1"
 
 # internal deps
-tonlib-core = { version = "0", path = "core" }
+tonlib-core = { version = "0.20", path = "core" }
