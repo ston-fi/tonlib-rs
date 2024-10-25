@@ -8,3 +8,5 @@
 * Impl #be-1441: improve dict load/store
 ### v0.20.1
 * Fix dependency pinning
+### v0.20.2
+* Impl #be-1619: technical release 
