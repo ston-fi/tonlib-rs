@@ -138,19 +138,45 @@ fn test_reader_u64() -> anyhow::Result<()> {
 
 #[test]
 fn test_reader_256bit() -> anyhow::Result<()> {
-    let data = HashMap::from([
-        (0u64, BigUint::from(4u32)),
-        (1u64, BigUint::from(4u32)),
-        (2u64, BigUint::from(4u32)),
+    let bytes1 = [
+        1u8, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4,
+        4, 4,
+    ];
+    let bytes2 = [
+        2u8, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5,
+        5, 5,
+    ];
+    let bytes3 = [
+        3u8, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
+        6, 6,
+    ];
+    let bytes4 = [
+        4u8, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7,
+        7, 7,
+    ];
+
+    let data_src = HashMap::from([
+        (bytes1, BigUint::from(1u32)),
+        (bytes2, BigUint::from(2u32)),
+        (bytes3, BigUint::from(3u32)),
+        (bytes4, BigUint::from(4u32)),
     ]);
-    let key_len_bits = 8;
+
+    let data_serial = data_src
+        .iter()
+        .map(|(k, v)| (BigUint::from_bytes_be(k), v.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let key_len_bits = 256;
     let mut builder = CellBuilder::new();
-    builder.store_dict(key_len_bits, val_writer_unsigned_min_size, data.clone())?;
+    builder.store_dict(key_len_bits, val_writer_unsigned_min_size, data_serial)?;
+
     let dict_cell = builder.build()?;
     let parsed = dict_cell
         .parser()
         .load_dict(key_len_bits, key_reader_256bit, val_reader_uint)?;
-    assert_eq!(parsed.len(), 3);
+
+    assert_eq!(data_src, parsed);
     Ok(())
 }
 
