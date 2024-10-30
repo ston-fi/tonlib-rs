@@ -28,7 +28,7 @@ pub fn key_reader_u64(raw_key: &BigUint) -> Result<u64, TonCellError> {
 
 pub fn key_reader_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
     validate_bit_len(val, TON_HASH_BYTES * 8)?;
-    let digits = val.to_bytes_le();
+    let digits = val.to_bytes_be();
     let key_digits = if digits.len() < 32 {
         let mut tmp = vec![0u8; 32 - digits.len()];
         tmp.extend(digits);
