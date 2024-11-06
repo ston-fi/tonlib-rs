@@ -142,7 +142,7 @@ impl TvmStackEntry {
                 let mut parser = cell.parser();
                 Ok(parser.load_dict(key_len, key_reader, val_reader)?)
             }
-
+            TvmStackEntry::Null => Ok(HashMap::new()),
             t => Err(StackParseError::InvalidEntryType {
                 expected: "Slice".to_string(),
                 found: t.clone(),
