@@ -475,11 +475,11 @@ pub struct LogVerbosityLevel {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LiteServerInfo {
     #[serde(deserialize_with = "deserialize_number_from_string")]
-    now: i64,
+    pub now: i64,
     #[serde(deserialize_with = "deserialize_number_from_string")]
-    version: i32,
+    pub version: i32,
     #[serde(deserialize_with = "deserialize_number_from_string")]
-    capabilities: i64,
+    pub capabilities: i64,
 }
 
 // tonlib_api.tl, line 219
