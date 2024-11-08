@@ -13,6 +13,7 @@ use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
 use crate::{TonAddress, TonHash};
 
+pub const DEFAULT_WALLET_ID_V5R1: i32 = 0x7FFFFF11;
 pub const DEFAULT_WALLET_ID: i32 = 0x29a9a317;
 
 lazy_static! {
@@ -52,6 +53,10 @@ lazy_static! {
         let code = include_str!("../resources/wallet/wallet_v4r2.code");
         BagOfCells::parse_base64(code).unwrap()
     };
+    pub static ref WALLET_V5R1_CODE: BagOfCells = {
+        let code = include_str!("../resources/wallet/wallet_v5.code");
+        BagOfCells::parse_base64(code).unwrap()
+    };
     pub static ref HIGHLOAD_V1R1_CODE: BagOfCells = {
         let code = include_str!("../resources/wallet/highload_v1r1.code");
         BagOfCells::parse_base64(code).unwrap()
@@ -85,6 +90,7 @@ pub enum WalletVersion {
     V3R2,
     V4R1,
     V4R2,
+    V5R1,
     HighloadV1R1,
     HighloadV1R2,
     HighloadV2,
@@ -104,6 +110,7 @@ impl WalletVersion {
             WalletVersion::V3R2 => &WALLET_V3R2_CODE,
             WalletVersion::V4R1 => &WALLET_V4R1_CODE,
             WalletVersion::V4R2 => &WALLET_V4R2_CODE,
+            WalletVersion::V5R1 => &WALLET_V5R1_CODE,
             WalletVersion::HighloadV1R1 => &HIGHLOAD_V1R1_CODE,
             WalletVersion::HighloadV1R2 => &HIGHLOAD_V1R2_CODE,
             WalletVersion::HighloadV2 => &HIGHLOAD_V2_CODE,
@@ -141,6 +148,13 @@ impl WalletVersion {
             }
             .try_into()?,
             WalletVersion::V4R1 | WalletVersion::V4R2 => WalletDataV4 {
+                seqno: 0,
+                wallet_id,
+                public_key,
+            }
+            .try_into()?,
+            WalletVersion::V5R1 => WalletDataV5 {
+                signature_allowed: true,
                 seqno: 0,
                 wallet_id,
                 public_key,
@@ -209,7 +223,10 @@ impl TonWallet {
         version: WalletVersion,
         key_pair: &KeyPair,
     ) -> Result<TonWallet, TonCellError> {
-        let wallet_id = DEFAULT_WALLET_ID;
+        let wallet_id = match version {
+            WalletVersion::V5R1 => DEFAULT_WALLET_ID_V5R1,
+            _ => DEFAULT_WALLET_ID,
+        };
         let data = version.initial_data(key_pair, wallet_id)?;
         let code = version.code()?;
         let state_init_hash = StateInit::create_account_id(code, &data)?;
@@ -312,8 +329,14 @@ mod tests {
         let mnemonic_str = "fancy carpet hello mandate penalty trial consider \
         property top vicious exit rebuild tragic profit urban major total month holiday \
         sudden rib gather media vicious";
+
+        let v5_mnemonic_str = "section garden tomato dinner season dice renew length useful spin trade intact use universe what post spike keen mandate behind concert egg doll rug";
         let mnemonic = Mnemonic::from_str(mnemonic_str, &None)?;
         let key_pair = mnemonic.to_key_pair()?;
+
+        let mnemonic_v5 = Mnemonic::from_str(v5_mnemonic_str, &None)?;
+        let key_pair_v5 = mnemonic_v5.to_key_pair()?;
+
         let wallet_v3 = TonWallet::derive_default(WalletVersion::V3R1, &key_pair).unwrap();
         let expected_v3: TonAddress = "EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK"
             .parse()
@@ -329,6 +352,12 @@ mod tests {
             .parse()
             .unwrap();
         assert_eq!(wallet_v4r2.address, expected_v4r2);
+
+        let wallet_v5 = TonWallet::derive_default(WalletVersion::V5R1, &key_pair_v5).unwrap();
+        let expected_v5: TonAddress = "UQDv2YSmlrlLH3hLNOVxC8FcQf4F9eGNs4vb2zKma4txo6i3"
+            .parse()
+            .unwrap();
+        assert_eq!(wallet_v5.address, expected_v5);
         Ok(())
     }
 }
