@@ -90,11 +90,11 @@ async fn test_get_farming_minter_data() {
     }
 
     let farm_data_accrued =
-        assert_ok!(stack.stack[10].get_dict(8, key_reader_u8, val_reader_farm_data_accrued));
+        assert_ok!(stack.stack[10].get_dict_data(8, key_reader_u8, val_reader_farm_data_accrued));
     log::info!("farm_data_accrued: {:?}", farm_data_accrued);
 
     let farm_data_parameters =
-        assert_ok!(stack.stack[11].get_dict(8, key_reader_u8, val_reader_farm_data_param));
+        assert_ok!(stack.stack[11].get_dict_data(8, key_reader_u8, val_reader_farm_data_param));
     log::info!("farm_data_parameters: {:?}", farm_data_parameters);
 }
 
