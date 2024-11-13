@@ -202,7 +202,7 @@ impl<'a> CellParser<'a> {
         Ok(res)
     }
 
-    pub fn load_dict<K: Eq + Hash, V>(
+    pub fn load_dict_data<K: Eq + Hash, V>(
         &mut self,
         key_len: usize,
         key_reader: KeyReader<K>,
@@ -212,6 +212,21 @@ impl<'a> CellParser<'a> {
         dict_parser.parse(self)
     }
 
+    pub fn load_dict<K: Eq + Hash, V>(
+        &mut self,
+        key_len: usize,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
+    ) -> Result<HashMap<K, V>, TonCellError> {
+        let has_data = self.load_bit()?;
+        if !has_data {
+            Ok(HashMap::new())
+        } else {
+            let reference_cell = self.next_reference()?;
+            let mut reference_parser = reference_cell.parser();
+            reference_parser.load_dict_data(key_len, key_reader, val_reader)
+        }
+    }
     ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
     ///
     ///Must be prefixed with 0x00 byte.
@@ -222,6 +237,10 @@ impl<'a> CellParser<'a> {
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
     pub fn load_dict_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
         self.load_dict(256, key_reader_256bit, val_reader_snake_formatted_string)
+    }
+
+    pub fn load_dict_data_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
+        self.load_dict_data(256, key_reader_256bit, val_reader_snake_formatted_string)
     }
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {

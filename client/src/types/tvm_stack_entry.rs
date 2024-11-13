@@ -149,6 +149,28 @@ impl TvmStackEntry {
             }),
         }
     }
+
+    pub fn get_dict_data<K, V>(
+        &self,
+        key_len: usize,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
+    ) -> Result<HashMap<K, V>, StackParseError>
+    where
+        K: Hash + Eq + Clone,
+    {
+        match self {
+            TvmStackEntry::Cell(cell) => {
+                let mut parser = cell.parser();
+                Ok(parser.load_dict_data(key_len, key_reader, val_reader)?)
+            }
+            TvmStackEntry::Null => Ok(HashMap::new()),
+            t => Err(StackParseError::InvalidEntryType {
+                expected: "Slice".to_string(),
+                found: t.clone(),
+            }),
+        }
+    }
 }
 
 impl From<bool> for TvmStackEntry {

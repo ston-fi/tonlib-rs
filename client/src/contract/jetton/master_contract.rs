@@ -93,8 +93,7 @@ fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCel
     let content_representation = parser.load_byte()?;
     match content_representation {
         0 => {
-            let dict_cell = cell.reference(0)?;
-            let dict = dict_cell.parser().load_dict_snake_format()?;
+            let dict = parser.load_dict_snake_format()?;
             Ok(MetaDataContent::Internal { dict })
         }
         1 => {
