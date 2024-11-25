@@ -17,6 +17,9 @@ pub enum TonClientError {
         message: String,
     },
 
+    #[error("Invalid argument ({0})")]
+    InvalidArgument(String),
+
     #[error("Unexpected TonResult (Actual: {actual}, expected: {expected})")]
     UnexpectedTonResult {
         actual: TonResultDiscriminants,
