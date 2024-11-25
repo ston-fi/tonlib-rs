@@ -6,7 +6,7 @@ use tonlib_core::cell::TonCellError;
 use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
-use crate::emulator::TvmEmulatorError;
+use crate::emulator::error::TvmEmulatorError;
 use crate::tl::TvmStackError;
 use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
 

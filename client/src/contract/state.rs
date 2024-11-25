@@ -6,7 +6,8 @@ use tonlib_core::TonAddress;
 
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
-use crate::emulator::{TvmEmulator, TvmEmulatorC7Builder};
+use crate::emulator::c7_register::TvmEmulatorC7;
+use crate::emulator::tvm_emulator::TvmEmulator;
 use crate::tl::{InternalTransactionId, RawFullAccountState};
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
@@ -83,12 +84,10 @@ impl TonContractState {
         let method_id = &method.into();
         let stack_ref = stack.as_ref();
         let state = self.account_state.clone();
-        let c7 = TvmEmulatorC7Builder::new(
-            &self.address,
-            self.factory.get_config_cell_serial().await?,
-            0,
-        )
-        .build();
+        let c7 = TvmEmulatorC7::new(
+            self.address.clone(),
+            self.factory.get_config_cell_serial().await?.to_vec(),
+        )?;
 
         let libs = self
             .factory
@@ -109,9 +108,9 @@ impl TonContractState {
             tokio::task::spawn_blocking(move || {
                 let code = state.code.as_slice();
                 let data = state.data.as_slice();
-                let mut emulator = TvmEmulator::new(code, data)?;
-                emulator.set_c7(&c7)?;
-                emulator.set_libraries(libs.dict_boc.as_slice())?;
+                let mut emulator = TvmEmulator::new(code, data)?
+                    .with_c7(&c7)?
+                    .with_libraries(libs.dict_boc.as_slice())?;
                 let run_result = emulator.run_get_method(static_method_id, static_stack);
                 run_result
             })
@@ -132,17 +131,14 @@ impl TonContractState {
         amount: u64,
     ) -> Result<TvmMsgSuccess, TonContractError> {
         let state = self.account_state.clone();
-        let c7 = TvmEmulatorC7Builder::new(
-            &self.address,
-            self.factory.get_config_cell_serial().await?,
-            0,
-        )
-        .build();
+        let c7 = TvmEmulatorC7::new(
+            self.address.clone(),
+            self.factory.get_config_cell_serial().await?.to_vec(),
+        )?;
         let run_result = tokio::task::spawn_blocking(move || {
             let code = state.code.as_slice();
             let data = state.data.as_slice();
-            let mut emulator = TvmEmulator::new(code, data)?;
-            emulator.set_c7(&c7)?;
+            let mut emulator = TvmEmulator::new(code, data)?.with_c7(&c7)?;
             emulator.send_internal_message(message, amount)
         })
         .await
