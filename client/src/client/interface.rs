@@ -92,6 +92,9 @@ pub trait TonClientInterface: Send + Sync {
         count: usize,
         try_decode_messages: bool,
     ) -> Result<RawTransactions, TonClientError> {
+        if count > 16 {
+            return Err(TonClientError::InvalidArgument(format!("Method get_raw_transactions_v2 can not return more than 16 transactions. Requested {}", count)));
+        }
         let func = TonFunction::RawGetTransactionsV2 {
             account_address: AccountAddress {
                 account_address: account_address.to_hex(),

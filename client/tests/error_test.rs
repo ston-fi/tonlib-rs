@@ -172,7 +172,7 @@ fn test_ton_contract_error_output() {
 
     log::error!(
         "{}",
-        TonContractError::IllegalArgument("Some error message".to_string())
+        TonContractError::InvalidArgument("Some error message".to_string())
     );
 
     log::error!(

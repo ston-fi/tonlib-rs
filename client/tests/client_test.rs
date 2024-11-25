@@ -106,6 +106,10 @@ async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
                 assert_eq!(r?.transactions.len(), cnt);
                 return Ok(());
             }
+            assert!(client
+                .get_raw_transactions_v2(address, &state.last_transaction_id, 17, false)
+                .await
+                .is_err());
         }
     }
     Ok(())

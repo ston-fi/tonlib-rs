@@ -34,8 +34,8 @@ pub enum TonContractError {
         error: TvmEmulatorError,
     },
 
-    #[error("Illegal argument ({0})")]
-    IllegalArgument(String),
+    #[error("Invalid argument ({0})")]
+    InvalidArgument(String),
 
     #[error("Internal error ({0})")]
     InternalError(String),
