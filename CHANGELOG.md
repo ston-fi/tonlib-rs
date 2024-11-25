@@ -12,3 +12,4 @@
 * Impl #be-1619: technical release 
 ### v0.20.3
 * Impl #be-1464: read dict key TonHash in BE format
+### v0.21.0
