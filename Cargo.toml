@@ -50,7 +50,7 @@ tokio-retry = "0.3"
 tokio-test = "0.4"
 ton_liteapi = "0.1.0"
 adnl = "2.0"
-tonlib-sys = "=2024.9.0"
+tonlib-sys = "=2024.10.1"
 tokio-tower = "0.6.0"
 tower = "0.5.1"
 
