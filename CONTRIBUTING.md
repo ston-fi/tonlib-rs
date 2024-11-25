@@ -47,7 +47,7 @@ Do you have an idea for a new feature? Open an issue and clearly explain:
 ### 4 Coding standards
 
 - Rust Style: Follow the Rust API Guidelines.
-- Formatting: Use cargo fmt to format your code before submitting.
+- Formatting: Use cargo +nightly fmt to format your code before submitting.
 - Linting: Run cargo clippy and address warnings to maintain code quality.
 
 # Conclusion

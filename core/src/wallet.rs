@@ -79,7 +79,7 @@ lazy_static! {
     };
 }
 
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum WalletVersion {
     V1R1,
     V1R2,
@@ -184,7 +184,7 @@ impl WalletVersion {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TonWallet {
     pub key_pair: KeyPair,
     pub version: WalletVersion,
@@ -359,5 +359,26 @@ mod tests {
             .unwrap();
         assert_eq!(wallet_v5.address, expected_v5);
         Ok(())
+    }
+
+    use crate::wallet::KeyPair;
+    #[test]
+    fn test_debug_ton_wallet() {
+        let key_pair = KeyPair {
+            public_key: vec![1, 2, 3],
+            secret_key: vec![4, 5, 6],
+        };
+        let wallet = TonWallet {
+            key_pair,
+            version: WalletVersion::V4R2,
+            address: "EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK"
+                .parse()
+                .unwrap(),
+            wallet_id: 42,
+        };
+
+        let debug_output = format!("{:?}", wallet);
+        let expected_output = "TonWallet { key_pair: KeyPair { public_key: [1, 2, 3], secret_key: \"***REDACTED***\" }, version: V4R2, address: EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK, wallet_id: 42 }";
+        assert_eq!(debug_output, expected_output);
     }
 }

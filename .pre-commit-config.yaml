@@ -3,3 +3,4 @@ repos:
   rev: b2553d529beb93e75e5ca40663716476faa89ea6
   hooks:
   - id: pre-commit-rust-cargo-fmt
+  
