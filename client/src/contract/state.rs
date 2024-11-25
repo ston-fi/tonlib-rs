@@ -216,6 +216,7 @@ impl TonContractState {
         Self::raise_exit_error(self.address(), &method.into(), result)
     }
 
+    #[allow(clippy::result_large_err)]
     fn raise_exit_error(
         address: &TonAddress,
         method: &TonMethodId,

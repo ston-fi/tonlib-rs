@@ -11,6 +11,7 @@ use crate::tl::TvmStackError;
 use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
 
 #[derive(Error, Debug)]
+#[allow(clippy::result_large_err)]
 pub enum TonContractError {
     #[error("Cell error (Method: {method}, address: {address}, error {error}")]
     CellError {
@@ -73,6 +74,7 @@ pub enum TonContractError {
     #[error(
         "Tvm stack parse  error (Method: {method}, address: {address}, stack error: {error:?})"
     )]
+    #[allow(clippy::result_large_err)]
     TvmStackParseError {
         method: TonMethodId,
         address: TonAddress,
@@ -82,6 +84,7 @@ pub enum TonContractError {
     #[error(
         "Tvm run error (Method: {method}, address: {address}, exit code: {exit_code}, gas used: {gas_used}, stack: {stack:?}, vm_log: {vm_log:?}, missing_library: {missing_library:?})"
     )]
+    #[allow(clippy::result_large_err)]
     TvmRunError {
         method: TonMethodId,
         address: TonAddress,
@@ -99,6 +102,7 @@ pub enum TonContractError {
 }
 
 pub trait MapStackError<R> {
+    #[allow(clippy::result_large_err)]
     fn map_stack_error(
         self,
         method: &'static str,
@@ -107,6 +111,7 @@ pub trait MapStackError<R> {
 }
 
 pub trait MapCellError<R> {
+    #[allow(clippy::result_large_err)]
     fn map_cell_error(
         self,
         method: &'static str,

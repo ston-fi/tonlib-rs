@@ -3,9 +3,10 @@ use std::ffi::CString;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tonlib_sys::{
-    tvm_emulator_create, tvm_emulator_destroy, tvm_emulator_run_get_method,
-    tvm_emulator_send_external_message, tvm_emulator_send_internal_message, tvm_emulator_set_c7,
-    tvm_emulator_set_debug_enabled, tvm_emulator_set_gas_limit, tvm_emulator_set_libraries,
+    emulator_set_verbosity_level, tvm_emulator_create, tvm_emulator_destroy,
+    tvm_emulator_run_get_method, tvm_emulator_send_external_message,
+    tvm_emulator_send_internal_message, tvm_emulator_set_c7, tvm_emulator_set_debug_enabled,
+    tvm_emulator_set_gas_limit, tvm_emulator_set_libraries,
 };
 
 use super::TvmEmulatorError;
@@ -101,6 +102,11 @@ impl TvmEmulatorUnsafe {
             json_str
         );
         Ok(json_str.to_string())
+    }
+
+    pub fn set_global_verbosity_level(&mut self, level: u32) -> Result<bool, TvmEmulatorError> {
+        let success: bool = unsafe { emulator_set_verbosity_level(level) };
+        Ok(success)
     }
 
     pub fn set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
