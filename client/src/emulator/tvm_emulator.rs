@@ -41,7 +41,7 @@ impl TvmEmulator {
         ))
     }
 
-    pub fn with_debug_enable(mut self) -> Result<Self, TvmEmulatorError> {
+    pub fn with_debug_enabled(mut self) -> Result<Self, TvmEmulatorError> {
         if self.emulator.set_debug_enabled(true) {
             return Ok(self);
         }
