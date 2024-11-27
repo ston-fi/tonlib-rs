@@ -305,7 +305,7 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_dict<K, V>(
+    pub fn store_dict_data<K, V>(
         &mut self,
         key_len_bits: usize,
         value_writer: ValWriter<V>,
@@ -317,6 +317,29 @@ impl CellBuilder {
         let dict_builder = DictBuilder::new(key_len_bits, value_writer, data)?;
         let dict_cell = dict_builder.build()?;
         self.store_cell(&dict_cell)
+    }
+
+    pub fn store_dict<K, V>(
+        &mut self,
+        key_len_bits: usize,
+        value_writer: ValWriter<V>,
+        data: HashMap<K, V>,
+    ) -> Result<&mut Self, TonCellError>
+    where
+        BigUint: From<K>,
+    {
+        if data.is_empty() {
+            self.store_bit(false)
+        } else {
+            self.store_bit(true)?;
+
+            let dict_data = Arc::new(
+                CellBuilder::new()
+                    .store_dict_data(key_len_bits, value_writer, data)?
+                    .build()?,
+            );
+            self.store_reference(&dict_data)
+        }
     }
 
     pub fn remaining_bits(&self) -> usize {

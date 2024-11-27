@@ -21,7 +21,7 @@ use tonlib_client::tl::{
     NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
-use tonlib_core::cell::BagOfCells;
+use tonlib_core::cell::{BagOfCells, CellBuilder};
 use tonlib_core::types::ZERO_HASH;
 use tonlib_core::{TonAddress, TonTxId};
 
@@ -106,6 +106,10 @@ async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
                 assert_eq!(r?.transactions.len(), cnt);
                 return Ok(());
             }
+            assert!(client
+                .get_raw_transactions_v2(address, &state.last_transaction_id, 17, false)
+                .await
+                .is_err());
         }
     }
     Ok(())
@@ -598,7 +602,12 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
     );
 
     let boc = BagOfCells::parse(&smc_libraries_ext_result.dict_boc)?;
-    let cell = boc.single_root()?;
+    let cell_ref = boc.single_root()?;
+    let mut cell_builder = CellBuilder::new();
+    cell_builder.store_bit(true)?;
+    cell_builder.store_reference(cell_ref)?;
+    let cell = cell_builder.build()?;
+
     let dict = assert_ok!(cell
         .parser()
         .load_dict(256, key_reader_256bit, val_reader_cell));

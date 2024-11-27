@@ -182,20 +182,20 @@ impl fmt::Display for TonResult {
 
             TonResult::BlocksShards(_) => write!(f, "TonResult::BlocksShards"),
 
-            TonResult::BlocksTransactions(blocks_trasnactions) => write!(
+            TonResult::BlocksTransactions(blocks_transactions) => write!(
                 f,
                 "TonResult::BlocksTransactions: {}:{}, seqno{}",
-                blocks_trasnactions.id.workchain,
-                blocks_trasnactions.id.shard,
-                blocks_trasnactions.id.seqno
+                blocks_transactions.id.workchain,
+                blocks_transactions.id.shard,
+                blocks_transactions.id.seqno
             ),
 
-            TonResult::BlocksTransactionsExt(blocks_trasnactions) => write!(
+            TonResult::BlocksTransactionsExt(blocks_transactions) => write!(
                 f,
                 "TonResult::BlocksTransactions: {}:{}, seqno{}",
-                blocks_trasnactions.id.workchain,
-                blocks_trasnactions.id.shard,
-                blocks_trasnactions.id.seqno
+                blocks_transactions.id.workchain,
+                blocks_transactions.id.shard,
+                blocks_transactions.id.seqno
             ),
 
             TonResult::BlocksHeader(blocks_header) => write!(

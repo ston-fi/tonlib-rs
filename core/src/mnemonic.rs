@@ -1,8 +1,7 @@
 mod error;
 
-use std::cmp;
 use std::collections::HashMap;
-use std::fmt;
+use std::{cmp, fmt};
 
 pub use error::*;
 use hmac::{Hmac, Mac};

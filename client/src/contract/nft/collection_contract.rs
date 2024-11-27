@@ -102,11 +102,7 @@ async fn read_collection_metadata_content(
         // The URI is encoded as ASCII. If the URI does not fit into one cell, then it uses the "Snake format"
         //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
         0 => {
-            let reference = cell
-                .reference(0)
-                .map_cell_error("get_collection_data", collection_address)?;
-            let dict = reference
-                .parser()
+            let dict = parser
                 .load_dict_snake_format()
                 .map_cell_error("get_collection_data", collection_address)?;
             Ok(MetaDataContent::Internal { dict })

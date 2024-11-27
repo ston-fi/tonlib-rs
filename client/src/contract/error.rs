@@ -6,11 +6,12 @@ use tonlib_core::cell::TonCellError;
 use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
-use crate::emulator::TvmEmulatorError;
+use crate::emulator::error::TvmEmulatorError;
 use crate::tl::TvmStackError;
 use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
 
 #[derive(Error, Debug)]
+#[allow(clippy::result_large_err)]
 pub enum TonContractError {
     #[error("Cell error (Method: {method}, address: {address}, error {error}")]
     CellError {
@@ -34,8 +35,8 @@ pub enum TonContractError {
         error: TvmEmulatorError,
     },
 
-    #[error("Illegal argument ({0})")]
-    IllegalArgument(String),
+    #[error("Invalid argument ({0})")]
+    InvalidArgument(String),
 
     #[error("Internal error ({0})")]
     InternalError(String),
@@ -73,6 +74,7 @@ pub enum TonContractError {
     #[error(
         "Tvm stack parse  error (Method: {method}, address: {address}, stack error: {error:?})"
     )]
+    #[allow(clippy::result_large_err)]
     TvmStackParseError {
         method: TonMethodId,
         address: TonAddress,
@@ -82,6 +84,7 @@ pub enum TonContractError {
     #[error(
         "Tvm run error (Method: {method}, address: {address}, exit code: {exit_code}, gas used: {gas_used}, stack: {stack:?}, vm_log: {vm_log:?}, missing_library: {missing_library:?})"
     )]
+    #[allow(clippy::result_large_err)]
     TvmRunError {
         method: TonMethodId,
         address: TonAddress,
@@ -99,6 +102,7 @@ pub enum TonContractError {
 }
 
 pub trait MapStackError<R> {
+    #[allow(clippy::result_large_err)]
     fn map_stack_error(
         self,
         method: &'static str,
@@ -107,6 +111,7 @@ pub trait MapStackError<R> {
 }
 
 pub trait MapCellError<R> {
+    #[allow(clippy::result_large_err)]
     fn map_cell_error(
         self,
         method: &'static str,

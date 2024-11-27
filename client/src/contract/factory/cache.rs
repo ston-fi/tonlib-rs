@@ -90,7 +90,16 @@ impl ContractFactoryCache {
 
         match state_result {
             Ok(state) => Ok(state),
-            Err(e) => Err(TonContractError::CacheError(e.clone())),
+            Err(e) => match e.as_ref() {
+                TonContractError::ClientError(TonClientError::TonlibError {
+                    ref message, ..
+                }) if message == "transaction hash mismatch" => {
+                    log::warn!("Failed to get_raw_account_state_by_transaction. Falling back to latest account state{:?}", e);
+                    let r = self.inner.client.get_raw_account_state(address).await?;
+                    Ok(r.into())
+                }
+                _ => Err(e.into()),
+            },
         }
     }
 
@@ -111,25 +120,12 @@ impl ContractFactoryCache {
         let tx_id_cache = &self.inner.tx_id_cache;
         let maybe_tx_id = tx_id_cache.get(address).await;
         let state = if let Some(tx_id) = maybe_tx_id {
-            let maybe_result = client
+            client
                 .get_raw_account_state_by_transaction(address, &tx_id)
-                .await;
-            match maybe_result {
-                Ok(result) => Ok(result),
-                Err(e) => match e {
-                    TonClientError::TonlibError { ref message, .. }
-                        if message == "transaction hash mismatch" =>
-                    {
-                        log::warn!("Failed to get_raw_account_state_by_transaction. Falling back to latest account state{:?}", e);
-                        let r = client.get_raw_account_state(address).await?;
-                        Ok(r)
-                    }
-                    _ => return Err(TonContractError::ClientError(e)),
-                },
-            }
+                .await?
         } else {
-            client.get_raw_account_state(address).await
-        }?;
+            client.get_raw_account_state(address).await?
+        };
         Ok(Arc::new(state))
     }
 

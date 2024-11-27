@@ -21,19 +21,21 @@ fn test_blockchain_data() -> anyhow::Result<()> {
     ]);
     let boc_b64 = "te6cckEBBgEAWgABGccNPKUADZm5MepOjMABAgHNAgMCASAEBQAnQAAAAAAAAAAAAAABMlF4tR2RgCAAJgAAAAAAAAAAAAABaFhaZZhr6AAAJgAAAAAAAAAAAAAAR8sYU4eC4AA1PIC5";
     let boc = BagOfCells::parse_base64(boc_b64)?;
-    let dict_cell = boc.single_root()?.reference(0)?;
-    let parsed_data = assert_ok!(dict_cell
-        .parser()
-        .load_dict(8, key_reader_u8, val_reader_uint));
-    assert_eq!(expected_data, parsed_data);
+    let dict_cell = boc.single_root()?;
+    let mut parser = dict_cell.parser();
+    let cell_data = parser.load_uint(96)?;
+
+    let parsed_dict = assert_ok!(parser.load_dict(8, key_reader_u8, val_reader_uint));
+    assert_eq!(expected_data, parsed_dict);
 
     let writer = |builder: &mut CellBuilder, val: BigUint| {
         builder.store_uint(150, &val)?; // empirically found bit length
         Ok(())
     };
     let mut builder = CellBuilder::new();
+    builder.store_uint(96, &cell_data)?;
     assert_ok!(builder.store_dict(8, writer, expected_data));
-    let constructed_cell = builder.build()?;
+    let constructed_cell: Cell = builder.build()?;
     assert_eq!(dict_cell.deref(), &constructed_cell);
     Ok(())
 }

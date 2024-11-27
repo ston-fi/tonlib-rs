@@ -82,7 +82,7 @@ impl MetaDataContent {
         let content_representation = parser.load_byte()?;
         match content_representation {
             0 => {
-                let dict = cell.reference(0)?.parser().load_dict_snake_format()?;
+                let dict = parser.load_dict_snake_format()?;
                 Ok(MetaDataContent::Internal { dict })
             }
             1 => {
