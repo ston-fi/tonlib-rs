@@ -80,10 +80,9 @@ impl MetaDataContent {
         // TODO: Refactor NFT metadata to use this method and merge collection data & item data afterwards
         let mut parser = cell.parser();
         let content_representation = parser.load_byte()?;
-        let mut parser = cell.reference(0)?.parser();
         match content_representation {
             0 => {
-                let dict = parser.load_dict_data_snake_format()?;
+                let dict = parser.load_dict_snake_format()?;
                 Ok(MetaDataContent::Internal { dict })
             }
             1 => {

@@ -103,7 +103,7 @@ async fn read_collection_metadata_content(
         //  described in the "Data serialization" paragraph, the snake-format-prefix 0x00 is dropped.
         0 => {
             let dict = parser
-                .load_dict_data_snake_format()
+                .load_dict_snake_format()
                 .map_cell_error("get_collection_data", collection_address)?;
             Ok(MetaDataContent::Internal { dict })
         }
