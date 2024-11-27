@@ -29,9 +29,4 @@
 * Impl #ni: update tvm integration tests
 * Impl #ni: tvmemulator cleanup
 * Bump tonlib-sys to 2024.10.2
-### v0.21.1
-* Updated changelog
-* Impl #be-1742: fix read_collection_metadata_content for internal
-* Impl #ni: update tvm integration tests
-* Impl #ni: tvmemulator cleanup
-* Bump tonlib-sys to 2024.10.2
+
