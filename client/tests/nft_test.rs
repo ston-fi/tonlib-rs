@@ -14,7 +14,9 @@ async fn test_get_nft_data() {
     let contract = factory.get_contract(&assert_ok!(
         "EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW".parse()
     ));
-    println!("{:?}", contract.get_nft_data().await);
+    assert_ok!(contract.get_nft_data().await);
+    // let x= contract.get_nft_data().await;
+    // log::info!("(!!!) NftItemData: {:#?}", x);
 }
 
 #[tokio::test]
@@ -42,32 +44,57 @@ async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
 
 // ---------------------nft get item metadata tests
 
+// #[tokio::test]
+// async fn test_get_nft_content_uri_OLD() -> anyhow::Result<()> {
+//     common::init_logging();
+//     let client = common::new_mainnet_client().await;
+//     let factory = TonContractFactory::builder(&client).build().await?;
+//     let contract = factory.get_contract(&assert_ok!(
+//         "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
+//     ));
+//     let res = assert_ok!(contract.get_nft_data().await);
+//
+//     // Предположительно делить здесь.
+//     let x = MyStruct { x: 42 };
+//     log::info!("{:#?}", res);
+//     assert_eq!(
+//         res.individual_content,
+//         MetaDataContent::External {
+//             uri: "https://nft.fragment.com/number/88805397120.json".to_string()
+//         }
+//     );
+//     let meta_loader = assert_ok!(NftItemMetaLoader::default());
+//     let content_res = assert_ok!(meta_loader.load(&res.individual_content).await);
+//     assert_eq!(
+//         content_res.name.as_ref().unwrap(),
+//         &String::from("+888 0539 7120")
+//     );
+//     assert_eq!(
+//         content_res.image.as_ref().unwrap(),
+//         &String::from("https://nft.fragment.com/number/88805397120.webp")
+//     );
+//     Ok(())
+// }
+
+struct MyStruct {
+    x: i32
+}
 #[tokio::test]
 async fn test_get_nft_content_uri() -> anyhow::Result<()> {
     common::init_logging();
+
+
     let client = common::new_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract = factory.get_contract(&assert_ok!(
         "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
     ));
-    let res = assert_ok!(contract.get_nft_data().await);
 
-    // Предположительно делить здесь.
+    let expected_uri = "https://nft.fragment.com/number/88805397120.json".to_string();
+    let res = assert_ok!(contract.get_nft_data().await);
     assert_eq!(
         res.individual_content,
-        MetaDataContent::External {
-            uri: "https://nft.fragment.com/number/88805397120.json".to_string()
-        }
-    );
-    let meta_loader = assert_ok!(NftItemMetaLoader::default());
-    let content_res = assert_ok!(meta_loader.load(&res.individual_content).await);
-    assert_eq!(
-        content_res.name.as_ref().unwrap(),
-        &String::from("+888 0539 7120")
-    );
-    assert_eq!(
-        content_res.image.as_ref().unwrap(),
-        &String::from("https://nft.fragment.com/number/88805397120.webp")
+        MetaDataContent::External { uri: expected_uri }
     );
     Ok(())
 }

@@ -42,7 +42,7 @@ fn read_config_file(path: &Path) -> &'static str {
 #[allow(dead_code)]
 static LOG: Once = Once::new();
 
-#[allow(dead_code)]
+#[allow(dead_code)]  // Why is it here?
 pub fn init_logging() {
     LOG.call_once(|| {
         TonClient::set_log_verbosity_level(1);
