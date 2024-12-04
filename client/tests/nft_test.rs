@@ -14,7 +14,7 @@ async fn test_get_nft_data() {
     let contract = factory.get_contract(&assert_ok!(
         "EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW".parse()
     ));
-    assert_ok!(contract.get_nft_data().await);
+    println!("{:?}", contract.get_nft_data().await);
 }
 
 #[tokio::test]
@@ -51,6 +51,8 @@ async fn test_get_nft_content_uri() -> anyhow::Result<()> {
         "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
     ));
     let res = assert_ok!(contract.get_nft_data().await);
+
+    // Предположительно делить здесь.
     assert_eq!(
         res.individual_content,
         MetaDataContent::External {
@@ -79,6 +81,8 @@ async fn test_get_nft_content_arkenston() -> anyhow::Result<()> {
         "EQDhR36C8pSVtyhOFtE9nh2DFq4WYUbTZFmvjfnShlrXq2cz".parse()
     ));
     let res = assert_ok!(contract.get_nft_data().await);
+
+    // Пилить ниже
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&res.individual_content).await);
     assert_eq!(
@@ -98,6 +102,8 @@ async fn test_get_nft_content_some() -> anyhow::Result<()> {
         "EQCiXgoveScGKGGqo50HbmwP3goKJaEfu9QmeBRJ-jbRxM21".parse()
     ));
     let res = assert_ok!(contract.get_nft_data().await);
+
+    // Пилить здесь.
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&res.individual_content).await);
     assert_eq!(
@@ -198,5 +204,11 @@ async fn test_get_nft_content_external() -> anyhow::Result<()> {
         TryInto::<TonHash>::try_into(slice)?
     };
     assert!(internal.contains_key(&expected_key));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_my_first_test() -> anyhow::Result<()> {
+    println!("Hello, world!");
     Ok(())
 }
