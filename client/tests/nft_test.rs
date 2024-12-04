@@ -248,9 +248,3 @@ async fn test_get_nft_content_external() -> anyhow::Result<()> {
     assert!(internal.contains_key(&expected_key));
     Ok(())
 }
-
-#[tokio::test]
-async fn test_my_first_test() -> anyhow::Result<()> {
-    println!("Hello, world!");
-    Ok(())
-}
