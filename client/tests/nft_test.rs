@@ -76,26 +76,39 @@ async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
 //     Ok(())
 // }
 
-struct MyStruct {
-    x: i32
-}
 #[tokio::test]
 async fn test_get_nft_content_uri() -> anyhow::Result<()> {
     common::init_logging();
-
-
     let client = common::new_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract = factory.get_contract(&assert_ok!(
         "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
     ));
+    let res = assert_ok!(contract.get_nft_data().await);
 
     let expected_uri = "https://nft.fragment.com/number/88805397120.json".to_string();
-    let res = assert_ok!(contract.get_nft_data().await);
     assert_eq!(
         res.individual_content,
         MetaDataContent::External { uri: expected_uri }
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_load_content_by_uri() -> anyhow::Result<()> {
+    common::init_logging();
+    let meta_loader = assert_ok!(NftItemMetaLoader::default());
+
+    let request_uri = "https://nft.fragment.com/number/88805397120.json".to_string();
+    let md_content = MetaDataContent::External { uri: request_uri };
+    let md_content_res = assert_ok!(meta_loader.load(&md_content).await);
+
+    let expected_phone = "+888 0539 7120".to_string();
+    let expected_webp = "https://nft.fragment.com/number/88805397120.webp".to_string();
+
+    assert_eq!(md_content_res.name.as_ref().unwrap(), &expected_phone);
+    assert_eq!(md_content_res.image.as_ref().unwrap(),&expected_webp);
+
     Ok(())
 }
 
@@ -161,7 +174,9 @@ async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
     );
 
     let meta_loader = NftColletionMetaLoader::default()?;
-    let content_res = assert_ok!(meta_loader.load(&res.collection_content).await);
+    let content_res = assert_ok!(
+        meta_loader.load(&res.collection_content).await
+    );
     assert_eq!(
         content_res.name.as_ref().unwrap(),
         &String::from("Anonymous Telegram Numbers")
