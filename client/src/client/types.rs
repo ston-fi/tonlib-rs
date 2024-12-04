@@ -3,7 +3,7 @@ use std::sync::Arc;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
-use tonlib_core::TonAddress;
+use tonlib_core::{TonAddress, TonHash};
 
 use super::{
     BlocksShortTxId, TonClientError, DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
@@ -22,12 +22,8 @@ pub struct TxId {
 
 impl TxId {
     pub fn new(workchain: i32, tx_id: &BlocksShortTxId) -> Result<TxId, TonClientError> {
-        let addr = TonAddress::new(
-            workchain,
-            tx_id.account.as_slice().try_into().map_err(|_| {
-                TonClientError::InternalError(format!("Invalid BlocksShortTxId: {:?}", tx_id))
-            })?,
-        );
+        let hash_part = TonHash::try_from(tx_id.account.as_slice())?;
+        let addr = TonAddress::new(workchain, &hash_part);
         let id = InternalTransactionId {
             lt: tx_id.lt,
             hash: tx_id.hash.clone(),

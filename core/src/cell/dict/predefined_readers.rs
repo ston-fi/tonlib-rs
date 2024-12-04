@@ -3,7 +3,7 @@ use num_traits::ToPrimitive;
 
 use crate::cell::TonCellError::{InternalError, InvalidInput};
 use crate::cell::{ArcCell, Cell, CellParser, TonCellError};
-use crate::types::TON_HASH_BYTES;
+use crate::types::TON_HASH_LEN;
 use crate::TonHash;
 
 pub fn key_reader_u8(raw_key: &BigUint) -> Result<u8, TonCellError> {
@@ -27,7 +27,7 @@ pub fn key_reader_u64(raw_key: &BigUint) -> Result<u64, TonCellError> {
 }
 
 pub fn key_reader_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
-    validate_bit_len(val, TON_HASH_BYTES * 8)?;
+    validate_bit_len(val, TON_HASH_LEN * 8)?;
     let digits = val.to_bytes_be();
     let key_digits = if digits.len() < 32 {
         let mut tmp = vec![0u8; 32 - digits.len()];
@@ -36,11 +36,8 @@ pub fn key_reader_256bit(val: &BigUint) -> Result<TonHash, TonCellError> {
     } else {
         digits
     };
-    let slice: [u8; 32] = key_digits.try_into().map_err(|_| {
-        let msg = format!("Fail to get [u8; 32] from {}", val);
-        InternalError(msg)
-    })?;
-    Ok(slice)
+    let ton_hash = key_digits.try_into()?;
+    Ok(ton_hash)
 }
 
 pub fn key_reader_uint(raw_key: &BigUint) -> Result<BigUint, TonCellError> {

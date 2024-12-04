@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use super::{TonHash, TransactionIdParseError};
-use crate::types::TON_HASH_BYTES;
+use crate::types::ZERO_HASH;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct TonTxId {
@@ -20,7 +20,7 @@ pub struct TonTxId {
 lazy_static! {
     pub static ref NULL_TRANSACTION_ID: TonTxId = TonTxId {
         lt: 0i64,
-        hash: [0u8; TON_HASH_BYTES]
+        hash: ZERO_HASH
     };
 }
 
@@ -66,12 +66,6 @@ impl TonTxId {
                 }
             }
         };
-        if hash.len() != 32 {
-            return Err(TransactionIdParseError::new(
-                format!("{}, {}", lt, hash_str),
-                "Invalid transaction hash: length is not equal to 32",
-            ));
-        }
 
         Ok(TonTxId { lt, hash })
     }

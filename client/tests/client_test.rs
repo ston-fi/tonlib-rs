@@ -22,8 +22,7 @@ use tonlib_client::tl::{
 };
 use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
 use tonlib_core::cell::{BagOfCells, CellBuilder};
-use tonlib_core::types::ZERO_HASH;
-use tonlib_core::{TonAddress, TonTxId};
+use tonlib_core::{TonAddress, TonHash, TonTxId};
 
 mod common;
 
@@ -267,8 +266,7 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let mut t = ZERO_HASH;
-            t.clone_from_slice(tx_id.account.as_slice());
+            let t = TonHash::try_from(tx_id.account)?;
             let addr = TonAddress::new(workchain, &t);
             let id = InternalTransactionId {
                 hash: tx_id.hash.clone(),
@@ -615,7 +613,7 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
     log::info!("DICT: {:?}", dict);
 
     assert_eq!(dict.len(), 1);
-    assert!(dict.contains_key(STANDARD.decode(library_hash)?.as_slice()));
+    assert!(dict.contains_key(&TonHash::try_from(STANDARD.decode(library_hash)?)?));
     Ok(())
 }
 

@@ -1,6 +1,5 @@
 use std::ffi::CString;
 
-use crate::emulator::error::TvmEmulatorError;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tonlib_sys::{
@@ -9,6 +8,8 @@ use tonlib_sys::{
     tvm_emulator_send_internal_message, tvm_emulator_set_c7, tvm_emulator_set_debug_enabled,
     tvm_emulator_set_gas_limit, tvm_emulator_set_libraries,
 };
+
+use crate::emulator::error::TvmEmulatorError;
 
 #[derive(Debug)]
 pub struct TvmEmulatorUnsafe {

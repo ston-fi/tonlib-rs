@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::types::TonHashParseError;
+
 #[derive(Error, Debug)]
 pub enum TonCellError {
     #[error("Bag of cells deserialization error ({0})")]
@@ -42,6 +44,8 @@ pub enum TonCellError {
         remaining_bits: usize,
         remaining_refs: usize,
     },
+    #[error("TonHash parse error ({0})")]
+    TonHashParseError(#[from] TonHashParseError),
 }
 
 pub trait MapTonCellError<R, E>

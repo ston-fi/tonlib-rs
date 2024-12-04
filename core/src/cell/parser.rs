@@ -12,6 +12,7 @@ use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
+use crate::types::ZERO_HASH;
 use crate::TonAddress;
 
 pub struct CellParser<'a> {
@@ -183,9 +184,9 @@ impl<'a> CellParser<'a> {
                 self.ensure_enough_bits(1 + 8 + 32 * 8)?;
                 let _res1 = self.bit_reader.read::<u8>(1).map_cell_parser_error()?;
                 let wc = self.bit_reader.read::<u8>(8).map_cell_parser_error()?;
-                let mut hash_part = [0_u8; 32];
+                let mut hash_part = ZERO_HASH;
                 self.bit_reader
-                    .read_bytes(&mut hash_part)
+                    .read_bytes(hash_part.as_mut_slice())
                     .map_cell_parser_error()?;
                 let addr = TonAddress::new(wc as i32, &hash_part);
                 Ok(addr)
@@ -329,8 +330,8 @@ mod tests {
 
     use num_bigint::{BigInt, BigUint};
 
+    use crate::cell::parser::TonAddress;
     use crate::cell::{Cell, CellBuilder, EitherCellLayout};
-    use crate::TonAddress;
 
     #[test]
     fn test_load_bit() {
