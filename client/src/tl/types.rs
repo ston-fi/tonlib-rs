@@ -4,8 +4,8 @@ use std::fmt::{Debug, Display, Formatter};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
-use tonlib_core::types::TON_HASH_LEN;
-use tonlib_core::TonTxId;
+use tonlib_core::types::{TonHashParseError, TON_HASH_LEN};
+use tonlib_core::{TonHash, TonTxId};
 
 use super::TonLibraryId;
 use crate::tl::stack::{TvmCell, TvmStack};
@@ -89,6 +89,18 @@ impl From<TonTxId> for InternalTransactionId {
             lt: value.lt,
             hash: value.hash.to_vec(),
         }
+    }
+}
+
+impl TryFrom<InternalTransactionId> for TonTxId {
+    type Error = TonHashParseError;
+
+    fn try_from(value: InternalTransactionId) -> Result<Self, Self::Error> {
+        let ton_tx_id = TonTxId {
+            lt: value.lt,
+            hash: TonHash::try_from(value.hash)?,
+        };
+        Ok(ton_tx_id)
     }
 }
 
