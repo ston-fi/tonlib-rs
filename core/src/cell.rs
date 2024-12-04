@@ -509,7 +509,9 @@ fn write_ref_hashes(
             reference.get_hash(level)
         };
 
-        writer.write_bytes(&child_hash).map_cell_parser_error()?;
+        writer
+            .write_bytes(child_hash.as_slice())
+            .map_cell_parser_error()?;
     }
 
     Ok(())

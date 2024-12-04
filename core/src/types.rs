@@ -3,14 +3,106 @@ mod error;
 mod tx_id;
 
 pub use address::*;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 pub use error::*;
+use serde::{Deserialize, Serialize};
 pub use tx_id::*;
 
-pub const TON_HASH_BYTES: usize = 32;
-pub const ZERO_HASH: TonHash = [0; 32];
-pub type TonHash = [u8; TON_HASH_BYTES];
+pub const TON_HASH_LEN: usize = 32;
 
-pub const DEFAULT_CELL_HASH: TonHash = [
+pub const ZERO_HASH: TonHash = TonHash([0u8; TON_HASH_LEN]);
+
+pub const DEFAULT_CELL_HASH: TonHash = TonHash([
     150, 162, 150, 210, 36, 242, 133, 198, 123, 238, 147, 195, 15, 138, 48, 145, 87, 240, 218, 163,
     93, 197, 184, 126, 65, 11, 120, 99, 10, 9, 207, 199,
-];
+]);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TonHash([u8; TON_HASH_LEN]);
+
+impl TonHash {
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.0.iter()
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    /// Convert the hash to a hexadecimal string
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.0)
+    }
+
+    /// Convert the hash to a Base64 string
+    pub fn to_base64(&self) -> String {
+        STANDARD.encode(self.0)
+    }
+
+    /// Create a `TonHash` from a hexadecimal string
+    pub fn from_hex(hex_str: &str) -> Result<Self, TonHashParseError> {
+        let bytes = hex::decode(hex_str).map_err(|_| {
+            TonHashParseError::new(hex_str, "Failed to convert hex string to TonHash")
+        })?;
+        Self::try_from(bytes)
+    }
+
+    /// Create a `TonHash` from a Base64 string
+    pub fn from_base64(base64_str: &str) -> Result<Self, TonHashParseError> {
+        let bytes = STANDARD.decode(base64_str).map_err(|_| {
+            TonHashParseError::new(base64_str, "Failed to convert base64 string to TonHash")
+        })?;
+        Self::try_from(bytes)
+    }
+}
+
+impl AsRef<[u8]> for TonHash {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<[u8; TON_HASH_LEN]> for TonHash {
+    fn from(arr: [u8; TON_HASH_LEN]) -> Self {
+        TonHash(arr)
+    }
+}
+
+impl From<&[u8; 32]> for TonHash {
+    fn from(slice: &[u8; 32]) -> Self {
+        TonHash(*slice)
+    }
+}
+
+impl TryFrom<&[u8]> for TonHash {
+    type Error = TonHashParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.len() != TON_HASH_LEN {
+            let formatted_input = format!("{:?}", value);
+            Err(TonHashParseError::new(
+                formatted_input,
+                "TonHash must contain exactly 32 bytes",
+            ))
+        } else {
+            let mut hash = [0u8; TON_HASH_LEN];
+            hash.copy_from_slice(value);
+            Ok(TonHash(hash))
+        }
+    }
+}
+
+impl TryFrom<Vec<u8>> for TonHash {
+    type Error = TonHashParseError;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_slice())
+    }
+}

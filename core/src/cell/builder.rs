@@ -193,7 +193,7 @@ impl CellBuilder {
         self.store_bit(false)?;
         let wc = (val.workchain & 0xff) as u8;
         self.store_u8(8, wc)?;
-        self.store_slice(&val.hash_part)?;
+        self.store_slice(val.hash_part.as_slice())?;
         Ok(self)
     }
 

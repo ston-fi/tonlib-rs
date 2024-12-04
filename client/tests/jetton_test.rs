@@ -174,14 +174,14 @@ async fn test_jetton_image_data() -> anyhow::Result<()> {
     let meta_loader = assert_ok!(JettonMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&jetton_data.content).await);
 
-    const TARGET_IMAGE_HASH: TonHash = [
+    let target_image_hash: TonHash = TonHash::from([
         45, 186, 67, 118, 224, 166, 76, 84, 0, 203, 69, 175, 47, 34, 164, 184, 36, 229, 51, 193,
         17, 18, 84, 70, 179, 240, 137, 163, 42, 147, 119, 220,
-    ];
+    ]);
     let mut hasher: Sha256 = Sha256::new();
     hasher.update(content_res.image_data.unwrap());
     let img_hash = hasher.finalize()[..].to_vec();
-    assert_eq!(TARGET_IMAGE_HASH.to_vec(), img_hash);
+    assert_eq!(target_image_hash.as_slice(), img_hash.as_slice());
 
     Ok(())
 }

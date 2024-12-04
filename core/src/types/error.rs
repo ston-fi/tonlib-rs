@@ -31,3 +31,28 @@ impl TransactionIdParseError {
         }
     }
 }
+
+#[derive(Error, Debug)]
+#[error("Invalid TonHash (Hash: {hash}, message: {message})")]
+pub struct TonHashParseError {
+    hash: String,
+    message: String,
+}
+
+impl TonHashParseError {
+    pub fn new<T: ToString, M: ToString>(hash: T, message: M) -> TonHashParseError {
+        TonHashParseError {
+            hash: hash.to_string(),
+            message: message.to_string(),
+        }
+    }
+}
+
+impl From<TonHashParseError> for TonAddressParseError {
+    fn from(error: TonHashParseError) -> Self {
+        TonAddressParseError {
+            address: error.hash,
+            message: error.message,
+        }
+    }
+}

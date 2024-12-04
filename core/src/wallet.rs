@@ -125,12 +125,7 @@ impl WalletVersion {
         key_pair: &KeyPair,
         wallet_id: i32,
     ) -> Result<ArcCell, TonCellError> {
-        let public_key: TonHash = key_pair
-            .public_key
-            .clone()
-            .try_into()
-            .map_err(|_| TonCellError::InternalError("Invalid public key size".to_string()))?;
-
+        let public_key = TonHash::try_from(key_pair.public_key.as_slice())?;
         let data_cell: Cell = match &self {
             WalletVersion::V1R1
             | WalletVersion::V1R2
@@ -202,15 +197,7 @@ impl TonWallet {
         let data = version.initial_data(key_pair, wallet_id)?;
         let code = version.code()?;
         let state_init_hash = StateInit::create_account_id(code, &data)?;
-        let hash_part = match state_init_hash.as_slice().try_into() {
-            Ok(hash_part) => hash_part,
-            Err(_) => {
-                return Err(TonCellError::InternalError(
-                    "StateInit returned hash pof wrong size".to_string(),
-                ))
-            }
-        };
-        let addr = TonAddress::new(workchain, &hash_part);
+        let addr = TonAddress::new(workchain, &state_init_hash);
         Ok(TonWallet {
             key_pair: key_pair.clone(),
             version,
@@ -230,15 +217,7 @@ impl TonWallet {
         let data = version.initial_data(key_pair, wallet_id)?;
         let code = version.code()?;
         let state_init_hash = StateInit::create_account_id(code, &data)?;
-        let hash_part = match state_init_hash.as_slice().try_into() {
-            Ok(hash_part) => hash_part,
-            Err(_) => {
-                return Err(TonCellError::InternalError(
-                    "StateInit returned hash pof wrong size".to_string(),
-                ))
-            }
-        };
-        let addr = TonAddress::new(0, &hash_part);
+        let addr = TonAddress::new(0, &state_init_hash);
         Ok(TonWallet {
             key_pair: key_pair.clone(),
             version,

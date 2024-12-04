@@ -4,7 +4,8 @@ use std::fmt::{Debug, Display, Formatter};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
-use tonlib_core::{TonHash, TonTxId};
+use tonlib_core::types::TON_HASH_LEN;
+use tonlib_core::TonTxId;
 
 use super::TonLibraryId;
 use crate::tl::stack::{TvmCell, TvmStack};
@@ -440,7 +441,7 @@ pub struct SmcLibraryResult {
 #[serde(tag = "@type", rename_all = "camelCase")]
 pub enum SmcLibraryQueryExt {
     #[serde(rename = "smc.libraryQueryExt.one")]
-    One { hash: TonHash },
+    One { hash: [u8; TON_HASH_LEN] },
 
     // tonlib_api.tl, line 190
     #[serde(rename = "smc.libraryQueryExt.scanBoc")]

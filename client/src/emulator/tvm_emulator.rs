@@ -1,10 +1,11 @@
+use tonlib_core::cell::{BagOfCells, Cell};
+
 use crate::emulator::c7_register::TvmEmulatorC7;
 use crate::emulator::error::TvmEmulatorError;
 use crate::emulator::tvm_emulator_unsafe::TvmEmulatorUnsafe;
 use crate::emulator::types::{TvmEmulatorMessageResponse, TvmEmulatorResponse};
 use crate::emulator::utils::build_stack_boc;
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
-use tonlib_core::cell::{BagOfCells, Cell};
 
 #[derive(Debug)]
 pub struct TvmEmulator {

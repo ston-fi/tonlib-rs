@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::{TonAddressParseError, TonHash, TON_HASH_BYTES};
+use super::{TonAddressParseError, TonHash, ZERO_HASH};
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -23,7 +23,7 @@ pub struct TonAddress {
 impl TonAddress {
     pub const NULL: TonAddress = TonAddress {
         workchain: 0,
-        hash_part: [0; TON_HASH_BYTES],
+        hash_part: ZERO_HASH,
     };
 
     pub fn new(workchain: i32, hash_part: &TonHash) -> TonAddress {
@@ -196,8 +196,7 @@ impl TonAddress {
                 "Invalid base64src address: CRC mismatch",
             ));
         }
-        let mut hash_part = [0_u8; 32];
-        hash_part.clone_from_slice(&bytes[2..34]);
+        let hash_part = TonHash::try_from(&bytes[2..34])?;
         let addr = TonAddress {
             workchain,
             hash_part,
@@ -238,7 +237,7 @@ impl TonAddress {
         };
         bytes[0] = tag;
         bytes[1] = (self.workchain & 0xff) as u8;
-        bytes[2..34].clone_from_slice(&self.hash_part);
+        bytes[2..34].clone_from_slice(self.hash_part.as_slice());
         let crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
         bytes[34] = ((crc >> 8) & 0xff) as u8;
         bytes[35] = (crc & 0xff) as u8;
