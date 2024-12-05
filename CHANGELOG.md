@@ -25,3 +25,12 @@
 * Impl #ni: update tvm integration tests
 * Impl #ni: tvmemulator cleanup
 * Bump tonlib-sys to 2024.10.2
+### v0.22.2
+* Impl #be-1430: config path via environment variable
+* Impl #be-1708: added cmp for tonaddress
+* Impl #be-1785: removed state_cache feature
+* Impl #be-1431: impl tryfrom<internaltransactionid> for tontxid
+* Impl #be-1429: tonhash converted to struct
+* Ni: added into_single_root method
+* Ni: bump thiserror dependency version
+* Iml #be-1761: fix memory leak in emulator
