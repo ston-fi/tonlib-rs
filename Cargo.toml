@@ -56,4 +56,4 @@ tower = "0.5.1"
 libc = "0.2"
 
 # internal deps
-tonlib-core = { version = "0.21", path = "core" }
+tonlib-core = { version = "0.22", path = "core" }
