@@ -1,9 +1,7 @@
 use std::sync::Arc;
-#[cfg(feature = "state_cache")]
 use std::time::Duration;
 
 pub use builder::*;
-#[cfg(feature = "state_cache")]
 pub use cache::*;
 pub use library_loader::*;
 pub use library_provider::*;
@@ -15,7 +13,6 @@ use crate::contract::{LoadedSmcState, TonContract, TonContractError, TonContract
 use crate::tl::{ConfigInfo, InternalTransactionId, RawFullAccountState};
 
 mod builder;
-#[cfg(feature = "state_cache")]
 mod cache;
 mod library_loader;
 mod library_provider;
@@ -29,7 +26,6 @@ struct Inner {
     client: TonClient,
     config_info: OnceCell<ConfigInfo>,
     library_provider: LibraryProvider,
-    #[cfg(feature = "state_cache")]
     cache: Option<ContractFactoryCache>,
 }
 
@@ -38,7 +34,6 @@ impl TonContractFactory {
         TonContractFactoryBuilder::new(client)
     }
 
-    #[cfg(feature = "state_cache")]
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         client: &TonClient,
@@ -76,21 +71,6 @@ impl TonContractFactory {
             inner: Arc::new(inner),
         })
     }
-    #[cfg(not(feature = "state_cache"))]
-    pub(crate) async fn new(
-        client: &TonClient,
-        library_provider: &LibraryProvider,
-    ) -> Result<TonContractFactory, TonContractError> {
-        let config_info = OnceCell::const_new();
-        let inner = Inner {
-            client: client.clone(),
-            config_info,
-            library_provider: library_provider.clone(),
-        };
-        Ok(TonContractFactory {
-            inner: Arc::new(inner),
-        })
-    }
 
     pub fn client(&self) -> &TonClient {
         &self.inner.client
@@ -113,7 +93,6 @@ impl TonContractFactory {
         TonContract::new(self, address)
     }
 
-    #[cfg(feature = "state_cache")]
     pub async fn get_latest_account_state(
         &self,
         address: &TonAddress,
@@ -125,16 +104,6 @@ impl TonContractFactory {
                 self.client().get_raw_account_state(address).await?,
             ))
         }
-    }
-
-    #[cfg(not(feature = "state_cache"))]
-    pub async fn get_latest_account_state(
-        &self,
-        address: &TonAddress,
-    ) -> Result<Arc<RawFullAccountState>, TonContractError> {
-        Ok(Arc::new(
-            self.client().get_raw_account_state(address).await?,
-        ))
     }
 
     pub async fn get_account_state_by_transaction(
@@ -150,7 +119,6 @@ impl TonContractFactory {
         Ok(state)
     }
 
-    #[cfg(feature = "state_cache")]
     pub async fn get_smc_state_by_transaction(
         &self,
         address: &TonAddress,
@@ -167,19 +135,6 @@ impl TonContractFactory {
                     .await?,
             ))
         }
-    }
-
-    #[cfg(not(feature = "state_cache"))]
-    pub async fn get_smc_state_by_transaction(
-        &self,
-        address: &TonAddress,
-        transaction_id: &InternalTransactionId,
-    ) -> Result<Arc<LoadedSmcState>, TonContractError> {
-        Ok(Arc::new(
-            self.client()
-                .smc_load_by_transaction(address, transaction_id)
-                .await?,
-        ))
     }
 
     pub async fn get_latest_contract_state(
@@ -204,7 +159,6 @@ impl TonContractFactory {
         Ok(contract_state)
     }
 
-    #[cfg(feature = "state_cache")]
     pub fn get_factory_cache_stats(&self) -> ContractFactoryCacheStats {
         if let Some(cache) = &self.inner.cache {
             cache.get_cache_stats()

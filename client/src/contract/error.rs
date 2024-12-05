@@ -1,4 +1,3 @@
-#[cfg(feature = "state_cache")]
 use std::sync::Arc;
 
 use thiserror::Error;
@@ -95,8 +94,6 @@ pub enum TonContractError {
         gas_used: i64,
     },
 
-    // TODO: Experiment with it, maybe just use  `CacheError { message: String }`
-    #[cfg(feature = "state_cache")]
     #[error("{0}")]
     CacheError(#[from] Arc<TonContractError>),
 }
