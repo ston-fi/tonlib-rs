@@ -269,7 +269,7 @@ mod tests {
             .store_reference(&Arc::new(data))?
             .build()?;
 
-        let hash = hex::encode(state.cell_hash());
+        let hash = state.cell_hash().to_hex();
         assert_eq!(
             hash,
             "e557059d5395a79f714ddb966e8419d4681f0ce4aa966cf6088db610841c204a"

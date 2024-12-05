@@ -24,7 +24,7 @@ impl TvmEmulator {
 
     pub fn with_c7(mut self, c7: &TvmEmulatorC7) -> Result<Self, TvmEmulatorError> {
         let addr_str = c7.address.to_hex();
-        let hex_str = hex::encode(c7.seed.as_slice());
+        let hex_str = c7.seed.to_hex();
         let seed = hex_str.as_bytes();
         let config = c7.config.as_slice();
         let unix_time = c7.unix_time as u32;

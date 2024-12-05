@@ -3,7 +3,7 @@ mod error;
 mod tx_id;
 
 pub use address::*;
-use base64::engine::general_purpose::STANDARD;
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
 pub use error::*;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub const DEFAULT_CELL_HASH: TonHash = TonHash([
     93, 197, 184, 126, 65, 11, 120, 99, 10, 9, 207, 199,
 ]);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct TonHash([u8; TON_HASH_LEN]);
 
 impl TonHash {
@@ -39,12 +39,12 @@ impl TonHash {
 
     /// Convert the hash to a hexadecimal string
     pub fn to_hex(&self) -> String {
-        hex::encode(self.0)
+        hex::encode(self.0.as_slice())
     }
 
     /// Convert the hash to a Base64 string
     pub fn to_base64(&self) -> String {
-        STANDARD.encode(self.0)
+        BASE64_URL_SAFE_NO_PAD.encode(self.0.as_slice())
     }
 
     /// Create a `TonHash` from a hexadecimal string
@@ -57,16 +57,10 @@ impl TonHash {
 
     /// Create a `TonHash` from a Base64 string
     pub fn from_base64(base64_str: &str) -> Result<Self, TonHashParseError> {
-        let bytes = STANDARD.decode(base64_str).map_err(|_| {
+        let bytes = BASE64_URL_SAFE_NO_PAD.decode(base64_str).map_err(|_| {
             TonHashParseError::new(base64_str, "Failed to convert base64 string to TonHash")
         })?;
         Self::try_from(bytes)
-    }
-}
-
-impl AsRef<[u8]> for TonHash {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
     }
 }
 

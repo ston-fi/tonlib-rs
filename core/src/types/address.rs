@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
@@ -9,6 +10,7 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
+use crate::cell::CellBuilder;
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -205,7 +207,7 @@ impl TonAddress {
     }
 
     pub fn to_hex(&self) -> String {
-        format!("{}:{}", self.workchain, hex::encode(self.hash_part))
+        format!("{}:{}", self.workchain, self.hash_part.to_hex())
     }
 
     pub fn to_base64_url(&self) -> String {
@@ -241,6 +243,27 @@ impl TonAddress {
         let crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
         bytes[34] = ((crc >> 8) & 0xff) as u8;
         bytes[35] = (crc & 0xff) as u8;
+    }
+}
+
+impl PartialOrd for TonAddress {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let self_cell_hash = CellBuilder::new()
+            .store_address(self)
+            .and_then(|builder| builder.build())
+            .map(|cell| cell.cell_hash())
+            .ok();
+
+        let other_cell_hash = CellBuilder::new()
+            .store_address(other)
+            .and_then(|builder| builder.build())
+            .map(|cell| cell.cell_hash())
+            .ok();
+
+        match (self_cell_hash, other_cell_hash) {
+            (Some(hash0), Some(hash1)) => Some(hash0.cmp(&hash1)),
+            _ => None,
+        }
     }
 }
 
@@ -318,6 +341,8 @@ impl<'de> Deserialize<'de> for TonAddress {
 
 #[cfg(test)]
 mod tests {
+
+    use std::str::FromStr;
 
     use serde_json::Value;
 
@@ -480,6 +505,16 @@ mod tests {
         let deserial: serde_json::Result<TonAddress> = serde_json::from_str(a.as_str());
         assert!(deserial.is_err());
 
+        Ok(())
+    }
+
+    #[test]
+    fn ordering_works() -> Result<(), TonAddressParseError> {
+        let address0 = TonAddress::from_str("EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW")?;
+        let address1 = TonAddress::from_str("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")?;
+
+        let cmp_result = address0 < address1;
+        assert_eq!(true, cmp_result);
         Ok(())
     }
 }
