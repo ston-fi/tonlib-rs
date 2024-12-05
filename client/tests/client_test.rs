@@ -495,7 +495,7 @@ async fn client_mainnet_works() -> anyhow::Result<()> {
     let client = assert_ok!(
         TonClient::builder()
             .with_pool_size(2)
-            .with_config(MAINNET_CONFIG)
+            .with_config(&MAINNET_CONFIG)
             .build()
             .await
     );
@@ -521,7 +521,7 @@ async fn client_testnet_works() -> anyhow::Result<()> {
     let client = assert_ok!(
         TonClient::builder()
             .with_pool_size(2)
-            .with_config(TESTNET_CONFIG)
+            .with_config(&TESTNET_CONFIG)
             .build()
             .await
     );
@@ -676,7 +676,7 @@ async fn archive_node_client_test() -> anyhow::Result<()> {
 
     let mut client_builder = TonClientBuilder::new();
     client_builder
-        .with_config(MAINNET_CONFIG)
+        .with_config(&MAINNET_CONFIG)
         .with_keystore_dir(String::from(tonlib_work_dir))
         .with_connection_check(tonlib_client::client::ConnectionCheck::Archive);
     let client = client_builder.build().await?;
