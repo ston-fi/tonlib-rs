@@ -26,7 +26,7 @@ lazy_static! {
 
 impl TonTxId {
     pub fn hash_string(&self) -> String {
-        hex::encode(self.hash.as_slice())
+        self.hash.to_hex()
     }
 
     pub fn to_formatted_string(&self) -> String {

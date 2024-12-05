@@ -450,7 +450,7 @@ async fn test_missing_block_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_first_block_error() -> anyhow::Result<()> {
     common::init_logging();
-    let client = &common::new_archive_testnet_client().await;
+    let client = &common::new_archive_mainnet_client().await;
     let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,

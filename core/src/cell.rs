@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 pub use bag_of_cells::*;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
@@ -157,7 +156,7 @@ impl Cell {
     }
 
     pub fn cell_hash_base64(&self) -> String {
-        URL_SAFE_NO_PAD.encode(self.cell_hash())
+        self.cell_hash().to_base64()
     }
 
     pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
