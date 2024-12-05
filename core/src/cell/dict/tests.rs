@@ -11,6 +11,7 @@ use crate::cell::dict::predefined_readers::{
 };
 use crate::cell::dict::predefined_writers::{val_writer_ref_cell, val_writer_unsigned_min_size};
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder};
+use crate::TonHash;
 
 #[test]
 fn test_blockchain_data() -> anyhow::Result<()> {
@@ -140,22 +141,22 @@ fn test_reader_u64() -> anyhow::Result<()> {
 
 #[test]
 fn test_reader_256bit() -> anyhow::Result<()> {
-    let bytes1 = [
+    let bytes1 = TonHash::from([
         1u8, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4,
         4, 4,
-    ];
-    let bytes2 = [
+    ]);
+    let bytes2 = TonHash::from([
         2u8, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5,
         5, 5,
-    ];
-    let bytes3 = [
+    ]);
+    let bytes3 = TonHash::from([
         3u8, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
         6, 6,
-    ];
-    let bytes4 = [
+    ]);
+    let bytes4 = TonHash::from([
         4u8, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7,
         7, 7,
-    ];
+    ]);
 
     let data_src = HashMap::from([
         (bytes1, BigUint::from(1u32)),
@@ -166,7 +167,7 @@ fn test_reader_256bit() -> anyhow::Result<()> {
 
     let data_serial = data_src
         .iter()
-        .map(|(k, v)| (BigUint::from_bytes_be(k), v.clone()))
+        .map(|(k, v)| (BigUint::from_bytes_be(k.as_slice()), v.clone()))
         .collect::<HashMap<_, _>>();
 
     let key_len_bits = 256;

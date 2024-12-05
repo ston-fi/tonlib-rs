@@ -22,8 +22,7 @@ use tonlib_client::tl::{
 };
 use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
 use tonlib_core::cell::{BagOfCells, CellBuilder};
-use tonlib_core::types::ZERO_HASH;
-use tonlib_core::{TonAddress, TonTxId};
+use tonlib_core::{TonAddress, TonHash, TonTxId};
 
 mod common;
 
@@ -267,8 +266,7 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let mut t = ZERO_HASH;
-            t.clone_from_slice(tx_id.account.as_slice());
+            let t = TonHash::try_from(tx_id.account)?;
             let addr = TonAddress::new(workchain, &t);
             let id = InternalTransactionId {
                 hash: tx_id.hash.clone(),
@@ -452,7 +450,7 @@ async fn test_missing_block_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_first_block_error() -> anyhow::Result<()> {
     common::init_logging();
-    let client = &common::new_archive_testnet_client().await;
+    let client = &common::new_archive_mainnet_client().await;
     let (_, info) = client.get_masterchain_info().await?;
     let block_id = BlockId {
         workchain: info.last.workchain,
@@ -497,7 +495,7 @@ async fn client_mainnet_works() -> anyhow::Result<()> {
     let client = assert_ok!(
         TonClient::builder()
             .with_pool_size(2)
-            .with_config(MAINNET_CONFIG)
+            .with_config(&MAINNET_CONFIG)
             .build()
             .await
     );
@@ -523,7 +521,7 @@ async fn client_testnet_works() -> anyhow::Result<()> {
     let client = assert_ok!(
         TonClient::builder()
             .with_pool_size(2)
-            .with_config(TESTNET_CONFIG)
+            .with_config(&TESTNET_CONFIG)
             .build()
             .await
     );
@@ -615,7 +613,7 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
     log::info!("DICT: {:?}", dict);
 
     assert_eq!(dict.len(), 1);
-    assert!(dict.contains_key(STANDARD.decode(library_hash)?.as_slice()));
+    assert!(dict.contains_key(&TonHash::try_from(STANDARD.decode(library_hash)?)?));
     Ok(())
 }
 
@@ -678,7 +676,7 @@ async fn archive_node_client_test() -> anyhow::Result<()> {
 
     let mut client_builder = TonClientBuilder::new();
     client_builder
-        .with_config(MAINNET_CONFIG)
+        .with_config(&MAINNET_CONFIG)
         .with_keystore_dir(String::from(tonlib_work_dir))
         .with_connection_check(tonlib_client::client::ConnectionCheck::Archive);
     let client = client_builder.build().await?;

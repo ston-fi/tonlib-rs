@@ -53,6 +53,18 @@ impl BagOfCells {
         }
     }
 
+    pub fn into_single_root(&mut self) -> Result<ArcCell, TonCellError> {
+        let root_count = self.roots.len();
+        if root_count == 1 {
+            Ok(self.roots.pop().unwrap()) // unwrap is safe: we have checked that roots has exactly one element above
+        } else {
+            Err(TonCellError::CellParserError(format!(
+                "Single root expected, got {}",
+                root_count
+            )))
+        }
+    }
+
     pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
@@ -217,6 +229,11 @@ mod tests {
         let boc = BagOfCells::parse_base64(raw)?;
         let cell = boc.single_root()?;
 
+        let mut boc = BagOfCells::parse_base64(raw)?;
+        let intocell = boc.into_single_root()?;
+
+        assert_eq!(cell, &intocell);
+
         let jetton_wallet_code_lp = cell.reference(0)?;
         let pool_code = cell.reference(1)?;
         let account_lp_code = cell.reference(2)?;
@@ -252,7 +269,7 @@ mod tests {
             .store_reference(&Arc::new(data))?
             .build()?;
 
-        let hash = hex::encode(state.cell_hash());
+        let hash = state.cell_hash().to_hex();
         assert_eq!(
             hash,
             "e557059d5395a79f714ddb966e8419d4681f0ce4aa966cf6088db610841c204a"

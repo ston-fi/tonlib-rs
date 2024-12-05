@@ -33,6 +33,10 @@ Contributions to the codebase are highly appreciated. Here's how to start:
 > **__NOTE__**: that some tests in ```tonlib-client``` are dependent on the current load of TON blockchain and may be flacky if the load is relatively high. 
 It is recommended to run tests with  ```cargo nextest run --retries=10```  
 
+> **__NOTE__**:  one may want to use custom ton configs. To do so simply use env var:  
+```export TONLIB_MAINNET_CONF=~/path/to/your/config/files/custom_mainnet_config.json```
+```export TONLIB_TESTNET_CONF=~/path/to/your/config/files/custom_testnet_config.json```
+
 - Create a Pull Request (PR). Provide a brief description of the changes made.
 
 

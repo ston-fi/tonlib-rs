@@ -24,7 +24,7 @@ async fn test_connection_init() {
         &DEFAULT_CONNECTION_PARAMS,
     ));
     let r = conn
-        .init(MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
+        .init(&MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
         .await;
     log::info!("{:?}", r);
     assert_ok!(r);
@@ -89,7 +89,7 @@ async fn test_connection_callback() {
         &DEFAULT_CONNECTION_PARAMS
     ));
     let r = conn
-        .init(MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
+        .init(&MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
         .await;
     log::info!("{:?}", r);
     assert_ok!(r);

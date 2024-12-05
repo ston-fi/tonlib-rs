@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.21.1"
+version = "0.22.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -28,7 +28,7 @@ crc = "3"
 dashmap = "5"
 futures = "0.3"
 hex = "0.4"
-hmac = {version = "0.12", features = ["std"]}
+hmac = { version = "0.12", features = ["std"] }
 lazy_static = "1"
 log = "0.4"
 log4rs = "1"
@@ -42,10 +42,10 @@ serde-aux = "4"
 serde_json = "1"
 sha2 = "0.10"
 strum = { version = "0.26", features = ["derive"] }
-pbkdf2 = { version="0.12", features = ["simple"] }
+pbkdf2 = { version = "0.12", features = ["simple"] }
 reqwest = "0.12"
-thiserror = "1"
-tokio = { version = "1", features = ["rt","macros"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "macros"] }
 tokio-retry = "0.3"
 tokio-test = "0.4"
 ton_liteapi = "0.1.0"
@@ -53,6 +53,7 @@ adnl = "2.0"
 tonlib-sys = "=2024.10.2"
 tokio-tower = "0.6.0"
 tower = "0.5.1"
+libc = "0.2"
 
 # internal deps
-tonlib-core = { version = "0.21", path = "core" }
+tonlib-core = { version = "0.22", path = "core" }

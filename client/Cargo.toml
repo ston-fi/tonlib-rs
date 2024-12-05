@@ -14,8 +14,7 @@ include = [
 ]
 
 [features]
-default=["state_cache", "emulate_get_method"]
-state_cache = []
+default = ["emulate_get_method"]
 emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
 with_debug_info = ["tonlib-sys/with_debug_info"]
@@ -34,10 +33,10 @@ dashmap.workspace = true
 futures.workspace = true
 hex.workspace = true
 
-ton_liteapi = {workspace = true, optional = true }
+ton_liteapi = { workspace = true, optional = true }
 adnl.workspace = true
 tokio-tower.workspace = true
-tower = {workspace = true, features = ["util"] }
+tower = { workspace = true, features = ["util"] }
 
 lazy_static.workspace = true
 log.workspace = true
@@ -59,6 +58,7 @@ tokio-retry.workspace = true
 tokio-test.workspace = true
 tonlib-sys.workspace = true
 tonlib-core.workspace = true
+libc.workspace = true
 
 [dev-dependencies]
-tonlib-client = { path = ".", features = ["liteapi"]}
+tonlib-client = { path = ".", features = ["liteapi"] }

@@ -1,7 +1,8 @@
-use crate::emulator::error::TvmEmulatorError;
-use crate::types::TvmStackEntry;
 use num_bigint::Sign;
 use tonlib_core::cell::{BagOfCells, Cell, CellBuilder, EMPTY_ARC_CELL, EMPTY_CELL};
+
+use crate::emulator::error::TvmEmulatorError;
+use crate::types::TvmStackEntry;
 
 #[allow(clippy::let_and_return)]
 pub(super) fn build_stack_boc(stack: &[TvmStackEntry]) -> Result<Vec<u8>, TvmEmulatorError> {

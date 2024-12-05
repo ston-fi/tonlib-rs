@@ -1,18 +1,13 @@
-#[cfg(feature = "state_cache")]
 use std::time::Duration;
 
-#[cfg(feature = "state_cache")]
 use tokio::{self};
-#[cfg(feature = "state_cache")]
 use tokio_test::assert_ok;
-#[cfg(feature = "state_cache")]
 use tonlib_client::contract::TonContractFactory;
-#[cfg(feature = "state_cache")]
 use tonlib_core::TonAddress;
 mod common;
 
 #[tokio::test]
-#[cfg(feature = "state_cache")]
+
 async fn cache_get_raw_account_state_works() {
     common::init_logging();
     let client = common::new_mainnet_client().await;
@@ -35,7 +30,6 @@ async fn cache_get_raw_account_state_works() {
 }
 
 #[tokio::test]
-#[cfg(feature = "state_cache")]
 async fn cache_contract_state_works() {
     common::init_logging();
     let client = common::new_mainnet_client().await;

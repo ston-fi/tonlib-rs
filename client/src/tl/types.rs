@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::*;
+use tonlib_core::types::{TonHashParseError, TON_HASH_LEN};
 use tonlib_core::{TonHash, TonTxId};
 
 use super::TonLibraryId;
@@ -88,6 +89,18 @@ impl From<TonTxId> for InternalTransactionId {
             lt: value.lt,
             hash: value.hash.to_vec(),
         }
+    }
+}
+
+impl TryFrom<InternalTransactionId> for TonTxId {
+    type Error = TonHashParseError;
+
+    fn try_from(value: InternalTransactionId) -> Result<Self, Self::Error> {
+        let ton_tx_id = TonTxId {
+            lt: value.lt,
+            hash: TonHash::try_from(value.hash)?,
+        };
+        Ok(ton_tx_id)
     }
 }
 
@@ -440,7 +453,7 @@ pub struct SmcLibraryResult {
 #[serde(tag = "@type", rename_all = "camelCase")]
 pub enum SmcLibraryQueryExt {
     #[serde(rename = "smc.libraryQueryExt.one")]
-    One { hash: TonHash },
+    One { hash: [u8; TON_HASH_LEN] },
 
     // tonlib_api.tl, line 190
     #[serde(rename = "smc.libraryQueryExt.scanBoc")]
