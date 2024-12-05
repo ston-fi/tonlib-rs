@@ -33,16 +33,13 @@ test:
   script:
     - cargo fmt --check
     - cargo clippy --release
-    - cargo clippy --features "state_cache" --release
     - cargo clippy --features "emulate_get_method" --release
 
     - cargo build --release
-    - cargo build --release --features "state_cache"
     - cargo build --release --features "emulate_get_method"
     - cargo test --release --package tonlib-core
     - cargo test --release --doc
     - cargo test --release --lib
-    - cargo test --release --lib --features "state_cache"
     - cargo test --release --lib --features "emulate_get_method"
     - !reference [.rust-cache-helper, after]
   rules:
@@ -57,7 +54,6 @@ integration_test:
   script:
     - cargo install cargo-nextest
     - cargo nextest run --release
-    - cargo nextest run --release --features "state_cache"
     - cargo nextest run --release --features "emulate_get_method"
     - !reference [.rust-cache-helper, after]
   when: manual

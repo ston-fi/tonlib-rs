@@ -14,8 +14,7 @@ include = [
 ]
 
 [features]
-default = ["state_cache", "emulate_get_method"]
-state_cache = []
+default = ["emulate_get_method"]
 emulate_get_method = []
 no_avx512 = ["tonlib-sys/no_avx512"]
 with_debug_info = ["tonlib-sys/with_debug_info"]
