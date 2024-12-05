@@ -1,11 +1,8 @@
 use std::time::Duration;
 
 use tokio::{self};
-
 use tokio_test::assert_ok;
-
 use tonlib_client::contract::TonContractFactory;
-
 use tonlib_core::TonAddress;
 mod common;
 
