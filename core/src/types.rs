@@ -70,6 +70,12 @@ impl From<[u8; TON_HASH_LEN]> for TonHash {
     }
 }
 
+impl From<TonHash> for [u8; TON_HASH_LEN] {
+    fn from(arr: TonHash) -> [u8; TON_HASH_LEN] {
+        arr.0
+    }
+}
+
 impl From<&[u8; 32]> for TonHash {
     fn from(slice: &[u8; 32]) -> Self {
         TonHash(*slice)
