@@ -34,3 +34,5 @@
 * Ni: added into_single_root method
 * Ni: bump thiserror dependency version
 * Iml #be-1761: fix memory leak in emulator
+### v0.22.1
+* added From<TonHash> for [u8; TON_HASH_LEN] 
