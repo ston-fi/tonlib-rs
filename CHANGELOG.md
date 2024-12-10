@@ -36,3 +36,5 @@
 * Iml #be-1761: fix memory leak in emulator
 ### v0.22.1
 * added From<TonHash> for [u8; TON_HASH_LEN] 
+### v0.22.2
+* Bump tonlib-sys
