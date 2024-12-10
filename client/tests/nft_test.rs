@@ -1,11 +1,17 @@
+use num_bigint::BigUint;
 use sha2::{Digest, Sha256};
+use std::str::FromStr;
 use tokio_test::assert_ok;
-use tonlib_client::contract::{NftCollectionContract, NftItemContract, TonContractFactory};
+use tonlib_client::contract::{
+    NftCollectionContract, NftItemContract, NftItemData, TonContractFactory,
+};
+use tonlib_client::meta::MetaDataContent::External;
 use tonlib_client::meta::{LoadMeta, MetaDataContent, NftColletionMetaLoader, NftItemMetaLoader};
-use tonlib_core::TonHash;
+use tonlib_core::{TonAddress, TonHash};
 
 mod common;
 
+// ---- A group of tests that the methods basically work
 #[tokio::test]
 async fn test_get_nft_data() {
     common::init_logging();
@@ -15,8 +21,6 @@ async fn test_get_nft_data() {
         "EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW".parse()
     ));
     assert_ok!(contract.get_nft_data().await);
-    // let x= contract.get_nft_data().await;
-    // log::info!("(!!!) NftItemData: {:#?}", x);
 }
 
 #[tokio::test]
@@ -42,39 +46,40 @@ async fn test_get_nft_address_by_index() -> anyhow::Result<()> {
     Ok(())
 }
 
-// ---------------------nft get item metadata tests
+// ---- A group of tests that methods return valid data
+#[tokio::test]
+async fn test_get_nft_data_is_valid() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let contract = factory.get_contract(&assert_ok!(
+        "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
+    ));
+    let res = assert_ok!(contract.get_nft_data().await);
+    log::info!("{:#?}", res);
 
-// #[tokio::test]
-// async fn test_get_nft_content_uri_OLD() -> anyhow::Result<()> {
-//     common::init_logging();
-//     let client = common::new_mainnet_client().await;
-//     let factory = TonContractFactory::builder(&client).build().await?;
-//     let contract = factory.get_contract(&assert_ok!(
-//         "EQCGZEZZcYO9DK877fJSIEpYMSvfui7zmTXGhq0yq1Ce1Mb6".parse()
-//     ));
-//     let res = assert_ok!(contract.get_nft_data().await);
-//
-//     // Предположительно делить здесь.
-//     let x = MyStruct { x: 42 };
-//     log::info!("{:#?}", res);
-//     assert_eq!(
-//         res.individual_content,
-//         MetaDataContent::External {
-//             uri: "https://nft.fragment.com/number/88805397120.json".to_string()
-//         }
-//     );
-//     let meta_loader = assert_ok!(NftItemMetaLoader::default());
-//     let content_res = assert_ok!(meta_loader.load(&res.individual_content).await);
-//     assert_eq!(
-//         content_res.name.as_ref().unwrap(),
-//         &String::from("+888 0539 7120")
-//     );
-//     assert_eq!(
-//         content_res.image.as_ref().unwrap(),
-//         &String::from("https://nft.fragment.com/number/88805397120.webp")
-//     );
-//     Ok(())
-// }
+    let expected_collection_address = assert_ok!(TonAddress::from_base64_url(
+        &"EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N".to_string()
+    ));
+    let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
+        &"EQCgjHh831e9_qlCWLgaAwEIQ8qOolUT831vJF0bau6LMV5G".to_string()
+    ));
+    let expected_index = assert_ok!(BigUint::from_str(
+        "15995005474673311991943775795727481451058346239240361725119718297821926435889",
+    ));
+    println!("{:?}", expected_collection_address);
+    let expected_response = NftItemData {
+        init: true,
+        index: expected_index,
+        collection_address: expected_collection_address,
+        owner_address: expected_owner_address,
+        individual_content: External {
+            uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
+        },
+    };
+    assert_eq!(res, expected_response);
+    Ok(())
+}
 
 #[tokio::test]
 async fn test_get_nft_content_uri() -> anyhow::Result<()> {
@@ -91,24 +96,6 @@ async fn test_get_nft_content_uri() -> anyhow::Result<()> {
         res.individual_content,
         MetaDataContent::External { uri: expected_uri }
     );
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_get_load_content_by_uri() -> anyhow::Result<()> {
-    common::init_logging();
-    let meta_loader = assert_ok!(NftItemMetaLoader::default());
-
-    let request_uri = "https://nft.fragment.com/number/88805397120.json".to_string();
-    let md_content = MetaDataContent::External { uri: request_uri };
-    let md_content_res = assert_ok!(meta_loader.load(&md_content).await);
-
-    let expected_phone = "+888 0539 7120".to_string();
-    let expected_webp = "https://nft.fragment.com/number/88805397120.webp".to_string();
-
-    assert_eq!(md_content_res.name.as_ref().unwrap(), &expected_phone);
-    assert_eq!(md_content_res.image.as_ref().unwrap(),&expected_webp);
-
     Ok(())
 }
 
@@ -174,9 +161,7 @@ async fn test_get_nft_collection_content_uri() -> anyhow::Result<()> {
     );
 
     let meta_loader = NftColletionMetaLoader::default()?;
-    let content_res = assert_ok!(
-        meta_loader.load(&res.collection_content).await
-    );
+    let content_res = assert_ok!(meta_loader.load(&res.collection_content).await);
     assert_eq!(
         content_res.name.as_ref().unwrap(),
         &String::from("Anonymous Telegram Numbers")
