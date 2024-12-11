@@ -1,12 +1,12 @@
+use std::str::FromStr;
+
 use num_bigint::BigUint;
 use sha2::{Digest, Sha256};
-use std::str::FromStr;
 use tokio_test::assert_ok;
 use tonlib_client::contract::{
     NftCollectionContract, NftCollectionData, NftItemContract, NftItemData, TonContractFactory,
 };
-use tonlib_client::meta::MetaDataContent::External;
-use tonlib_client::meta::{LoadMeta, MetaDataContent, NftColletionMetaLoader, NftItemMetaLoader};
+use tonlib_client::meta::MetaDataContent;
 use tonlib_core::{TonAddress, TonHash};
 
 mod common;
@@ -24,13 +24,12 @@ async fn test_get_nft_data() {
 }
 
 #[tokio::test]
-async fn test_get_nft_collection_data() -> anyhow::Result<()> {
+async fn test_get_collection_data() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
-    let contract = factory.get_contract(
-        &"EQB2iHQ9lmJ9zvYPauxN9hVOfHL3c_fuN5AyRq5Pm84UH6jC".parse()?
-    );
+    let contract =
+        factory.get_contract(&"EQB2iHQ9lmJ9zvYPauxN9hVOfHL3c_fuN5AyRq5Pm84UH6jC".parse()?);
     assert_ok!(contract.get_collection_data().await);
     Ok(())
 }
@@ -67,21 +66,45 @@ async fn test_get_nft_data_is_valid() -> anyhow::Result<()> {
     let expected_index = assert_ok!(BigUint::from_str(
         "15995005474673311991943775795727481451058346239240361725119718297821926435889",
     ));
-    let expected_response = NftItemData {
+    let expected_res = NftItemData {
         init: true,
         index: expected_index,
         collection_address: expected_collection_address,
         owner_address: expected_owner_address,
-        individual_content: External {
+        individual_content: MetaDataContent::External {
             uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
         },
     };
-    assert_eq!(res, expected_response);
+    assert_eq!(res, expected_res);
     Ok(())
 }
 
 #[tokio::test]
-async fn test_get_nft_collection_data_is_valid() -> anyhow::Result<()> {
+async fn test_get_nft_data_internal() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let contract =
+        factory.get_contract(&"EQDUF9cLVBH3BgziwOAIkezUdmfsDxxJHd6WSv0ChIUXYwCx".parse()?);
+    let res = contract.get_nft_data().await?;
+
+    let internal = match res.individual_content {
+        MetaDataContent::Internal { dict } => dict,
+        _ => panic!("Expected internal content"),
+    };
+
+    let expected_key = {
+        let mut hasher: Sha256 = Sha256::new();
+        hasher.update("public_keys");
+        let slice = &hasher.finalize()[..];
+        TryInto::<TonHash>::try_into(slice)?
+    };
+    assert!(internal.contains_key(&expected_key));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_collection_data_is_valid() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_archive_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
@@ -93,14 +116,14 @@ async fn test_get_nft_collection_data_is_valid() -> anyhow::Result<()> {
     let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
         &"EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c".to_string()
     ));
-    let expected_response = NftCollectionData {
+    let expected_res = NftCollectionData {
         next_item_index: -1,
         owner_address: expected_owner_address,
-        collection_content: External {
+        collection_content: MetaDataContent::External {
             uri: "https://nft.fragment.com/numbers.json".to_string(),
         },
     };
-    assert_eq!(res, expected_response);
+    assert_eq!(res, expected_res);
     Ok(())
 }
 
