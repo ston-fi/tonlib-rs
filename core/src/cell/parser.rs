@@ -12,6 +12,7 @@ use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
+use crate::types::ZERO_HASH;
 use crate::TonAddress;
 
 pub struct CellParser<'a> {
@@ -183,9 +184,9 @@ impl<'a> CellParser<'a> {
                 self.ensure_enough_bits(1 + 8 + 32 * 8)?;
                 let _res1 = self.bit_reader.read::<u8>(1).map_cell_parser_error()?;
                 let wc = self.bit_reader.read::<u8>(8).map_cell_parser_error()?;
-                let mut hash_part = [0_u8; 32];
+                let mut hash_part = ZERO_HASH;
                 self.bit_reader
-                    .read_bytes(&mut hash_part)
+                    .read_bytes(hash_part.as_mut_slice())
                     .map_cell_parser_error()?;
                 let addr = TonAddress::new(wc as i32, &hash_part);
                 Ok(addr)
@@ -202,7 +203,7 @@ impl<'a> CellParser<'a> {
         Ok(res)
     }
 
-    pub fn load_dict<K: Eq + Hash, V>(
+    pub fn load_dict_data<K: Eq + Hash, V>(
         &mut self,
         key_len: usize,
         key_reader: KeyReader<K>,
@@ -212,6 +213,21 @@ impl<'a> CellParser<'a> {
         dict_parser.parse(self)
     }
 
+    pub fn load_dict<K: Eq + Hash, V>(
+        &mut self,
+        key_len: usize,
+        key_reader: KeyReader<K>,
+        val_reader: ValReader<V>,
+    ) -> Result<HashMap<K, V>, TonCellError> {
+        let has_data = self.load_bit()?;
+        if !has_data {
+            Ok(HashMap::new())
+        } else {
+            let reference_cell = self.next_reference()?;
+            let mut reference_parser = reference_cell.parser();
+            reference_parser.load_dict_data(key_len, key_reader, val_reader)
+        }
+    }
     ///Snake format when we store part of the data in a cell and the rest of the data in the first child cell (and so recursively).
     ///
     ///Must be prefixed with 0x00 byte.
@@ -222,6 +238,10 @@ impl<'a> CellParser<'a> {
     /// ``` cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1); ```
     pub fn load_dict_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
         self.load_dict(256, key_reader_256bit, val_reader_snake_formatted_string)
+    }
+
+    pub fn load_dict_data_snake_format(&mut self) -> Result<SnakeFormatDict, TonCellError> {
+        self.load_dict_data(256, key_reader_256bit, val_reader_snake_formatted_string)
     }
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
@@ -310,8 +330,8 @@ mod tests {
 
     use num_bigint::{BigInt, BigUint};
 
+    use crate::cell::parser::TonAddress;
     use crate::cell::{Cell, CellBuilder, EitherCellLayout};
-    use crate::TonAddress;
 
     #[test]
     fn test_load_bit() {

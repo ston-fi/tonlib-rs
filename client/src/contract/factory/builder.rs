@@ -1,12 +1,10 @@
 use std::sync::Arc;
-#[cfg(feature = "state_cache")]
 use std::time::Duration;
 
 use super::{DefaultLibraryLoader, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
-#[cfg(feature = "state_cache")]
 pub struct TonContractFactoryBuilder {
     client: TonClient,
     with_cache: bool,
@@ -18,7 +16,6 @@ pub struct TonContractFactoryBuilder {
     library_provider: LibraryProvider,
 }
 
-#[cfg(feature = "state_cache")]
 impl TonContractFactoryBuilder {
     const DEFAULT_ACCOUNT_STATE_CACHE_CAPACITY: u64 = 100_000;
     const DEFAULT_ACCOUNT_STATE_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
@@ -44,21 +41,6 @@ impl TonContractFactoryBuilder {
     }
 
     pub fn with_account_state_cache(
-        &mut self,
-        txid_cache_capacity: u64,
-        txid_cache_time_to_live: Duration,
-        account_state_cache_capacity: u64,
-        account_state_cache_time_to_live: Duration,
-    ) -> &mut Self {
-        self.with_cache = true;
-        self.txid_cache_capacity = txid_cache_capacity;
-        self.txid_cache_time_to_live = txid_cache_time_to_live;
-        self.account_state_cache_capacity = account_state_cache_capacity;
-        self.account_state_cache_time_to_live = account_state_cache_time_to_live;
-        self
-    }
-
-    pub fn with_state_cache(
         &mut self,
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
@@ -99,28 +81,6 @@ impl TonContractFactoryBuilder {
             self.library_provider.clone(),
         )
         .await
-    }
-}
-
-#[cfg(not(feature = "state_cache"))]
-pub struct TonContractFactoryBuilder {
-    client: TonClient,
-    library_provider: LibraryProvider,
-}
-
-#[cfg(not(feature = "state_cache"))]
-impl TonContractFactoryBuilder {
-    pub(crate) fn new(client: &TonClient) -> TonContractFactoryBuilder {
-        let loader = DefaultLibraryLoader::new(client);
-        let library_provider = LibraryProvider::new(Arc::new(loader));
-        TonContractFactoryBuilder {
-            client: client.clone(),
-            library_provider,
-        }
-    }
-
-    pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
-        TonContractFactory::new(&self.client, &self.library_provider).await
     }
 }
 

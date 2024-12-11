@@ -1,6 +1,7 @@
 use std::io;
 
 use thiserror::Error;
+use tonlib_core::types::TonHashParseError;
 use tonlib_core::TonAddressParseError;
 
 use crate::tl::{TlError, TonResult, TonResultDiscriminants};
@@ -17,6 +18,9 @@ pub enum TonClientError {
         message: String,
     },
 
+    #[error("Invalid argument ({0})")]
+    InvalidArgument(String),
+
     #[error("Unexpected TonResult (Actual: {actual}, expected: {expected})")]
     UnexpectedTonResult {
         actual: TonResultDiscriminants,
@@ -31,6 +35,9 @@ pub enum TonClientError {
 
     #[error("TonAddressParseError: ({0})")]
     TonAddressParseError(#[from] TonAddressParseError),
+
+    #[error("TonHash parse error ({0})")]
+    TonHashParseError(#[from] TonHashParseError),
 }
 
 impl TonClientError {

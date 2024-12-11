@@ -90,6 +90,34 @@ async fn test_get_farming_minter_data() {
     }
 
     let farm_data_accrued =
+        assert_ok!(stack.stack[10].get_dict_data(8, key_reader_u8, val_reader_farm_data_accrued));
+    log::info!("farm_data_accrued: {:?}", farm_data_accrued);
+
+    let farm_data_parameters =
+        assert_ok!(stack.stack[11].get_dict_data(8, key_reader_u8, val_reader_farm_data_param));
+    log::info!("farm_data_parameters: {:?}", farm_data_parameters);
+}
+
+#[tokio::test]
+async fn test_get_farming_minter_data_empty_meta() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&assert_ok!(
+        "EQDGtiTTvgAOSE4AGyLtOEnC9GkKUTQoRoHzOvfN0hkE3oLz".parse()
+    ));
+
+    let stack = assert_ok!(
+        contract
+            .run_get_method("get_farming_minter_data", Vec::new())
+            .await
+    );
+
+    for element in stack.stack.clone() {
+        log::info!("{:?}", element);
+    }
+
+    let farm_data_accrued =
         assert_ok!(stack.stack[10].get_dict(8, key_reader_u8, val_reader_farm_data_accrued));
     log::info!("farm_data_accrued: {:?}", farm_data_accrued);
 

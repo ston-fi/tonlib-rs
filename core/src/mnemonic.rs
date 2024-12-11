@@ -1,7 +1,7 @@
 mod error;
 
-use std::cmp;
 use std::collections::HashMap;
+use std::{cmp, fmt};
 
 pub use error::*;
 use hmac::{Hmac, Mac};
@@ -36,6 +36,15 @@ pub struct Mnemonic {
 pub struct KeyPair {
     pub public_key: Vec<u8>,
     pub secret_key: Vec<u8>,
+}
+
+impl fmt::Debug for KeyPair {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("KeyPair")
+            .field("public_key", &self.public_key)
+            .field("secret_key", &"***REDACTED***")
+            .finish()
+    }
 }
 
 impl Mnemonic {

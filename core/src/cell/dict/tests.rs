@@ -11,6 +11,7 @@ use crate::cell::dict::predefined_readers::{
 };
 use crate::cell::dict::predefined_writers::{val_writer_ref_cell, val_writer_unsigned_min_size};
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder};
+use crate::TonHash;
 
 #[test]
 fn test_blockchain_data() -> anyhow::Result<()> {
@@ -21,19 +22,21 @@ fn test_blockchain_data() -> anyhow::Result<()> {
     ]);
     let boc_b64 = "te6cckEBBgEAWgABGccNPKUADZm5MepOjMABAgHNAgMCASAEBQAnQAAAAAAAAAAAAAABMlF4tR2RgCAAJgAAAAAAAAAAAAABaFhaZZhr6AAAJgAAAAAAAAAAAAAAR8sYU4eC4AA1PIC5";
     let boc = BagOfCells::parse_base64(boc_b64)?;
-    let dict_cell = boc.single_root()?.reference(0)?;
-    let parsed_data = assert_ok!(dict_cell
-        .parser()
-        .load_dict(8, key_reader_u8, val_reader_uint));
-    assert_eq!(expected_data, parsed_data);
+    let dict_cell = boc.single_root()?;
+    let mut parser = dict_cell.parser();
+    let cell_data = parser.load_uint(96)?;
+
+    let parsed_dict = assert_ok!(parser.load_dict(8, key_reader_u8, val_reader_uint));
+    assert_eq!(expected_data, parsed_dict);
 
     let writer = |builder: &mut CellBuilder, val: BigUint| {
         builder.store_uint(150, &val)?; // empirically found bit length
         Ok(())
     };
     let mut builder = CellBuilder::new();
+    builder.store_uint(96, &cell_data)?;
     assert_ok!(builder.store_dict(8, writer, expected_data));
-    let constructed_cell = builder.build()?;
+    let constructed_cell: Cell = builder.build()?;
     assert_eq!(dict_cell.deref(), &constructed_cell);
     Ok(())
 }
@@ -138,22 +141,22 @@ fn test_reader_u64() -> anyhow::Result<()> {
 
 #[test]
 fn test_reader_256bit() -> anyhow::Result<()> {
-    let bytes1 = [
+    let bytes1 = TonHash::from([
         1u8, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4,
         4, 4,
-    ];
-    let bytes2 = [
+    ]);
+    let bytes2 = TonHash::from([
         2u8, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5,
         5, 5,
-    ];
-    let bytes3 = [
+    ]);
+    let bytes3 = TonHash::from([
         3u8, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
         6, 6,
-    ];
-    let bytes4 = [
+    ]);
+    let bytes4 = TonHash::from([
         4u8, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7,
         7, 7,
-    ];
+    ]);
 
     let data_src = HashMap::from([
         (bytes1, BigUint::from(1u32)),
@@ -164,7 +167,7 @@ fn test_reader_256bit() -> anyhow::Result<()> {
 
     let data_serial = data_src
         .iter()
-        .map(|(k, v)| (BigUint::from_bytes_be(k), v.clone()))
+        .map(|(k, v)| (BigUint::from_bytes_be(k.as_slice()), v.clone()))
         .collect::<HashMap<_, _>>();
 
     let key_len_bits = 256;

@@ -60,7 +60,10 @@ impl StateInitBuilder {
 
 impl StateInit {
     pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<TonHash, TonCellError> {
-        Ok(StateInitBuilder::new(code, data).build()?.cell_hash())
+        Ok(StateInitBuilder::new(code, data)
+            .with_library(false)
+            .build()?
+            .cell_hash())
     }
 }
 

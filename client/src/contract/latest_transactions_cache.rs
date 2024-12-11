@@ -44,7 +44,7 @@ impl LatestContractTransactionsCache {
 
     pub async fn get(&self, limit: usize) -> Result<Vec<Arc<RawTransaction>>, TonContractError> {
         if limit > self.capacity {
-            return Err(TonContractError::IllegalArgument(format!(
+            return Err(TonContractError::InvalidArgument(format!(
                 "Transactions cache size requested ({}) must not exceed cache capacity ({})",
                 limit, self.capacity
             )));

@@ -96,7 +96,7 @@ async fn get_txs_for_rare_works() {
     }
 
     let mut missing_hash = addr.hash_part;
-    missing_hash[31] += 1;
+    missing_hash.as_mut_slice()[31] += 1;
     let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
     let missing_trans =
         LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true, None);

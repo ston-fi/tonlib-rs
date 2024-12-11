@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use tonlib_core::cell::{BagOfCells, CellSlice};
 
-use super::TvmEmulatorError;
+use crate::emulator::error::TvmEmulatorError;
 use crate::types::{TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,30 +1,28 @@
 mod common;
 
-mod contract_emulator_tests {
-    use std::ops::Neg;
+use std::ops::Neg;
 
-    use base64::engine::general_purpose::STANDARD;
-    use base64::Engine;
-    use lazy_static::lazy_static;
-    use num_bigint::{BigInt, BigUint};
-    use tokio::{self};
-    use tokio_test::assert_ok;
-    use tonlib_client::client::TonClientInterface;
-    use tonlib_client::contract::{
-        JettonData, JettonMasterContract, TonContractFactory, TonContractInterface,
-    };
-    use tonlib_client::emulator::{TvmEmulator, TvmEmulatorC7Builder};
-    use tonlib_client::meta::MetaDataContent;
-    use tonlib_client::types::TvmStackEntry;
-    use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
-    use tonlib_core::message::{JettonTransferMessage, TonMessage};
-    use tonlib_core::TonAddress;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use lazy_static::lazy_static;
+use num_bigint::{BigInt, BigUint};
+use tokio::{self};
+use tokio_test::assert_ok;
+use tonlib_client::client::TonClientInterface;
+use tonlib_client::contract::{
+    JettonData, JettonMasterContract, TonContractFactory, TonContractInterface,
+};
+use tonlib_client::emulator::c7_register::TvmEmulatorC7;
+use tonlib_client::emulator::tvm_emulator::TvmEmulator;
+use tonlib_client::meta::MetaDataContent;
+use tonlib_client::types::TvmStackEntry;
+use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
+use tonlib_core::message::{JettonTransferMessage, TonMessage};
+use tonlib_core::TonAddress;
 
-    use crate::common;
-
-    lazy_static! {
-        pub static ref TEST_CONTRACT_CODE: Vec<u8> = hex::decode(
-            "b5ee9c7241022101000739000114ff00f4a413f4bcf2c80b0102016205020201\
+lazy_static! {
+    pub static ref TEST_CONTRACT_CODE: Vec<u8> = hex::decode(
+        "b5ee9c7241022101000739000114ff00f4a413f4bcf2c80b0102016205020201\
             2004030009bdb05c1ffc0007bfe45d440202c912060103b0f00704f62082300d\
             e0b6b3a7640000ba9b30823025b946ebc0b36173e08200c354218235c702bd3a\
             30fc0000be228238070c1cc73b00c80000bbb0f2f420c1008e1282300de0b6b3\
@@ -83,12 +81,12 @@ mod contract_emulator_tests {
             e2d631aa17a001020120201f0063a46410e0804c45896c678b00d180ef381038\
             c70a023d5486531812d40950025503815210e0002298731819d5016780e4e840\
             0005d17c126e3e0998",
-        )
-        .ok()
-        .unwrap();
-        pub static ref BAD_CONTRACT_CODE: Vec<u8> = vec![];
-        pub static ref BAD_CONTRACT_CODE_CELL: Vec<u8> = hex::decode(
-            "b5ee9c7241022101000739000114ff00f4a413f4bcf2c80b0102016205020201\
+    )
+    .ok()
+    .unwrap();
+    pub static ref BAD_CONTRACT_CODE: Vec<u8> = vec![];
+    pub static ref BAD_CONTRACT_CODE_CELL: Vec<u8> = hex::decode(
+        "b5ee9c7241022101000739000114ff00f4a413f4bcf2c80b0102016205020201\
         2004030009bdb05c1ffc0007bfe45d440202c912060103b0f00704f62082300d\
         e0b6b3a7640000ba9b30823025b946ebc0b36173e08200c354218235c702bd3a\
         30fc0000be228238070c1cc73b00c80000bbb0f2f420c1008e1282300de0b6b3\
@@ -99,412 +97,412 @@ mod contract_emulator_tests {
         01822056bc75e2d631aa16a10182403f1fce3da636ea5cf8508238056bc75e2d\
         63100000a984de21823815af1d78b58c400000bee300210e0902f482380ad78e\
         bc5ac6200000be8e260182380ad78ebc5ac6200000",
-        )
-        .ok()
-        .unwrap();
-        pub static ref EMPTY: Vec<u8> = hex::decode("",).ok().unwrap();
-        pub static ref TEST_CONTRACT_DATA: Vec<u8> =
-            BagOfCells::from_root(CellBuilder::new().build().ok().unwrap())
-                .serialize(false)
-                .ok()
-                .unwrap();
-        pub static ref EMPTY_STACK: Vec<TvmStackEntry> = vec![];
+    )
+    .ok()
+    .unwrap();
+    pub static ref EMPTY: Vec<u8> = hex::decode("",).ok().unwrap();
+    pub static ref TEST_CONTRACT_DATA: Vec<u8> =
+        BagOfCells::from_root(CellBuilder::new().build().ok().unwrap())
+            .serialize(false)
+            .ok()
+            .unwrap();
+    pub static ref EMPTY_STACK: Vec<TvmStackEntry> = vec![];
+}
+
+#[tokio::test]
+async fn test_emulator_get_nan() {
+    common::init_logging();
+    let mut emulator = assert_ok!(TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA));
+    let emulator_result =
+        assert_ok!(emulator.run_get_method(&"get_nan".into(), EMPTY_STACK.as_slice()));
+
+    assert_eq!(emulator_result.stack.len(), 1);
+    assert_eq!(emulator_result.stack[0], TvmStackEntry::Nan);
+}
+
+#[tokio::test]
+async fn test_emulator_empty_contract_code() {
+    common::init_logging();
+    // empty code  empty data
+    let emulator_result = TvmEmulator::new(&EMPTY, &EMPTY);
+    log::info!("{:?}", emulator_result);
+    assert!(emulator_result.is_err());
+
+    // bad code empty data
+    let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE, &TEST_CONTRACT_DATA);
+    log::info!("{:?}", emulator_result);
+    assert!(emulator_result.is_err());
+
+    // bad code cell empty data
+    let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE_CELL, &TEST_CONTRACT_DATA);
+    log::info!("{:?}", emulator_result);
+    assert!(emulator_result.is_err());
+
+    // Ok code cell empty data
+    let emulator_result = TvmEmulator::new(&TEST_CONTRACT_CODE, &EMPTY);
+    log::info!("{:?}", emulator_result);
+    assert!(emulator_result.is_err());
+}
+
+#[tokio::test]
+async fn test_emulator_bigint_multiply() -> anyhow::Result<()> {
+    common::init_logging();
+    bigint_multiplier(&BigInt::from(1), &BigInt::from(0x1234567890ABCDEFu64))?;
+    bigint_multiplier(&BigInt::from(1), &BigInt::from(0x1234567890ABCDEFu64).neg())?;
+    bigint_multiplier(
+        &BigInt::from(10_000_000_000_i64),
+        &BigInt::from(0x1234567890ABCDEFu64),
+    )?;
+    Ok(())
+}
+
+fn bigint_multiplier(val1: &BigInt, val2: &BigInt) -> anyhow::Result<()> {
+    let expected = val1 * val2;
+    log::info!("Testing: {} = {} * {}", expected, val1, val2);
+    let mut emulator =
+        TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?.with_debug_enabled()?;
+    let stack = vec![val1.clone().into(), val2.clone().into()];
+    let emulator_result = assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
+    assert_eq!(emulator_result.vm_exit_code, 0);
+    assert_eq!(emulator_result.stack.len(), 1);
+    log::info!("{:?}", emulator_result.stack);
+    let result = assert_ok!(emulator_result.stack[0].get_bigint());
+    assert_eq!(result, expected);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_emulator_i64_multiply() -> anyhow::Result<()> {
+    common::init_logging();
+    i64_multiplier(1, 0x1234567890ABCDEFi64)?;
+    i64_multiplier(1, -0x1234567890ABCDEFi64)?;
+    i64_multiplier(-1, 0x1234567890ABCDEFi64)?;
+    i64_multiplier(10_000_000_000_i64, 0x1234567890ABCDEFi64)?;
+    Ok(())
+}
+
+fn i64_multiplier(val1: i64, val2: i64) -> anyhow::Result<()> {
+    let expected = BigInt::from(val1) * BigInt::from(val2);
+    log::info!("Testing: {} = {} * {}", expected, val1, val2);
+    let mut emulator =
+        TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?.with_debug_enabled()?;
+    let stack = vec![val1.into(), val2.into()];
+    let emulator_result = assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
+    assert_eq!(emulator_result.vm_exit_code, 0);
+
+    assert_eq!(emulator_result.stack.len(), 1);
+    log::info!("{:?}", emulator_result.stack);
+    let result = assert_ok!(emulator_result.stack[0].get_bigint());
+    assert_eq!(result, expected);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_emulator_get_jetton_data() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86"
+    )); //jetton master
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&address);
+    let account_state = assert_ok!(contract.get_account_state().await);
+
+    let code = &account_state.code;
+    log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+    let data = &account_state.data;
+
+    let blockchain_data: JettonData = assert_ok!(contract.get_jetton_data().await);
+    let emulated_data = emulate_get_jetton_data(code, data);
+
+    log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+
+    assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
+    assert_eq!(blockchain_data.mintable, emulated_data.mintable);
+    assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
+    assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
+    assert_eq!(blockchain_data.content, emulated_data.content);
+}
+
+#[tokio::test]
+async fn test_emulator_get_jetton_data_long_total_supply() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
+    )); //jetton master
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&address);
+    let account_state = assert_ok!(contract.get_account_state().await);
+
+    let code = &account_state.code;
+    log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+    let data = &account_state.data;
+    log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
+    let blockchain_data = assert_ok!(contract.get_jetton_data().await);
+    let emulated_data = emulate_get_jetton_data(code, data);
+
+    log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+
+    assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
+    assert_eq!(blockchain_data.mintable, emulated_data.mintable);
+    assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
+    assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
+    assert_eq!(blockchain_data.content, emulated_data.content);
+}
+
+fn emulate_get_jetton_data(code: &[u8], data: &[u8]) -> JettonData {
+    const JETTON_DATA_STACK_ELEMENTS: usize = 5;
+    let method = "get_jetton_data";
+
+    let emulator_result = assert_ok!(assert_ok!(TvmEmulator::new(code, data))
+        .run_get_method(&method.into(), EMPTY_STACK.as_slice()));
+
+    let stack = emulator_result.stack;
+
+    assert_eq!(stack.len(), JETTON_DATA_STACK_ELEMENTS);
+
+    let total_supply = assert_ok!(stack[0].get_biguint());
+    let mintable = assert_ok!(stack[1].get_bool());
+    let admin_address = assert_ok!(stack[2].get_address());
+    let content = assert_ok!(MetaDataContent::parse(&assert_ok!(stack[3].get_cell())));
+    let wallet_code = assert_ok!(stack[4].get_cell());
+
+    JettonData {
+        total_supply,
+        mintable,
+        admin_address,
+        content,
+        wallet_code,
     }
+}
 
-    #[tokio::test]
-    async fn test_emulator_get_nan() {
-        common::init_logging();
-        let mut emulator = assert_ok!(TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA));
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_nan".into(), EMPTY_STACK.as_slice()));
+#[allow(dead_code)]
+#[tokio::test]
+async fn test_get_jetton_wallet() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
 
-        assert_eq!(emulator_result.stack.len(), 1);
-        assert_eq!(emulator_result.stack[0], TvmStackEntry::Nan);
-    }
+    let minter_address = assert_ok!("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()); //jetton master
+    let owner_address = assert_ok!("EQB2BtXDXaQuIcMYW7JEWhHmwHfPPwa-eoCdefiAxOhU3pQg".parse());
+    let expected: TonAddress =
+        assert_ok!("EQCGY3OVLtD9KRcOsP2ldQDtuY0FMzV7wPoxjrFbayBXc23c".parse());
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&minter_address);
+    let state = assert_ok!(contract.get_account_state().await);
+    let info = assert_ok!(client.get_config_all(0).await);
+    let config_data = info.config.bytes;
 
-    #[tokio::test]
-    async fn test_emulator_empty_contract_code() {
-        common::init_logging();
-        // empty code  empty data
-        let emulator_result = TvmEmulator::new(&EMPTY, &EMPTY);
-        log::info!("{:?}", emulator_result);
-        assert!(emulator_result.is_err());
+    log::info!("code cell: {}", STANDARD.encode(state.code.as_slice()));
+    log::info!("data cell: {}", STANDARD.encode(state.data.as_slice()));
+    let emulated_result = emulate_get_wallet_address(
+        &state.code,
+        &state.data,
+        &minter_address,
+        &owner_address,
+        &config_data,
+    )?;
+    assert_eq!(emulated_result, expected);
+    let blockchain_result = assert_ok!(contract.get_wallet_address(&owner_address).await);
+    assert_eq!(blockchain_result, expected);
+    Ok(())
+}
 
-        // bad code empty data
-        let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE, &TEST_CONTRACT_DATA);
-        log::info!("{:?}", emulator_result);
-        assert!(emulator_result.is_err());
+fn emulate_get_wallet_address(
+    code: &[u8],
+    data: &[u8],
+    self_address: &TonAddress,
+    owner_address: &TonAddress,
+    config_data: &[u8],
+) -> anyhow::Result<TonAddress> {
+    let tvm_emulator_c7 = TvmEmulatorC7::new(self_address.clone(), config_data.to_vec())?;
+    let mut emulator = TvmEmulator::new(code, data)?.with_c7(&tvm_emulator_c7)?;
 
-        // bad code cell empty data
-        let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE_CELL, &TEST_CONTRACT_DATA);
-        log::info!("{:?}", emulator_result);
-        assert!(emulator_result.is_err());
+    let stack: Vec<TvmStackEntry> = vec![assert_ok!(owner_address.try_into())];
+    let emulator_result =
+        assert_ok!(emulator.run_get_method(&"get_wallet_address".into(), stack.as_slice()));
+    assert!(emulator_result.exit_success());
 
-        // Ok code cell empty data
-        let emulator_result = TvmEmulator::new(&TEST_CONTRACT_CODE, &EMPTY);
-        log::info!("{:?}", emulator_result);
-        assert!(emulator_result.is_err());
-    }
+    assert_eq!(emulator_result.stack.len(), 1);
+    Ok(emulator_result.stack[0].get_address()?)
+}
 
-    #[tokio::test]
-    async fn test_emulator_bigint_multiply() {
-        common::init_logging();
-        bigint_multiplier(&BigInt::from(1), &BigInt::from(0x1234567890ABCDEFu64));
-        bigint_multiplier(&BigInt::from(1), &BigInt::from(0x1234567890ABCDEFu64).neg());
-        bigint_multiplier(
-            &BigInt::from(10_000_000_000_i64),
-            &BigInt::from(0x1234567890ABCDEFu64),
-        );
-    }
+#[tokio::test]
+async fn test_address_in_stack() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
 
-    fn bigint_multiplier(val1: &BigInt, val2: &BigInt) {
-        let expected = val1 * val2;
-        log::info!("Testing: {} = {} * {}", expected, val1, val2);
-        let mut emulator = assert_ok!(TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA));
-        assert_ok!(emulator.set_debug_enable());
-        let stack = vec![val1.clone().into(), val2.clone().into()];
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
-        assert_eq!(emulator_result.vm_exit_code, 0);
-        assert_eq!(emulator_result.stack.len(), 1);
-        log::info!("{:?}", emulator_result.stack);
-        let result = assert_ok!(emulator_result.stack[0].get_bigint());
-        assert_eq!(result, expected);
-    }
-
-    #[tokio::test]
-    async fn test_emulator_i64_multiply() {
-        common::init_logging();
-        i64_multiplier(1, 0x1234567890ABCDEFi64);
-        i64_multiplier(1, -0x1234567890ABCDEFi64);
-        i64_multiplier(-1, 0x1234567890ABCDEFi64);
-        i64_multiplier(10_000_000_000_i64, 0x1234567890ABCDEFi64);
-    }
-
-    fn i64_multiplier(val1: i64, val2: i64) {
-        let expected = BigInt::from(val1) * BigInt::from(val2);
-        log::info!("Testing: {} = {} * {}", expected, val1, val2);
-        let mut emulator = assert_ok!(TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA));
-        assert_ok!(emulator.set_debug_enable());
-        let stack = vec![val1.into(), val2.into()];
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
-        assert_eq!(emulator_result.vm_exit_code, 0);
-
-        assert_eq!(emulator_result.stack.len(), 1);
-        log::info!("{:?}", emulator_result.stack);
-        let result = assert_ok!(emulator_result.stack[0].get_bigint());
-        assert_eq!(result, expected);
-    }
-
-    #[tokio::test]
-    async fn test_emulator_get_jetton_data() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86"
-        )); //jetton master
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&address);
-        let account_state = assert_ok!(contract.get_account_state().await);
-
-        let code = &account_state.code;
-        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
-        let data = &account_state.data;
-
-        let blockchain_data: JettonData = assert_ok!(contract.get_jetton_data().await);
-        let emulated_data = emulate_get_jetton_data(code, data);
-
-        log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
-
-        assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
-        assert_eq!(blockchain_data.mintable, emulated_data.mintable);
-        assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
-        assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
-        assert_eq!(blockchain_data.content, emulated_data.content);
-    }
-
-    #[tokio::test]
-    async fn test_emulator_get_jetton_data_long_total_supply() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
-        )); //jetton master
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&address);
-        let account_state = assert_ok!(contract.get_account_state().await);
-
-        let code = &account_state.code;
-        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
-        let data = &account_state.data;
-        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
-        let blockchain_data = assert_ok!(contract.get_jetton_data().await);
-        let emulated_data = emulate_get_jetton_data(code, data);
-
-        log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
-
-        assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
-        assert_eq!(blockchain_data.mintable, emulated_data.mintable);
-        assert_eq!(blockchain_data.admin_address, emulated_data.admin_address);
-        assert_eq!(blockchain_data.wallet_code, emulated_data.wallet_code);
-        assert_eq!(blockchain_data.content, emulated_data.content);
-    }
-
-    fn emulate_get_jetton_data(code: &[u8], data: &[u8]) -> JettonData {
-        const JETTON_DATA_STACK_ELEMENTS: usize = 5;
-        let method = "get_jetton_data";
-
-        let emulator_result = assert_ok!(assert_ok!(TvmEmulator::new(code, data))
-            .run_get_method(&method.into(), EMPTY_STACK.as_slice()));
-
-        let stack = emulator_result.stack;
-
-        assert_eq!(stack.len(), JETTON_DATA_STACK_ELEMENTS);
-
-        let total_supply = assert_ok!(stack[0].get_biguint());
-        let mintable = assert_ok!(stack[1].get_bool());
-        let admin_address = assert_ok!(stack[2].get_address());
-        let content = assert_ok!(MetaDataContent::parse(&assert_ok!(stack[3].get_cell())));
-        let wallet_code = assert_ok!(stack[4].get_cell());
-
-        JettonData {
-            total_supply,
-            mintable,
-            admin_address,
-            content,
-            wallet_code,
-        }
-    }
-
-    #[allow(dead_code)]
-    #[tokio::test]
-    async fn test_get_jetton_wallet() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let minter_address = assert_ok!("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse()); //jetton master
-        let owner_address = assert_ok!("EQB2BtXDXaQuIcMYW7JEWhHmwHfPPwa-eoCdefiAxOhU3pQg".parse());
-        let expected: TonAddress =
-            assert_ok!("EQCGY3OVLtD9KRcOsP2ldQDtuY0FMzV7wPoxjrFbayBXc23c".parse());
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&minter_address);
-        let state = assert_ok!(contract.get_account_state().await);
-        let info = assert_ok!(client.get_config_all(0).await);
-        let config_data = info.config.bytes;
-
-        log::info!("code cell: {}", STANDARD.encode(state.code.as_slice()));
-        log::info!("data cell: {}", STANDARD.encode(state.data.as_slice()));
-        let emulated_result = emulate_get_wallet_address(
-            &state.code,
-            &state.data,
-            &minter_address,
-            &owner_address,
-            &config_data,
-        );
-        assert_eq!(emulated_result, expected);
-        let blockchain_result = assert_ok!(contract.get_wallet_address(&owner_address).await);
-        assert_eq!(blockchain_result, expected);
-    }
-
-    fn emulate_get_wallet_address(
-        code: &[u8],
-        data: &[u8],
-        self_address: &TonAddress,
-        owner_address: &TonAddress,
-        config_data: &[u8],
-    ) -> TonAddress {
-        let mut emulator = assert_ok!(TvmEmulator::new(code, data));
-
-        let tvm_emulator_c7 = TvmEmulatorC7Builder::new(self_address, config_data, 0).build();
-
-        assert_ok!(emulator.set_c7(&tvm_emulator_c7));
-        let stack: Vec<TvmStackEntry> = vec![assert_ok!(owner_address.try_into())];
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_wallet_address".into(), stack.as_slice()));
-        assert!(emulator_result.exit_success());
-
-        assert_eq!(emulator_result.stack.len(), 1);
-        assert_ok!(emulator_result.stack[0].get_address())
-    }
-
-    #[tokio::test]
-    async fn test_address_in_stack() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let pool_address = assert_ok!("EQDtZHOtVWaf9UIU6rmjLPNLTGxNLNogvK5xUZlMRgZwQ4Gt".parse());
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let account_state = assert_ok!(factory.get_latest_account_state(&pool_address).await);
-        let code = account_state.code.as_slice();
-        let data = account_state.data.as_slice();
-        let (addr1, addr2) = emulate_get_pool_data(code, data);
-        log::info!("Addr1: {}, Addr2: {}", addr1, addr2);
-        let amount = BigUint::from(100_500_000u32);
-        let emulated_result = emulate_get_expected_outputs(code, data, &amount, &addr1);
-        log::info!("Emulated result: {}", emulated_result);
-        let addr_cell = assert_ok!(assert_ok!(CellBuilder::new().store_address(&addr1)).build());
-        let stack = vec![
-            TvmStackEntry::Int257(BigInt::from(amount)),
-            TvmStackEntry::Slice(assert_ok!(CellSlice::full_cell(addr_cell))),
-        ];
-        let run_result = assert_ok!(
-            assert_ok!(
-                factory
-                    .get_contract(&pool_address)
-                    .get_state_by_transaction(&account_state.last_transaction_id)
-                    .await
-            )
-            .run_get_method("get_expected_outputs", stack)
-            .await
-        );
-        assert!(run_result.vm_exit_code == 0 || run_result.vm_exit_code == 1);
-        assert_eq!(run_result.stack.len(), 3);
-        let state_result = assert_ok!(run_result.stack[0].get_biguint());
-        log::info!("Blockchain result: {}", state_result);
-        assert_eq!(emulated_result, state_result);
-    }
-
-    fn emulate_get_pool_data(code: &[u8], data: &[u8]) -> (TonAddress, TonAddress) {
-        let mut emulator = assert_ok!(TvmEmulator::new(code, data));
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_pool_data".into(), vec![].as_slice()));
-        assert!(emulator_result.exit_success());
-
-        assert_eq!(emulator_result.stack.len(), 10);
-        let addr1 = assert_ok!(emulator_result.stack[2].get_address());
-        let addr2 = assert_ok!(emulator_result.stack[3].get_address());
-        (addr1, addr2)
-    }
-
-    fn emulate_get_expected_outputs(
-        code: &[u8],
-        data: &[u8],
-        amount: &BigUint,
-        token_wallet: &TonAddress,
-    ) -> BigUint {
-        let mut emulator = assert_ok!(TvmEmulator::new(code, data));
-        let stack = vec![amount.clone().into(), assert_ok!(token_wallet.try_into())];
-        let emulator_result =
-            assert_ok!(emulator.run_get_method(&"get_expected_outputs".into(), stack.as_slice()));
-        assert!(emulator_result.exit_success());
-        assert_eq!(emulator_result.stack.len(), 3);
-        assert_ok!(emulator_result.stack[0].get_biguint())
-    }
-
-    #[tokio::test]
-    async fn emulate_external_transfer_message() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
-        )); //jetton master
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&address);
-        let account_state = assert_ok!(contract.get_account_state().await);
-
-        let code = &account_state.code;
-        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
-        let data = &account_state.data;
-        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
-        ));
-        let msg = assert_ok!(JettonTransferMessage::new(&address, &BigUint::from(1u32)).build());
-
-        let mut emulator = assert_ok!(TvmEmulator::new(code, data));
-        let r = assert_ok!(emulator.send_external_message(msg));
-        log::info!("RES: {:?}", r);
-        assert_eq!(r.gas_used, 270);
-        assert_eq!(r.vm_exit_code, 11);
-    }
-
-    #[tokio::test]
-    async fn emulate_internal_transfer_message() -> anyhow::Result<()> {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
-        )); //jetton master
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&address);
-        let account_state = assert_ok!(contract.get_account_state().await);
-
-        let code = &account_state.code;
-        log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
-        let data = &account_state.data;
-        log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
-
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
-        ));
-        let msg = assert_ok!(JettonTransferMessage::new(&address, &BigUint::from(1u32)).build());
-
-        let mut emulator = assert_ok!(TvmEmulator::new(code, data));
-        let r = assert_ok!(emulator.send_internal_message(msg, 300));
-        log::info!("RES: {:?}", r);
-        assert_eq!(r.gas_used, 2779);
-        assert_eq!(r.vm_exit_code, 65535);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_convert_lib_addr() {
-        common::init_logging();
-        let hex_addr = TonAddress::from_hex_str(
-            "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
-        );
-
-        log::info!("addr {:?}", hex_addr);
-    }
-
-    #[tokio::test]
-    async fn test_get_lib_cells() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-
-        let minter_lib_address = assert_ok!(TonAddress::from_base64_url(
-            "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
-        ));
-
-        let minter_lib = assert_ok!(
+    let pool_address = assert_ok!("EQDtZHOtVWaf9UIU6rmjLPNLTGxNLNogvK5xUZlMRgZwQ4Gt".parse());
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let account_state = assert_ok!(factory.get_latest_account_state(&pool_address).await);
+    let code = account_state.code.as_slice();
+    let data = account_state.data.as_slice();
+    let (addr1, addr2) = emulate_get_pool_data(code, data);
+    log::info!("Addr1: {}, Addr2: {}", addr1, addr2);
+    let amount = BigUint::from(100_500_000u32);
+    let emulated_result = emulate_get_expected_outputs(code, data, &amount, &addr1);
+    log::info!("Emulated result: {}", emulated_result);
+    let addr_cell = assert_ok!(assert_ok!(CellBuilder::new().store_address(&addr1)).build());
+    let stack = vec![
+        TvmStackEntry::Int257(BigInt::from(amount)),
+        TvmStackEntry::Slice(assert_ok!(CellSlice::full_cell(addr_cell))),
+    ];
+    let run_result = assert_ok!(
+        assert_ok!(
             factory
-                .get_contract(&minter_lib_address)
-                .get_account_state()
+                .get_contract(&pool_address)
+                .get_state_by_transaction(&account_state.last_transaction_id)
                 .await
-        );
+        )
+        .run_get_method("get_expected_outputs", stack)
+        .await
+    );
+    assert!(run_result.vm_exit_code == 0 || run_result.vm_exit_code == 1);
+    assert_eq!(run_result.stack.len(), 3);
+    let state_result = assert_ok!(run_result.stack[0].get_biguint());
+    log::info!("Blockchain result: {}", state_result);
+    assert_eq!(emulated_result, state_result);
+}
 
-        log::info! {"{:?}", minter_lib};
-    }
+fn emulate_get_pool_data(code: &[u8], data: &[u8]) -> (TonAddress, TonAddress) {
+    let mut emulator = assert_ok!(TvmEmulator::new(code, data));
+    let emulator_result =
+        assert_ok!(emulator.run_get_method(&"get_pool_data".into(), vec![].as_slice()));
+    assert!(emulator_result.exit_success());
 
-    #[cfg(feature = "emulate_get_method")]
-    #[tokio::test]
-    async fn test_emulator_contract_with_library() {
-        common::init_logging();
-        let client = common::new_mainnet_client().await;
+    assert_eq!(emulator_result.stack.len(), 10);
+    let addr1 = assert_ok!(emulator_result.stack[2].get_address());
+    let addr2 = assert_ok!(emulator_result.stack[3].get_address());
+    (addr1, addr2)
+}
 
-        let address = assert_ok!(TonAddress::from_base64_url(
-            "EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8"
-        )); //jetton master
+fn emulate_get_expected_outputs(
+    code: &[u8],
+    data: &[u8],
+    amount: &BigUint,
+    token_wallet: &TonAddress,
+) -> BigUint {
+    let mut emulator = assert_ok!(TvmEmulator::new(code, data));
+    let stack = vec![amount.clone().into(), assert_ok!(token_wallet.try_into())];
+    let emulator_result =
+        assert_ok!(emulator.run_get_method(&"get_expected_outputs".into(), stack.as_slice()));
+    assert!(emulator_result.exit_success());
+    assert_eq!(emulator_result.stack.len(), 3);
+    assert_ok!(emulator_result.stack[0].get_biguint())
+}
 
-        let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract = factory.get_contract(&address);
-        let blockchain_data = assert_ok!(contract.get_jetton_data().await);
+#[tokio::test]
+async fn emulate_external_transfer_message() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
 
-        let factory_with_library_loader =
-            assert_ok!(TonContractFactory::builder(&client).build().await);
-        let contract_with_library_loader = factory_with_library_loader.get_contract(&address);
-        let emulated_data = assert_ok!(contract_with_library_loader.get_jetton_data().await);
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
+    )); //jetton master
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&address);
+    let account_state = assert_ok!(contract.get_account_state().await);
 
-        log::info! {"Blockchain Jetton data: {:?}", blockchain_data};
-        log::info! {"Emulated Jetton data: {:?}", blockchain_data};
+    let code = &account_state.code;
+    log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+    let data = &account_state.data;
+    log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
 
-        assert_eq!(blockchain_data, emulated_data);
-    }
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
+    ));
+    let msg = assert_ok!(JettonTransferMessage::new(&address, &BigUint::from(1u32)).build());
+
+    let mut emulator = assert_ok!(TvmEmulator::new(code, data));
+    let r = assert_ok!(emulator.send_external_message(msg));
+    log::info!("RES: {:?}", r);
+    assert_eq!(r.gas_used, 270);
+    assert_eq!(r.vm_exit_code, 11);
+}
+
+#[tokio::test]
+async fn emulate_internal_transfer_message() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "EQAW42HutyDem98Be1f27PoXobghh81umTQ-cGgaKVmRLS7-"
+    )); //jetton master
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&address);
+    let account_state = assert_ok!(contract.get_account_state().await);
+
+    let code = &account_state.code;
+    log::info!("code cell: {}", STANDARD.encode(code.as_slice()));
+    let data = &account_state.data;
+    log::info!("data cell: {}", STANDARD.encode(data.as_slice()));
+
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
+    ));
+    let msg = assert_ok!(JettonTransferMessage::new(&address, &BigUint::from(1u32)).build());
+
+    let mut emulator = assert_ok!(TvmEmulator::new(code, data));
+    let r = assert_ok!(emulator.send_internal_message(msg, 300));
+    log::info!("RES: {:?}", r);
+    assert_eq!(r.gas_used, 2779);
+    assert_eq!(r.vm_exit_code, 65535);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_convert_lib_addr() {
+    common::init_logging();
+    let hex_addr = TonAddress::from_hex_str(
+        "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
+    );
+
+    log::info!("addr {:?}", hex_addr);
+}
+
+#[tokio::test]
+async fn test_get_lib_cells() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+
+    let minter_lib_address = assert_ok!(TonAddress::from_base64_url(
+        "Ef8CmPZLxWB-9ypeGdGhEqA6ZNLBFUwnqXPH2eUQd_MzbGh_"
+    ));
+
+    let minter_lib = assert_ok!(
+        factory
+            .get_contract(&minter_lib_address)
+            .get_account_state()
+            .await
+    );
+
+    log::info!("{minter_lib:?}")
+}
+
+#[cfg(feature = "emulate_get_method")]
+#[tokio::test]
+async fn test_emulator_contract_with_library() {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+
+    let address = assert_ok!(TonAddress::from_base64_url(
+        "EQDqVNU7Jaf85MhIba1lup0F7Mr3rGigDV8RxMS62RtFr1w8"
+    )); //jetton master
+
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&address);
+    let blockchain_data = assert_ok!(contract.get_jetton_data().await);
+
+    let factory_with_library_loader =
+        assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract_with_library_loader = factory_with_library_loader.get_contract(&address);
+    let emulated_data = assert_ok!(contract_with_library_loader.get_jetton_data().await);
+
+    log::info!("Blockchain Jetton data: {blockchain_data:?}");
+    log::info!("Emulated Jetton data: {emulated_data:?}");
+
+    assert_eq!(blockchain_data, emulated_data);
 }

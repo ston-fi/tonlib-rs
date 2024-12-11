@@ -55,9 +55,6 @@ const JETTONS: [&str; NUM_JETTONS] = [
 ];
 
 async fn smc_methods_runner(client: TonClient) {
-    #[cfg(not(feature = "state_cache"))]
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
-    #[cfg(feature = "state_cache")]
     let factory = assert_ok!(
         TonContractFactory::builder(&client)
             .with_default_cache()

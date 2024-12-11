@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
@@ -8,7 +9,8 @@ use lazy_static::lazy_static;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::{TonAddressParseError, TonHash, TON_HASH_BYTES};
+use super::{TonAddressParseError, TonHash, ZERO_HASH};
+use crate::cell::CellBuilder;
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -23,7 +25,7 @@ pub struct TonAddress {
 impl TonAddress {
     pub const NULL: TonAddress = TonAddress {
         workchain: 0,
-        hash_part: [0; TON_HASH_BYTES],
+        hash_part: ZERO_HASH,
     };
 
     pub fn new(workchain: i32, hash_part: &TonHash) -> TonAddress {
@@ -196,8 +198,7 @@ impl TonAddress {
                 "Invalid base64src address: CRC mismatch",
             ));
         }
-        let mut hash_part = [0_u8; 32];
-        hash_part.clone_from_slice(&bytes[2..34]);
+        let hash_part = TonHash::try_from(&bytes[2..34])?;
         let addr = TonAddress {
             workchain,
             hash_part,
@@ -206,7 +207,7 @@ impl TonAddress {
     }
 
     pub fn to_hex(&self) -> String {
-        format!("{}:{}", self.workchain, hex::encode(self.hash_part))
+        format!("{}:{}", self.workchain, self.hash_part.to_hex())
     }
 
     pub fn to_base64_url(&self) -> String {
@@ -238,10 +239,31 @@ impl TonAddress {
         };
         bytes[0] = tag;
         bytes[1] = (self.workchain & 0xff) as u8;
-        bytes[2..34].clone_from_slice(&self.hash_part);
+        bytes[2..34].clone_from_slice(self.hash_part.as_slice());
         let crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
         bytes[34] = ((crc >> 8) & 0xff) as u8;
         bytes[35] = (crc & 0xff) as u8;
+    }
+}
+
+impl PartialOrd for TonAddress {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let self_cell_hash = CellBuilder::new()
+            .store_address(self)
+            .and_then(|builder| builder.build())
+            .map(|cell| cell.cell_hash())
+            .ok();
+
+        let other_cell_hash = CellBuilder::new()
+            .store_address(other)
+            .and_then(|builder| builder.build())
+            .map(|cell| cell.cell_hash())
+            .ok();
+
+        match (self_cell_hash, other_cell_hash) {
+            (Some(hash0), Some(hash1)) => Some(hash0.cmp(&hash1)),
+            _ => None,
+        }
     }
 }
 
@@ -319,6 +341,8 @@ impl<'de> Deserialize<'de> for TonAddress {
 
 #[cfg(test)]
 mod tests {
+
+    use std::str::FromStr;
 
     use serde_json::Value;
 
@@ -481,6 +505,16 @@ mod tests {
         let deserial: serde_json::Result<TonAddress> = serde_json::from_str(a.as_str());
         assert!(deserial.is_err());
 
+        Ok(())
+    }
+
+    #[test]
+    fn ordering_works() -> Result<(), TonAddressParseError> {
+        let address0 = TonAddress::from_str("EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW")?;
+        let address1 = TonAddress::from_str("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")?;
+
+        let cmp_result = address0 < address1;
+        assert_eq!(true, cmp_result);
         Ok(())
     }
 }
