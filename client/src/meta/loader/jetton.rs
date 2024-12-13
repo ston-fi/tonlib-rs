@@ -54,10 +54,10 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
                                 .use_string_or(None, dict)
                                 .map(|v| v.parse::<u8>().unwrap()),
                         }),
-                        Err(_) => Ok(dict.into()),
+                        Err(_) => Ok(dict.try_into()?),
                     }
                 } else {
-                    Ok(dict.into())
+                    dict.try_into()
                 }
             }
 
@@ -66,18 +66,23 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
     }
 }
 
-impl From<&SnakeFormatDict> for JettonMetaData {
-    fn from(dict: &SnakeFormatDict) -> Self {
-        JettonMetaData {
+impl TryFrom<&SnakeFormatDict> for JettonMetaData {
+    type Error = MetaLoaderError;
+
+    fn try_from(dict: &SnakeFormatDict) -> Result<Self, Self::Error> {
+        let decimals = META_DECIMALS
+            .use_string_or(None, dict)
+            .map(|v| v.parse::<u8>())
+            .transpose()?;
+
+        Ok(JettonMetaData {
             name: META_NAME.use_string_or(None, dict),
             uri: META_URI.use_string_or(None, dict),
             symbol: META_SYMBOL.use_string_or(None, dict),
             description: META_DESCRIPTION.use_string_or(None, dict),
             image: META_IMAGE.use_string_or(None, dict),
             image_data: dict.get(&META_IMAGE_DATA.key).cloned(),
-            decimals: META_DECIMALS
-                .use_string_or(None, dict)
-                .map(|v| v.parse::<u8>().unwrap()),
-        }
+            decimals,
+        })
     }
 }
