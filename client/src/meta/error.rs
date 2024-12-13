@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use reqwest::StatusCode;
 use thiserror::Error;
 
@@ -22,4 +24,7 @@ pub enum MetaLoaderError {
 
     #[error("Internal error ({0})")]
     InternalError(String),
+
+    #[error("Parse int error ({0})")]
+    ParseIntError(#[from] ParseIntError),
 }
