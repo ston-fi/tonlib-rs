@@ -40,3 +40,5 @@
 * Bump tonlib-sys
 ### v0.22.3
 * Impl #be-1820: rm unwrap from jettonmetadata conversion
+### v0.22.4
+* make pub TvmEmulatorUnsafe
