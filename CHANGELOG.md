@@ -38,3 +38,5 @@
 * added From<TonHash> for [u8; TON_HASH_LEN] 
 ### v0.22.2
 * Bump tonlib-sys
+### v0.22.3
+* Impl #be-1820: rm unwrap from jettonmetadata conversion
