@@ -44,7 +44,6 @@ impl TvmEmulatorUnsafe {
         }
     }
 
-    #[allow(unused)]
     pub fn set_global_verbosity_level(&mut self, level: u32) -> Result<bool, TvmEmulatorError> {
         let success: bool = unsafe { emulator_set_verbosity_level(level) };
         Ok(success)
