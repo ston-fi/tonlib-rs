@@ -34,7 +34,7 @@ async fn test_load_item_metadata() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_load_item_metadata_arkenstone() -> anyhow::Result<()> {
+async fn test_load_item_metadata_arkenston() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
     let content = MetaDataContent::External {
