@@ -81,7 +81,7 @@ pub trait NftItemContract: TonContractInterface {
     /// the individual content of this NFT item and
     /// returns the full content of the NFT item in format
     /// that complies with standard TEP-64.
-    // TODO Add tests to this method
+    // TODO: Issue https://github.com/Selarion/tonlib-rs/issues/2
     async fn get_nft_content(
         &self,
         index: &BigUint,

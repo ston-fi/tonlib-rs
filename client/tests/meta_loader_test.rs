@@ -1,7 +1,5 @@
 use serde_json::json;
-use sha2::Digest;
 use tokio_test::assert_ok;
-use tonlib_client::contract::NftItemContract;
 use tonlib_client::meta::{
     LoadMeta, MetaDataContent, NftCollectionMetaData, NftColletionMetaLoader, NftItemMetaData,
     NftItemMetaLoader,
@@ -14,7 +12,7 @@ mod common;
 async fn test_load_item_metadata() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
-    let md_content = MetaDataContent::External {
+    let content = MetaDataContent::External {
         uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
     };
 
@@ -30,7 +28,7 @@ async fn test_load_item_metadata() -> anyhow::Result<()> {
         attributes: None,
     };
 
-    let res = assert_ok!(meta_loader.load(&md_content).await);
+    let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
     Ok(())
 }
@@ -39,7 +37,7 @@ async fn test_load_item_metadata() -> anyhow::Result<()> {
 async fn test_load_item_metadata_arkenstone() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
-    let md_content = MetaDataContent::External {
+    let content = MetaDataContent::External {
         uri: "https://meta.ston.fi/meta/stake/v1/0:E1477E82F29495B7284E16D13D9E1D8316AE166146D36459AF8DF9D2865AD7AB.json".to_string(),
     };
 
@@ -51,7 +49,7 @@ async fn test_load_item_metadata_arkenstone() -> anyhow::Result<()> {
         attributes: None,
     };
 
-    let res = assert_ok!(meta_loader.load(&md_content).await);
+    let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
     Ok(())
 }
@@ -60,7 +58,7 @@ async fn test_load_item_metadata_arkenstone() -> anyhow::Result<()> {
 async fn test_load_item_metadata_with_attributes() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = assert_ok!(NftItemMetaLoader::default());
-    let md_content = MetaDataContent::External {
+    let content = MetaDataContent::External {
         uri: "https://s.getgems.io/nft/c/64284ddbde940b5d6ebc34f8/12/meta.json".to_string(),
     };
 
@@ -81,7 +79,7 @@ async fn test_load_item_metadata_with_attributes() -> anyhow::Result<()> {
         content_url: None,
     };
 
-    let res = assert_ok!(meta_loader.load(&md_content).await);
+    let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
     Ok(())
 }
@@ -91,7 +89,7 @@ async fn test_load_item_metadata_with_attributes() -> anyhow::Result<()> {
 async fn test_load_collection_metadata_content_arkenston() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = assert_ok!(NftColletionMetaLoader::default());
-    let md_content = MetaDataContent::External {
+    let content = MetaDataContent::External {
         uri: "https://meta.ston.fi/meta/stake-collection/v1/0:AC8495DB6DC9FB72F4A468CD19F0DC88FB6A4D0890B945319907E71117E3DAC7.json".to_string()
     };
 
@@ -104,7 +102,7 @@ async fn test_load_collection_metadata_content_arkenston() -> anyhow::Result<()>
         marketplace: None,
     };
 
-    let res = assert_ok!(meta_loader.load(&md_content).await);
+    let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
     Ok(())
 }
@@ -115,7 +113,7 @@ async fn test_load_collection_metadata_content_arkenston() -> anyhow::Result<()>
 async fn test_load_collection_metadata_content() -> anyhow::Result<()> {
     common::init_logging();
     let meta_loader = NftColletionMetaLoader::default()?;
-    let md_content = MetaDataContent::External {
+    let content = MetaDataContent::External {
         uri: "https://nft.fragment.com/numbers.json".to_string(),
     };
 
@@ -131,7 +129,7 @@ async fn test_load_collection_metadata_content() -> anyhow::Result<()> {
         marketplace: None,
     };
 
-    let res = assert_ok!(meta_loader.load(&md_content).await);
+    let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
     Ok(())
 }

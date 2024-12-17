@@ -58,10 +58,10 @@ async fn test_get_nft_data_is_valid() -> anyhow::Result<()> {
     let res = assert_ok!(contract.get_nft_data().await);
 
     let expected_collection_address = assert_ok!(TonAddress::from_base64_url(
-        &"EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N".to_string()
+        "EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N"
     ));
     let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
-        &"EQCgjHh831e9_qlCWLgaAwEIQ8qOolUT831vJF0bau6LMV5G".to_string()
+        "EQCbUvNpymOPtB5SEecyWY7IuR2wbrZPt7lH1CeNfUPlj7Ly"
     ));
     let expected_index = assert_ok!(BigUint::from_str(
         "15995005474673311991943775795727481451058346239240361725119718297821926435889",
@@ -114,7 +114,7 @@ async fn test_get_collection_data_is_valid() -> anyhow::Result<()> {
     let res = assert_ok!(contract.get_collection_data().await);
 
     let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
-        &"EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c".to_string()
+        "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
     ));
     let expected_res = NftCollectionData {
         next_item_index: -1,
@@ -141,13 +141,13 @@ async fn test_get_nft_address_by_index_is_valid() -> anyhow::Result<()> {
     let res_1 = assert_ok!(contract.get_nft_address_by_index(1).await);
 
     let expected_addr_0 = assert_ok!(TonAddress::from_base64_url(
-        &"EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW".to_string()
+        "EQBKwtMZSZurMxGp7FLZ_lM9t54_ECEsS46NLR3qfIwwTnKW"
     ));
     let expected_addr_1 = assert_ok!(TonAddress::from_base64_url(
-        &"EQB6rnPIZr8dXmLy0xVp4lTe1AlYRwOUghEG9zzCcCkCp8IS".to_string()
+        "EQB6rnPIZr8dXmLy0xVp4lTe1AlYRwOUghEG9zzCcCkCp8IS"
     ));
     let expected_addr_2 = assert_ok!(TonAddress::from_base64_url(
-        &"EQD0VQNu41wZmWMQjXfifnljGR0vOAULh0stBLItskMavwH0".to_string()
+        "EQD0VQNu41wZmWMQjXfifnljGR0vOAULh0stBLItskMavwH0"
     ));
     assert_eq!(res_0, expected_addr_0);
     assert_eq!(res_1, expected_addr_1);
