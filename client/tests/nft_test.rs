@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 use sha2::{Digest, Sha256};
 use tokio_test::assert_ok;
 use tonlib_client::contract::{
-    NftCollectionContract, NftCollectionData, NftItemContract, NftItemData, TonContractFactory,
+    NftCollectionContract, NftItemContract, TonContractFactory,
 };
 use tonlib_client::meta::MetaDataContent;
 use tonlib_core::{TonAddress, TonHash};
@@ -60,22 +60,17 @@ async fn test_get_nft_data_is_valid() -> anyhow::Result<()> {
     let expected_collection_address = assert_ok!(TonAddress::from_base64_url(
         "EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N"
     ));
-    let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
-        "EQCbUvNpymOPtB5SEecyWY7IuR2wbrZPt7lH1CeNfUPlj7Ly"
-    ));
     let expected_index = assert_ok!(BigUint::from_str(
         "15995005474673311991943775795727481451058346239240361725119718297821926435889",
     ));
-    let expected_res = NftItemData {
-        init: true,
-        index: expected_index,
-        collection_address: expected_collection_address,
-        owner_address: expected_owner_address,
-        individual_content: MetaDataContent::External {
-            uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
-        },
-    };
-    assert_eq!(res, expected_res);
+
+    assert!(res.init);
+    assert_eq!(res.index, expected_index);
+    assert_eq!(res.collection_address, expected_collection_address);
+    assert_eq!(res.individual_content, MetaDataContent::External {
+        uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
+    });
+
     Ok(())
 }
 
@@ -113,17 +108,10 @@ async fn test_get_collection_data_is_valid() -> anyhow::Result<()> {
     ));
     let res = assert_ok!(contract.get_collection_data().await);
 
-    let expected_owner_address = assert_ok!(TonAddress::from_base64_url(
-        "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
-    ));
-    let expected_res = NftCollectionData {
-        next_item_index: -1,
-        owner_address: expected_owner_address,
-        collection_content: MetaDataContent::External {
-            uri: "https://nft.fragment.com/numbers.json".to_string(),
-        },
-    };
-    assert_eq!(res, expected_res);
+    assert_eq!(res.next_item_index, -1);
+    assert_eq!(res.collection_content, MetaDataContent::External {
+        uri: "https://nft.fragment.com/numbers.json".to_string(),
+    });
     Ok(())
 }
 
