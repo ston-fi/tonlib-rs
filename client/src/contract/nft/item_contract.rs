@@ -12,7 +12,7 @@ use crate::meta::MetaDataContent;
 use crate::types::TvmStackEntry;
 
 /// Data returned by get_static_data according to TEP-62
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NftItemData {
     /// if not zero, then this NFT is fully initialized and ready for interaction.
     pub init: bool,
@@ -81,6 +81,7 @@ pub trait NftItemContract: TonContractInterface {
     /// the individual content of this NFT item and
     /// returns the full content of the NFT item in format
     /// that complies with standard TEP-64.
+    // TODO: Issue https://github.com/Selarion/tonlib-rs/issues/2
     async fn get_nft_content(
         &self,
         index: &BigUint,
