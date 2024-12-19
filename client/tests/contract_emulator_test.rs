@@ -244,7 +244,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     )?;
     let libs = factory
         .library_provider()
-        .get_libs_dict(&[code_cell, data_cell])
+        .get_libs_dict(&[code_cell, data_cell], None)
         .await?;
 
     let mut sums: ((Duration, Duration, Duration, Duration), Duration) = (

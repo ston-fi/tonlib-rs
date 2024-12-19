@@ -51,13 +51,14 @@ impl LibraryProvider {
     pub async fn get_libs_dict<'a, I>(
         &self,
         cells: I,
+        seqno: Option<i32>,
     ) -> Result<ContractLibraryDict, TonLibraryError>
     where
         I: IntoIterator<Item = &'a ArcCell>,
     {
         let refs = LibraryProvider::extract_library_hashes(cells)?;
 
-        let libs = self.loader.get_libraries(refs.as_slice()).await?;
+        let libs = self.loader.load_libraries(refs.as_slice(), seqno).await?;
 
         let lib_hashmap = libs.into_iter().map(|l| (l.cell_hash(), l)).collect();
 

@@ -16,53 +16,47 @@ pub struct ContractLibraryDict {
 
 #[async_trait]
 pub trait LibraryLoader: Send + Sync {
-    async fn get_library(&self, hash: &TonHash) -> Result<Option<ArcCell>, TonLibraryError>;
-
-    async fn get_libraries(&self, hashes: &[TonHash]) -> Result<Vec<ArcCell>, TonLibraryError>;
+    async fn load_libraries(
+        &self,
+        hashes: &[TonHash],
+        seqno: Option<i32>,
+    ) -> Result<Vec<ArcCell>, TonLibraryError>;
 }
 
-pub struct DefaultLibraryLoader {
+pub struct BlockchainLibraryLoader {
     client: TonClient,
 }
 
-impl DefaultLibraryLoader {
+impl BlockchainLibraryLoader {
     pub fn new(client: &TonClient) -> Arc<Self> {
-        Arc::new(DefaultLibraryLoader {
+        Arc::new(BlockchainLibraryLoader {
             client: client.clone(),
         })
     }
 }
 
 #[async_trait]
-impl LibraryLoader for DefaultLibraryLoader {
-    async fn get_library(&self, hash: &TonHash) -> Result<Option<ArcCell>, TonLibraryError> {
-        let library_result = self.get_libraries(&[*hash]).await?;
-        match library_result.len() {
-            0 => {
-                log::warn!("Library not found for {:?}", hash);
-                Ok(None)
-            }
-            1 => Ok(Some(library_result[0].clone())),
-            _ => Err(TonLibraryError::MultipleLibrariesReturned),
-        }
-    }
-
-    async fn get_libraries(&self, hashes: &[TonHash]) -> Result<Vec<ArcCell>, TonLibraryError> {
+impl LibraryLoader for BlockchainLibraryLoader {
+    async fn load_libraries(
+        &self,
+        hashes: &[TonHash],
+        _seqno: Option<i32>,
+    ) -> Result<Vec<ArcCell>, TonLibraryError> {
         let mut results = Vec::new();
 
         // If hashes exceed MAX_LIBS_REQUESTED, split them into chunks
         for chunk in hashes.chunks(Self::MAX_LIBS_REQUESTED) {
-            let mut partial_result = self.get_libraries_impl(chunk).await?;
+            let mut partial_result = self.load_libraries_impl(chunk).await?;
             results.append(&mut partial_result);
         }
         Ok(results)
     }
 }
 
-impl DefaultLibraryLoader {
+impl BlockchainLibraryLoader {
     const MAX_LIBS_REQUESTED: usize = 255;
 
-    async fn get_libraries_impl(
+    async fn load_libraries_impl(
         &self,
         hashes: &[TonHash],
     ) -> Result<Vec<ArcCell>, TonLibraryError> {
