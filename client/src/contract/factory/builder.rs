@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{DefaultLibraryLoader, LibraryProvider};
+use super::{DefaultLibraryLoader, LibraryLoader, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
@@ -27,7 +27,7 @@ impl TonContractFactoryBuilder {
 
     pub(crate) fn new(client: &TonClient) -> Self {
         let loader = DefaultLibraryLoader::new(client);
-        let library_provider = LibraryProvider::new(Arc::new(loader));
+        let library_provider = LibraryProvider::new(loader);
         TonContractFactoryBuilder {
             client: client.clone(),
             with_cache: false,
@@ -40,13 +40,13 @@ impl TonContractFactoryBuilder {
         }
     }
 
-    pub fn with_account_state_cache(
-        &mut self,
+    pub fn with_cache(
+        mut self,
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
         account_state_cache_capacity: u64,
         account_state_cache_time_to_live: Duration,
-    ) -> &mut Self {
+    ) -> Self {
         self.with_cache = true;
         self.txid_cache_capacity = txid_cache_capacity;
         self.txid_cache_time_to_live = txid_cache_time_to_live;
@@ -55,7 +55,7 @@ impl TonContractFactoryBuilder {
         self
     }
 
-    pub fn with_default_cache(&mut self) -> &mut Self {
+    pub fn with_default_cache(mut self) -> Self {
         self.with_cache = true;
         self.account_state_cache_capacity = Self::DEFAULT_ACCOUNT_STATE_CACHE_CAPACITY;
         self.account_state_cache_time_to_live = Self::DEFAULT_ACCOUNT_STATE_CACHE_TTL;
@@ -64,7 +64,7 @@ impl TonContractFactoryBuilder {
         self
     }
 
-    pub fn presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
+    pub fn with_presync_blocks(mut self, presync_blocks: i32) -> Self {
         self.presync_blocks = presync_blocks;
         self
     }
@@ -82,17 +82,13 @@ impl TonContractFactoryBuilder {
         )
         .await
     }
-}
-
-impl TonContractFactoryBuilder {
-    pub fn with_default_library_provider(&mut self) -> &mut Self {
-        let loader = DefaultLibraryLoader::new(&self.client);
-        let library_provider = LibraryProvider::new(Arc::new(loader));
+    pub fn with_library_loader(mut self, library_loader: &Arc<dyn LibraryLoader>) -> Self {
+        let library_provider = LibraryProvider::new(library_loader.clone());
         self.library_provider = library_provider;
         self
     }
 
-    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
+    pub fn with_library_provider(mut self, library_provider: &LibraryProvider) -> Self {
         self.library_provider = library_provider.clone();
         self
     }

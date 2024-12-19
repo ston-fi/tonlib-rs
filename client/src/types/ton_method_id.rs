@@ -29,6 +29,24 @@ impl From<&'static str> for TonMethodId {
     }
 }
 
+impl TonMethodId {
+    pub fn as_str(&self) -> Cow<'static, str> {
+        match self {
+            TonMethodId::Number(num) => Cow::Owned(num.to_string()), // Dynamically allocate for number
+            TonMethodId::Name(cow) => match cow {
+                Cow::Borrowed(s) => Cow::Borrowed(*s), // Safe only if already 'static
+                Cow::Owned(s) => Cow::Owned(s.clone()), // Clone the owned String
+            },
+        }
+    }
+}
+
+impl From<Cow<'_, str>> for TonMethodId {
+    fn from(value: Cow<'_, str>) -> Self {
+        TonMethodId::Name(Cow::Owned(value.into_owned()))
+    }
+}
+
 impl From<String> for TonMethodId {
     fn from(value: String) -> Self {
         TonMethodId::Name(Cow::Owned(value))

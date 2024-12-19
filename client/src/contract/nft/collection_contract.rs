@@ -38,7 +38,7 @@ pub trait NftCollectionContract: TonContractInterface {
     /// Returns nft collection data.
     async fn get_collection_data(&self) -> Result<NftCollectionData, TonContractError> {
         const NFT_COLLECTION_STACK_ELEMENTS: usize = 3;
-        let method = NftCollectionMethods::GetCollectionData.into();
+        let method: &str = NftCollectionMethods::GetCollectionData.into();
         let address = self.address().clone();
 
         let stack = self.run_get_method(method, Vec::new()).await?.stack;
@@ -67,7 +67,7 @@ pub trait NftCollectionContract: TonContractInterface {
     /// Gets the serial number of the NFT item of this collection and
     /// returns the address (TonAddress) of this NFT item smart contract.
     async fn get_nft_address_by_index(&self, index: i64) -> Result<TonAddress, TonContractError> {
-        let method = NftCollectionMethods::GetNftAddressByIndex.into();
+        let method: &str = NftCollectionMethods::GetNftAddressByIndex.into();
         let input_stack = vec![TvmStackEntry::Int64(index)];
         let stack = self.run_get_method(method, &input_stack).await?.stack;
 

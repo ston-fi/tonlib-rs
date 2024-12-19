@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
-use tonlib_core::TonAddress;
+use tonlib_core::cell::{ArcCell, BagOfCells};
+use tonlib_core::TonHash;
 
 use crate::client::{TonClient, TonClientInterface};
-use crate::contract::TonContractError;
-use crate::tl::{SmcLibraryQueryExt, TonLibraryId};
+use crate::contract::TonLibraryError;
+use crate::tl::TonLibraryId;
 
+#[derive(Debug)]
 pub struct ContractLibraryDict {
     pub dict_boc: Vec<u8>,
     pub keys: Vec<TonLibraryId>,
@@ -16,11 +16,9 @@ pub struct ContractLibraryDict {
 
 #[async_trait]
 pub trait LibraryLoader: Send + Sync {
-    async fn load_contract_libraries(
-        &self,
-        address: &TonAddress,
-        code: &[u8],
-    ) -> Result<Arc<ContractLibraryDict>, TonContractError>;
+    async fn get_library(&self, hash: &TonHash) -> Result<Option<ArcCell>, TonLibraryError>;
+
+    async fn get_libraries(&self, hashes: &[TonHash]) -> Result<Vec<ArcCell>, TonLibraryError>;
 }
 
 pub struct DefaultLibraryLoader {
@@ -28,42 +26,58 @@ pub struct DefaultLibraryLoader {
 }
 
 impl DefaultLibraryLoader {
-    pub fn new(client: &TonClient) -> Self {
-        DefaultLibraryLoader {
+    pub fn new(client: &TonClient) -> Arc<Self> {
+        Arc::new(DefaultLibraryLoader {
             client: client.clone(),
-        }
+        })
     }
 }
 
 #[async_trait]
 impl LibraryLoader for DefaultLibraryLoader {
-    async fn load_contract_libraries(
-        &self,
-        address: &TonAddress,
-        code: &[u8],
-    ) -> Result<Arc<ContractLibraryDict>, TonContractError> {
-        const DEFAULT_MAX_LIBS: i32 = 255;
-        let library_query = SmcLibraryQueryExt::ScanBoc {
-            boc: code.to_vec(),
-            max_libs: DEFAULT_MAX_LIBS,
-        };
-        let library_result = self.client.smc_get_libraries_ext(&[library_query]).await?;
-        if !library_result.libs_not_found.is_empty() {
-            let missing_libs = library_result
-                .libs_not_found
-                .iter()
-                .map(|l| STANDARD.encode(&l.id))
-                .collect();
-            return Err(TonContractError::LibraryNotFound {
-                address: address.clone(),
-                missing_library: missing_libs,
-            });
+    async fn get_library(&self, hash: &TonHash) -> Result<Option<ArcCell>, TonLibraryError> {
+        let library_result = self.get_libraries(&[*hash]).await?;
+        match library_result.len() {
+            0 => {
+                log::warn!("Library not found for {:?}", hash);
+                Ok(None)
+            }
+            1 => Ok(Some(library_result[0].clone())),
+            _ => Err(TonLibraryError::MultipleLibrariesReturned),
         }
+    }
 
-        let dict_boc = library_result.dict_boc;
-        let keys = library_result.libs_ok;
+    async fn get_libraries(&self, hashes: &[TonHash]) -> Result<Vec<ArcCell>, TonLibraryError> {
+        let mut results = Vec::new();
 
-        let contract_libraies = ContractLibraryDict { dict_boc, keys };
-        Ok(Arc::new(contract_libraies))
+        // If hashes exceed MAX_LIBS_REQUESTED, split them into chunks
+        for chunk in hashes.chunks(Self::MAX_LIBS_REQUESTED) {
+            let mut partial_result = self.get_libraries_impl(chunk).await?;
+            results.append(&mut partial_result);
+        }
+        Ok(results)
+    }
+}
+
+impl DefaultLibraryLoader {
+    const MAX_LIBS_REQUESTED: usize = 255;
+
+    async fn get_libraries_impl(
+        &self,
+        hashes: &[TonHash],
+    ) -> Result<Vec<ArcCell>, TonLibraryError> {
+        let library_list: Vec<_> = hashes
+            .iter()
+            .map(|hash| TonLibraryId::from(*hash))
+            .collect();
+        let library_result = self.client.smc_get_libraries(&library_list).await?;
+
+        let libraries: Vec<ArcCell> = library_result
+            .result
+            .into_iter()
+            .map(|lib| BagOfCells::parse(&lib.data)?.into_single_root())
+            .collect::<Result<_, _>>()?;
+
+        Ok(libraries)
     }
 }

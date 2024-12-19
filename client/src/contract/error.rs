@@ -1,7 +1,9 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use thiserror::Error;
 use tonlib_core::cell::TonCellError;
+use tonlib_core::types::TonHashParseError;
 use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
@@ -96,13 +98,16 @@ pub enum TonContractError {
 
     #[error("{0}")]
     CacheError(#[from] Arc<TonContractError>),
+
+    #[error("{0}")]
+    TonLibraryError(#[from] TonLibraryError),
 }
 
 pub trait MapStackError<R> {
     #[allow(clippy::result_large_err)]
     fn map_stack_error(
         self,
-        method: &'static str,
+        method: impl Into<Cow<'static, str>>,
         address: &TonAddress,
     ) -> Result<R, TonContractError>;
 }
@@ -111,7 +116,7 @@ pub trait MapCellError<R> {
     #[allow(clippy::result_large_err)]
     fn map_cell_error(
         self,
-        method: &'static str,
+        method: impl Into<Cow<'static, str>>,
         address: &TonAddress,
     ) -> Result<R, TonContractError>;
 }
@@ -119,25 +124,27 @@ pub trait MapCellError<R> {
 impl<R> MapStackError<R> for Result<R, TvmStackError> {
     fn map_stack_error(
         self,
-        method: &'static str,
+        method: impl Into<Cow<'static, str>>,
         address: &TonAddress,
     ) -> Result<R, TonContractError> {
-        self.map_err(|e| TonContractError::MethodResultStackError {
-            method: method.into(),
-            address: address.clone(),
-            error: e,
-        })
+        self.map_err(
+            |e: TvmStackError| TonContractError::MethodResultStackError {
+                method: TonMethodId::Name(method.into()),
+                address: address.clone(),
+                error: e,
+            },
+        )
     }
 }
 
 impl<R> MapStackError<R> for Result<R, StackParseError> {
     fn map_stack_error(
         self,
-        method: &'static str,
+        method: impl Into<Cow<'static, str>>,
         address: &TonAddress,
     ) -> Result<R, TonContractError> {
         self.map_err(|e| TonContractError::TvmStackParseError {
-            method: method.into(),
+            method: TonMethodId::Name(method.into()),
             address: address.clone(),
             error: e,
         })
@@ -147,13 +154,31 @@ impl<R> MapStackError<R> for Result<R, StackParseError> {
 impl<R> MapCellError<R> for Result<R, TonCellError> {
     fn map_cell_error(
         self,
-        method: &'static str,
+        method: impl Into<Cow<'static, str>>,
         address: &TonAddress,
     ) -> Result<R, TonContractError> {
         self.map_err(|e| TonContractError::MethodResultStackError {
-            method: method.into(),
+            method: TonMethodId::Name(method.into()),
             address: address.clone(),
             error: e.into(),
         })
     }
+}
+
+#[derive(Error, Debug)]
+pub enum TonLibraryError {
+    #[error("{0}")]
+    TonClientError(#[from] TonClientError),
+
+    #[error("{0}")]
+    TonCellError(#[from] TonCellError),
+
+    #[error("{0}")]
+    TonHashParseError(#[from] TonHashParseError),
+
+    #[error("Library not found for {0}")]
+    LibraryNotFound(String),
+
+    #[error("Expected exactly one library, but got multiple")]
+    MultipleLibrariesReturned,
 }
