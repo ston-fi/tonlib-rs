@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{DefaultLibraryLoader, LibraryLoader, LibraryProvider};
+use super::{BlockchainLibraryLoader, LibraryLoader, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
@@ -26,7 +26,7 @@ impl TonContractFactoryBuilder {
     const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
 
     pub(crate) fn new(client: &TonClient) -> Self {
-        let loader = DefaultLibraryLoader::new(client);
+        let loader = BlockchainLibraryLoader::new(client);
         let library_provider = LibraryProvider::new(loader);
         TonContractFactoryBuilder {
             client: client.clone(),
