@@ -6,6 +6,7 @@ pub use address::*;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
 pub use error::*;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 pub use tx_id::*;
 
@@ -79,6 +80,12 @@ impl From<TonHash> for [u8; TON_HASH_LEN] {
 impl From<&[u8; 32]> for TonHash {
     fn from(slice: &[u8; 32]) -> Self {
         TonHash(*slice)
+    }
+}
+
+impl From<TonHash> for BigUint {
+    fn from(value: TonHash) -> Self {
+        BigUint::from_bytes_be(value.as_slice())
     }
 }
 

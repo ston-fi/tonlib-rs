@@ -1,8 +1,8 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::hash::Hash;
+use std::io;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::{fmt, io};
 
 pub use bag_of_cells::*;
 use base64::Engine;
@@ -155,6 +155,10 @@ impl Cell {
         self.cell_type != CellType::Ordinary
     }
 
+    pub fn is_library(&self) -> bool {
+        self.cell_type == CellType::Library
+    }
+
     pub fn cell_hash_base64(&self) -> String {
         self.cell_hash().to_base64()
     }
@@ -239,54 +243,8 @@ impl Cell {
 }
 
 impl Debug for Cell {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let t = match self.cell_type {
-            CellType::Ordinary | CellType::Library => 'x',
-            CellType::PrunedBranch | CellType::MerkleProof => 'p',
-            CellType::MerkleUpdate => 'u',
-        };
-
-        // Our completion tag ONLY shows that the last byte is incomplete
-        // It does not correspond to real completion tag defined in
-        // p1.0.2 of https://docs.ton.org/tvm.pdf for details
-        // Null termination of bit-string defined in that document is omitted for clarity
-        let completion_tag = if self.bit_len % 8 != 0 { "_" } else { "" };
-        writeln!(
-            f,
-            "Cell {}{{ data: [{}{}]\n, bit_len: {}\n, references: [",
-            t,
-            self.data
-                .iter()
-                .map(|&byte| format!("{:02X}", byte))
-                .collect::<Vec<_>>()
-                .join(""),
-            completion_tag,
-            self.bit_len,
-        )?;
-
-        for reference in &self.references {
-            writeln!(
-                f,
-                "    {}\n",
-                format!("{:?}", reference).replace('\n', "\n    ")
-            )?;
-        }
-
-        write!(
-            f,
-            "]\n cell_type: {:?}\n level_mask: {:?}\n hashes {:?}\n depths {:?}\n }}",
-            self.cell_type,
-            self.level_mask,
-            self.hashes
-                .iter()
-                .map(|h| h
-                    .iter()
-                    .map(|&byte| format!("{:02X}", byte))
-                    .collect::<Vec<_>>()
-                    .join(""))
-                .collect::<Vec<_>>(),
-            self.depths
-        )
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_cell_debug(f, self, 0)
     }
 }
 
@@ -514,6 +472,52 @@ fn write_ref_hashes(
     }
 
     Ok(())
+}
+
+fn write_cell_debug(
+    f: &mut std::fmt::Formatter<'_>,
+    cell: &Cell,
+    indent_level: usize,
+) -> std::fmt::Result {
+    let indent = "    ".repeat(indent_level);
+    // Generate the data display string
+    let mut data_display: String = cell.data.iter().fold(String::new(), |mut acc, &byte| {
+        acc.push_str(&format!("{:02X}", byte));
+        acc
+    });
+
+    let data_display = if data_display.is_empty() {
+        "_"
+    } else {
+        // Our completion tag ONLY shows that the last byte is incomplete
+        // It does not correspond to real completion tag defined in
+        // p1.0.2 of https://docs.ton.org/tvm.pdf for details
+        // Null termination of bit-string defined in that document is omitted for clarity
+        if cell.bit_len % 8 != 0 {
+            data_display.push('_');
+        }
+        &data_display
+    };
+
+    if cell.references.is_empty() {
+        // Compact format for cells without references
+        writeln!(
+            f,
+            "{}Cell x{{Type: {:?}, data: [{}], bit_len: {}}}",
+            indent, cell.cell_type, data_display, cell.bit_len
+        )
+    } else {
+        // Full format for cells with references
+        writeln!(
+            f,
+            "{}Cell x{{Type: {:?}, data: [{}], bit_len: {}, references: [",
+            indent, cell.cell_type, data_display, cell.bit_len
+        )?;
+        for reference in &cell.references {
+            write_cell_debug(f, reference, indent_level + 1)?;
+        }
+        writeln!(f, "{}]}}", indent)
+    }
 }
 
 #[cfg(test)]

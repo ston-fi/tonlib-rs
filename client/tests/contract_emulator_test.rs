@@ -7,7 +7,9 @@ use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
 use tonlib_client::tl::RawFullAccountState;
-use tonlib_core::TonAddress;
+use tonlib_client::types::TvmStackEntry;
+use tonlib_core::cell::{CellBuilder, CellSlice};
+use tonlib_core::{TonAddress, TonTxId};
 
 #[tokio::test]
 async fn test_emulator_get_jetton_data() -> anyhow::Result<()> {
@@ -105,4 +107,91 @@ async fn test_emulator_get_wallet_address() {
     assert_eq!(r1.gas_used, r3.gas_used);
     assert_eq!(r1.vm_exit_code, r2.vm_exit_code);
     assert_eq!(r1.vm_exit_code, r3.vm_exit_code);
+}
+
+#[tokio::test]
+async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+
+    let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
+    let tx_id = TonTxId::from_lt_hash(
+        51600010000005,
+        "82218cf8373437ffeac1bf306f44d9638894c2d2b4b2bddf85ac2c571b56b2a7",
+    )?;
+
+    let contract = factory.get_contract(&router_address);
+    let state = contract.get_state_by_transaction(&tx_id.into()).await?;
+
+    let token1_addr = CellSlice::full_cell(
+        CellBuilder::new()
+            .store_address(&"EQC8JhkQsgAwRpe0lMsr6U11NXWjwgty22gxnRt_pSq4jDmb".parse()?)?
+            .build()?,
+    )?;
+    let token2_addr = CellSlice::full_cell(
+        CellBuilder::new()
+            .store_address(&"EQB1R5vBgbJBZNVkh55XID629E2Xq9MFib3nai9QSkZ2F7X4".parse()?)?
+            .build()?,
+    )?;
+
+    let call_parameters_vec = [
+        ("get_router_data", vec![]),
+        ("get_upgraded_pool_code", vec![]),
+        ("get_router_version", vec![]),
+        (
+            "get_pool_address",
+            vec![
+                TvmStackEntry::Slice(token1_addr),
+                TvmStackEntry::Slice(token2_addr),
+            ],
+        ),
+    ];
+    for call_parameters in call_parameters_vec {
+        let method_id = call_parameters.0;
+        let result: tonlib_client::types::TvmSuccess = assert_ok!(
+            state
+                .emulate_get_method(method_id, call_parameters.1.as_slice())
+                .await
+        );
+
+        let expected_result = state
+            .tonlib_run_get_method(method_id, call_parameters.1.as_slice())
+            .await
+            .unwrap();
+
+        log::info!(
+            "Called router with method: {:?}, stack: {:?}",
+            call_parameters.0,
+            call_parameters.1
+        );
+
+        log::info!("METHOD:  {:?}", method_id);
+        log::info!("___________________Blockchain_result \n {:?} \n-------------------------------------------", expected_result);
+        log::info!("_____________________Emulated_result \n {:?} \n-------------------------------------------", result);
+
+        assert_eq!(result.gas_used, expected_result.gas_used);
+        assert_eq!(result.missing_library, expected_result.missing_library);
+        assert_eq!(result.vm_exit_code, expected_result.vm_exit_code);
+
+        //explicitly omitted check of vm_log, as it is not returned from blockchain
+        // assert_eq!(result.vm_log, expected_result.vm_log);
+
+        for i in 0..expected_result.stack.len() {
+            let (expected, actual) = (expected_result.stack[i].clone(), result.stack[i].clone());
+
+            match (expected, actual) {
+                (TvmStackEntry::Cell(e), TvmStackEntry::Cell(a)) => assert_eq!(e, a),
+
+                (TvmStackEntry::Slice(e), TvmStackEntry::Slice(a)) => {
+                    assert_eq!(e.into_cell().unwrap(), a.into_cell().unwrap())
+                }
+
+                (TvmStackEntry::Int257(e), TvmStackEntry::Int64(a)) => assert_eq!(e, a.into()),
+
+                (_, _) => panic!(),
+            }
+        }
+    }
+    Ok(())
 }

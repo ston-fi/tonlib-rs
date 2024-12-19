@@ -2,6 +2,8 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum::IntoStaticStr;
+use tonlib_core::types::TonHashParseError;
+use tonlib_core::TonHash;
 
 use crate::tl::stack::TvmStackEntry;
 use crate::tl::types::{
@@ -39,6 +41,20 @@ impl<'de> Deserialize<'de> for TonLibraryId {
         };
 
         Ok(TonLibraryId { id: bytes })
+    }
+}
+
+impl From<TonHash> for TonLibraryId {
+    fn from(value: TonHash) -> Self {
+        TonLibraryId { id: value.to_vec() }
+    }
+}
+
+impl TryFrom<TonLibraryId> for TonHash {
+    type Error = TonHashParseError;
+
+    fn try_from(value: TonLibraryId) -> Result<Self, Self::Error> {
+        value.id.try_into()
     }
 }
 
