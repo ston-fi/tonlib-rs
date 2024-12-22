@@ -13,7 +13,7 @@ use crate::meta::MetaDataContent;
 use crate::types::TvmStackEntry;
 
 /// Data returned by get_collection_data according to TEP-62
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NftCollectionData {
     /// The count of currently deployed NFT items in collection.
     /// Generally, collection should issue NFT with sequential indexes (see Rationale(2) ).
