@@ -3,9 +3,7 @@ use std::str::FromStr;
 use num_bigint::BigUint;
 use sha2::{Digest, Sha256};
 use tokio_test::assert_ok;
-use tonlib_client::contract::{
-    NftCollectionContract, NftItemContract, TonContractFactory,
-};
+use tonlib_client::contract::{NftCollectionContract, NftItemContract, TonContractFactory};
 use tonlib_client::meta::MetaDataContent;
 use tonlib_core::{TonAddress, TonHash};
 
@@ -67,9 +65,12 @@ async fn test_get_nft_data_is_valid() -> anyhow::Result<()> {
     assert!(res.init);
     assert_eq!(res.index, expected_index);
     assert_eq!(res.collection_address, expected_collection_address);
-    assert_eq!(res.individual_content, MetaDataContent::External {
-        uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
-    });
+    assert_eq!(
+        res.individual_content,
+        MetaDataContent::External {
+            uri: "https://nft.fragment.com/number/88805397120.json".to_string(),
+        }
+    );
 
     Ok(())
 }
@@ -109,9 +110,12 @@ async fn test_get_collection_data_is_valid() -> anyhow::Result<()> {
     let res = assert_ok!(contract.get_collection_data().await);
 
     assert_eq!(res.next_item_index, -1);
-    assert_eq!(res.collection_content, MetaDataContent::External {
-        uri: "https://nft.fragment.com/numbers.json".to_string(),
-    });
+    assert_eq!(
+        res.collection_content,
+        MetaDataContent::External {
+            uri: "https://nft.fragment.com/numbers.json".to_string(),
+        }
+    );
     Ok(())
 }
 
