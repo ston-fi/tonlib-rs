@@ -201,6 +201,9 @@ impl TonContractState {
             .smc_run_get_method(state.id, &method.into(), &stack_tl)
             .await?;
 
+        // TODO make it properly using drop!
+        tokio::spawn(async move { state.conn.smc_forget(state.id).await });
+
         let stack = run_result
             .stack
             .elements
