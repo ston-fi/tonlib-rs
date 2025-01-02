@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Weak};
 use std::thread;
@@ -5,8 +6,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use async_trait::async_trait;
-use dashmap::DashMap;
-use tokio::sync::{broadcast, oneshot, Semaphore, SemaphorePermit};
+use tokio::sync::{broadcast, oneshot, Mutex, Semaphore, SemaphorePermit};
 
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
@@ -28,7 +28,7 @@ struct RequestData {
     sender: oneshot::Sender<Result<TonResult, TonClientError>>,
 }
 
-type RequestMap = DashMap<u32, RequestData>;
+type RequestMap = Mutex<HashMap<u32, RequestData>>;
 type TonNotificationSender = broadcast::Sender<Arc<TonNotification>>;
 
 struct Inner {
@@ -85,10 +85,12 @@ impl TonConnection {
         } else {
             None
         };
+
+        let request_map = Mutex::new(HashMap::new());
         let inner = Inner {
             tl_client: TlTonClient::new(tag.as_str()),
             counter: AtomicU32::new(0),
-            request_map: RequestMap::new(),
+            request_map,
             notification_sender: sender,
             callback,
             _notification_receiver: receiver,
@@ -271,14 +273,14 @@ impl TonClientInterface for TonConnection {
             send_time: Instant::now(),
             sender: tx,
         };
-        self.inner.request_map.insert(cnt, data);
+        self.inner.request_map.lock().await.insert(cnt, data);
         self.inner
             .callback
             .on_invoke(self.inner.tl_client.get_tag(), cnt, function);
 
         let res = self.inner.tl_client.send(function, extra.as_str());
         if let Err(e) = res {
-            let (_, data) = self.inner.request_map.remove(&cnt).unwrap();
+            let data = self.inner.request_map.lock().await.remove(&cnt).unwrap();
             let tag = self.inner.tl_client.get_tag();
             let duration = Instant::now().duration_since(data.send_time);
             let res = Err(TonClientError::TlError(e));
@@ -322,12 +324,13 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>, callback: Arc<dyn TonConnectio
                 } else {
                     None
                 };
-                let maybe_data = maybe_request_id.and_then(|i| inner.request_map.remove(&i));
+                let maybe_data =
+                    maybe_request_id.and_then(|i| inner.request_map.blocking_lock().remove(&i));
                 let result: Result<TonResult, TonClientError> = match ton_result {
                     Ok(TonResult::Error { code, message }) => {
                         let method = maybe_data
                             .as_ref()
-                            .map(|d| d.1.method)
+                            .map(|d| d.method)
                             .unwrap_or(NOT_AVAILABLE);
                         Err(TonClientError::TonlibError {
                             method,
@@ -339,7 +342,7 @@ fn run_loop(tag: String, weak_inner: Weak<Inner>, callback: Arc<dyn TonConnectio
                     Ok(r) => Ok(r),
                 };
 
-                if let Some((_, data)) = maybe_data {
+                if let Some(data) = maybe_data {
                     // Found corresponding request, reply to it
                     let request_id = maybe_request_id.unwrap(); // Can't be empty if data is not empty
                     let now = Instant::now();
