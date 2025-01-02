@@ -25,7 +25,6 @@ base64 = "0.22"
 base64-serde = "0.7"
 bitstream-io = "2.2"
 crc = "3"
-dashmap = "5"
 futures = "0.3"
 hex = "0.4"
 hmac = { version = "0.12", features = ["std"] }
