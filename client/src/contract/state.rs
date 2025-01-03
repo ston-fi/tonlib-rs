@@ -102,7 +102,7 @@ impl TonContractState {
         let libs = self
             .factory
             .library_provider()
-            .get_libs_dict(&[code, data], Some(self.account_state.block_id.seqno))
+            .get_libs_latest(&[code, data])
             .await?;
 
         let run_result = unsafe {

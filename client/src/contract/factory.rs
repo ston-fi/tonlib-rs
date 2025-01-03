@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -44,6 +45,7 @@ impl TonContractFactory {
         txid_cache_time_to_live: Duration,
         presync_blocks: i32,
         library_provider: LibraryProvider,
+        current_seqno: Arc<AtomicI32>,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
             let cache = ContractFactoryCache::new(
@@ -53,6 +55,7 @@ impl TonContractFactory {
                 txid_cache_capacity,
                 txid_cache_time_to_live,
                 presync_blocks,
+                current_seqno,
             )
             .await?;
             Some(cache)

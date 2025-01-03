@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,6 +15,7 @@ pub struct TonContractFactoryBuilder {
     txid_cache_time_to_live: Duration,
     presync_blocks: i32,
     library_provider: LibraryProvider,
+    current_seqno: Arc<AtomicI32>,
 }
 
 impl TonContractFactoryBuilder {
@@ -26,17 +28,19 @@ impl TonContractFactoryBuilder {
     const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
 
     pub(crate) fn new(client: &TonClient) -> Self {
+        let current_seqno_counter: Arc<AtomicI32> = Arc::new(0.into());
         let loader = BlockchainLibraryLoader::new(client);
-        let library_provider = LibraryProvider::new(loader);
+        let library_provider = LibraryProvider::new(loader, None, current_seqno_counter.clone());
         TonContractFactoryBuilder {
             client: client.clone(),
-            with_cache: false,
+            with_cache: true,
             account_state_cache_capacity: 0,
             account_state_cache_time_to_live: Duration::default(),
             txid_cache_capacity: 0,
             txid_cache_time_to_live: Duration::default(),
             presync_blocks: Self::DEFAULT_PRESYNC_BLOCKS,
             library_provider,
+            current_seqno: current_seqno_counter,
         }
     }
 
@@ -79,11 +83,13 @@ impl TonContractFactoryBuilder {
             self.txid_cache_time_to_live,
             self.presync_blocks,
             self.library_provider.clone(),
+            self.current_seqno.clone(),
         )
         .await
     }
     pub fn with_library_loader(mut self, library_loader: &Arc<dyn LibraryLoader>) -> Self {
-        let library_provider = LibraryProvider::new(library_loader.clone());
+        let library_provider =
+            LibraryProvider::new(library_loader.clone(), None, self.current_seqno.clone());
         self.library_provider = library_provider;
         self
     }
