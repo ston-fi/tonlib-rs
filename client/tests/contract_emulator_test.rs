@@ -114,7 +114,7 @@ async fn test_emulator_get_wallet_address() {
 #[tokio::test]
 async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_mainnet_client().await;
+    let client = common::new_archive_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
 
     let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
@@ -244,7 +244,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     )?;
     let libs = factory
         .library_provider()
-        .get_libs_dict(&[code_cell, data_cell], None)
+        .get_libs_by_seqno(&[code_cell, data_cell], 47497716)
         .await?;
 
     let mut sums: ((Duration, Duration, Duration, Duration), Duration) = (
@@ -327,6 +327,57 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
         MAX_ITER
     );
     log::info!("creation_time: {:?}, c7_time: {:?}, lib_time: {:?}, running_time: {:?}, overall+tokio: {:?}", sums.0.0, sums.0.1,sums.0.2,sums.0.3,sums.1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_lib_cache_works() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = TonContractFactory::builder(&client)
+        .with_default_cache()
+        .build()
+        .await?;
+
+    let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
+
+    let contract = factory.get_contract(&router_address);
+    let state = contract.get_state().await?;
+
+    let code = state.get_account_state().code.clone();
+    let data = state.get_account_state().data.clone();
+
+    let code_cell = BagOfCells::parse(&code)?.into_single_root()?;
+    let data_cell = BagOfCells::parse(&data)?.into_single_root()?;
+
+    const MAX_ITER: usize = 100000;
+
+    let mut all_libs = vec![];
+    for i in 0..MAX_ITER {
+        let t = Instant::now();
+        let libs = factory
+            .library_provider()
+            .get_libs_latest(&[code_cell.clone(), data_cell.clone()])
+            .await?;
+
+        if t.elapsed() > Duration::from_millis(10) {
+            log::info!("iteraion: {}DT {:?}", i, t.elapsed());
+        }
+
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        all_libs.push(libs)
+    }
+
+    let bc_lib = &all_libs[0].dict_boc;
+    let cache_lib = &all_libs[1].dict_boc;
+
+    let bc_cell = BagOfCells::parse(bc_lib)?.into_single_root()?;
+
+    let cache_cell = BagOfCells::parse(cache_lib)?.into_single_root()?;
+
+    assert_eq!(bc_cell, cache_cell);
 
     Ok(())
 }
