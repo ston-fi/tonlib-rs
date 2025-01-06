@@ -7,7 +7,10 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use tokio::sync::{broadcast, oneshot, Mutex, Semaphore, SemaphorePermit};
+use tokio_retry::strategy::FixedInterval;
+use tokio_retry::RetryIf;
 
+use super::{retry_condition, RetryStrategy};
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
     TonNotificationReceiver,
@@ -39,6 +42,7 @@ struct Inner {
     callback: Arc<dyn TonConnectionCallback>,
     _notification_receiver: TonNotificationReceiver,
     semaphore: Option<Semaphore>,
+    retry_strategy: RetryStrategy,
 }
 
 pub struct TonConnection {
@@ -86,6 +90,8 @@ impl TonConnection {
             None
         };
 
+        let retry_strategy = params.retry_strategy.clone();
+
         let request_map = Mutex::new(HashMap::new());
         let inner = Inner {
             tl_client: TlTonClient::new(tag.as_str()),
@@ -95,6 +101,7 @@ impl TonConnection {
             callback,
             _notification_receiver: receiver,
             semaphore,
+            retry_strategy,
         };
         let inner_arc = Arc::new(inner);
         let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
@@ -252,15 +259,16 @@ impl TonConnection {
             None
         })
     }
-}
-
-#[async_trait]
-impl TonClientInterface for TonConnection {
-    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
-        Ok(self.clone())
+    async fn retrying_invoke(
+        &self,
+        function: &TonFunction,
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
+        let fi = FixedInterval::from_millis(self.inner.retry_strategy.interval_ms);
+        let strategy = fi.take(self.inner.retry_strategy.max_retries);
+        RetryIf::spawn(strategy, || self.do_invoke(function), retry_condition).await
     }
 
-    async fn invoke_on_connection(
+    async fn do_invoke(
         &self,
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
@@ -299,6 +307,20 @@ impl TonClientInterface for TonConnection {
             }
         };
         result.map(|r| (self.clone(), r))
+    }
+}
+
+#[async_trait]
+impl TonClientInterface for TonConnection {
+    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
+        Ok(self.clone())
+    }
+
+    async fn invoke_on_connection(
+        &self,
+        function: &TonFunction,
+    ) -> Result<(TonConnection, TonResult), TonClientError> {
+        self.retrying_invoke(function).await
     }
 }
 
