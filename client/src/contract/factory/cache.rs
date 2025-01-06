@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -33,7 +33,6 @@ impl ContractFactoryCache {
         txid_cache_capacity: u64,
         txid_state_cache_time_to_live: Duration,
         presync_blocks: i32,
-        current_seqno: Arc<AtomicI32>,
     ) -> Result<ContractFactoryCache, TonContractError> {
         let inner = Inner {
             client: client.clone(),
@@ -50,7 +49,6 @@ impl ContractFactoryCache {
             account_state_cache_counters: ContractFactoryCacheCounters::default(),
 
             tx_id_cache_counters: ContractFactoryCacheCounters::default(),
-            current_seqno,
         };
 
         let arc_inner = Arc::new(inner);
@@ -139,7 +137,6 @@ impl ContractFactoryCache {
                 match masterchain_info_result {
                     Ok((_, info)) => {
                         let first_block_seqno = info.last.seqno - inner.presync_blocks;
-
                         let block_stream = BlockStream::new(client, first_block_seqno);
                         break block_stream;
                     }
@@ -164,16 +161,10 @@ impl ContractFactoryCache {
             if weak_inner.upgrade().is_none() {
                 break;
             }
+
             let block_result = block_stream.next().await;
             let block = match block_result {
-                Ok(block) => {
-                    if let Some(inner) = weak_inner.upgrade() {
-                        inner
-                            .current_seqno
-                            .store(block.master_shard.seqno, Ordering::Relaxed)
-                    };
-                    block
-                }
+                Ok(block) => block,
                 Err(e) => {
                     log::warn!(
                         "[ContractFactoryCache] Could not retrieve next block: {:?}",
@@ -186,9 +177,6 @@ impl ContractFactoryCache {
 
             loop {
                 if let Some(inner) = weak_inner.upgrade() {
-                    inner
-                        .current_seqno
-                        .store(block.master_shard.seqno, Ordering::Relaxed);
                     let process_result = inner.process_next_block(&block).await;
                     match process_result {
                         Ok(_) => break,
@@ -239,7 +227,6 @@ struct Inner {
     presync_blocks: i32,
     tx_id_cache_counters: ContractFactoryCacheCounters,
     account_state_cache_counters: ContractFactoryCacheCounters,
-    current_seqno: Arc<AtomicI32>,
 }
 
 impl Inner {
