@@ -52,8 +52,6 @@ pub struct TonConnectionParams {
     pub concurrency_limit: usize,
     #[serde(default = "default_update_init_block")]
     pub update_init_block: bool,
-    #[serde(default = "default_retry_strategy")]
-    pub retry_strategy: RetryStrategy,
 }
 
 impl Default for TonConnectionParams {
@@ -67,7 +65,6 @@ impl Default for TonConnectionParams {
             notification_queue_length: DEFAULT_NOTIFICATION_QUEUE_LENGTH,
             concurrency_limit: DEFAULT_CONNECTION_CONCURRENCY_LIMIT,
             update_init_block: DEFAULT_UPDATE_INIT_BLOCK,
-            retry_strategy: RetryStrategy::default(),
         }
     }
 }
@@ -100,10 +97,6 @@ impl Default for RetryStrategy {
             max_retries: 10,
         }
     }
-}
-
-fn default_retry_strategy() -> RetryStrategy {
-    RetryStrategy::default()
 }
 
 lazy_static! {
