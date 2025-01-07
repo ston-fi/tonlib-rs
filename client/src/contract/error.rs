@@ -79,7 +79,7 @@ pub enum TonContractError {
     TvmStackParseError {
         method: TonMethodId,
         address: TonAddress,
-        error: StackParseError,
+        error: Box<StackParseError>,
     },
 
     #[error(
@@ -89,9 +89,9 @@ pub enum TonContractError {
     TvmRunError {
         method: TonMethodId,
         address: TonAddress,
-        vm_log: Option<String>,
+        vm_log: Box<Option<String>>,
         exit_code: i32,
-        stack: Vec<TvmStackEntry>,
+        stack: Box<Vec<TvmStackEntry>>,
         missing_library: Option<String>,
         gas_used: i64,
     },
@@ -146,7 +146,7 @@ impl<R> MapStackError<R> for Result<R, StackParseError> {
         self.map_err(|e| TonContractError::TvmStackParseError {
             method: TonMethodId::Name(method.into()),
             address: address.clone(),
-            error: e,
+            error: e.into(),
         })
     }
 }

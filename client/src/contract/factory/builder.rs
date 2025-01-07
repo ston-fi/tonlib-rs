@@ -45,12 +45,12 @@ impl TonContractFactoryBuilder {
     }
 
     pub fn with_cache(
-        mut self,
+        &mut self,
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
         account_state_cache_capacity: u64,
         account_state_cache_time_to_live: Duration,
-    ) -> Self {
+    ) -> &mut Self {
         self.with_cache = true;
         self.txid_cache_capacity = txid_cache_capacity;
         self.txid_cache_time_to_live = txid_cache_time_to_live;
@@ -59,7 +59,7 @@ impl TonContractFactoryBuilder {
         self
     }
 
-    pub fn with_default_cache(mut self) -> Self {
+    pub fn with_default_cache(&mut self) -> &mut Self {
         self.with_cache = true;
         self.account_state_cache_capacity = Self::DEFAULT_ACCOUNT_STATE_CACHE_CAPACITY;
         self.account_state_cache_time_to_live = Self::DEFAULT_ACCOUNT_STATE_CACHE_TTL;
@@ -68,7 +68,7 @@ impl TonContractFactoryBuilder {
         self
     }
 
-    pub fn with_presync_blocks(mut self, presync_blocks: i32) -> Self {
+    pub fn with_presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
         self.presync_blocks = presync_blocks;
         self
     }
@@ -87,14 +87,14 @@ impl TonContractFactoryBuilder {
         )
         .await
     }
-    pub fn with_library_loader(mut self, library_loader: &Arc<dyn LibraryLoader>) -> Self {
+    pub fn with_library_loader(&mut self, library_loader: &Arc<dyn LibraryLoader>) -> &mut Self {
         let library_provider =
             LibraryProvider::new(library_loader.clone(), None, self.current_seqno.clone());
         self.library_provider = library_provider;
         self
     }
 
-    pub fn with_library_provider(mut self, library_provider: &LibraryProvider) -> Self {
+    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
         self.library_provider = library_provider.clone();
         self
     }

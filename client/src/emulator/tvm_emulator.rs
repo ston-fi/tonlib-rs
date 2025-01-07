@@ -22,7 +22,7 @@ impl TvmEmulator {
         Ok(ton_contract_emulator)
     }
 
-    pub fn with_c7(mut self, c7: &TvmEmulatorC7) -> Result<Self, TvmEmulatorError> {
+    pub fn with_c7(&mut self, c7: &TvmEmulatorC7) -> Result<&mut Self, TvmEmulatorError> {
         let addr_str = c7.address.to_hex();
         let hex_str = c7.seed.to_hex();
         let seed = hex_str.as_bytes();
@@ -42,7 +42,7 @@ impl TvmEmulator {
         ))
     }
 
-    pub fn with_debug_enabled(mut self) -> Result<Self, TvmEmulatorError> {
+    pub fn with_debug_enabled(&mut self) -> Result<&mut Self, TvmEmulatorError> {
         if self.emulator.set_debug_enabled(true) {
             return Ok(self);
         }
@@ -51,7 +51,7 @@ impl TvmEmulator {
         ))
     }
 
-    pub fn with_gas_limit(mut self, gas_limit: u64) -> Result<Self, TvmEmulatorError> {
+    pub fn with_gas_limit(&mut self, gas_limit: u64) -> Result<&mut Self, TvmEmulatorError> {
         if self.emulator.set_gas_limit(gas_limit) {
             return Ok(self);
         }
@@ -60,7 +60,7 @@ impl TvmEmulator {
         ))
     }
 
-    pub fn with_libraries(mut self, libraries: &[u8]) -> Result<Self, TvmEmulatorError> {
+    pub fn with_libraries(&mut self, libraries: &[u8]) -> Result<&mut Self, TvmEmulatorError> {
         if libraries.is_empty() {
             return Ok(self);
         }

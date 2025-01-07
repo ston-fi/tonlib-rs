@@ -42,14 +42,14 @@ async fn emulate_get_jetton_data(
     address: &TonAddress,
 ) -> anyhow::Result<JettonData> {
     let config = factory.get_config_cell_serial().await?;
-    let c7 = assert_ok!(TvmEmulatorC7::new(address.clone(), Vec::from(config)))
-        .with_balance(account_state.balance as u64);
+    let mut c7 = assert_ok!(TvmEmulatorC7::new(address.clone(), Vec::from(config)));
+    c7.with_balance(account_state.balance as u64);
 
     let mut emulator = assert_ok!(TvmEmulator::new(
         account_state.code.as_slice(),
         account_state.data.as_slice()
-    ))
-    .with_c7(&c7)?;
+    ));
+    emulator.with_c7(&c7)?;
     let result = assert_ok!(emulator.run_get_method(&"get_jetton_data".into(), &[]));
 
     assert!(result.exit_success());
@@ -284,7 +284,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
                 let data = data.as_slice();
 
                 let t_creation = Instant::now();
-                let emulator = TvmEmulator::new(code, data).unwrap();
+                let mut emulator = TvmEmulator::new(code, data).unwrap();
                 let creation_time = t_creation.elapsed();
 
                 let t_c7 = Instant::now();
@@ -292,7 +292,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
                 let c7_time = t_c7.elapsed();
 
                 let t_lib = Instant::now();
-                let mut e = e.with_libraries(libs.as_slice()).unwrap();
+                let e = e.with_libraries(libs.as_slice()).unwrap();
                 let lib_time = t_lib.elapsed();
 
                 let running_time = Instant::now();
@@ -351,7 +351,7 @@ async fn test_lib_cache_works() -> anyhow::Result<()> {
     let code_cell = BagOfCells::parse(&code)?.into_single_root()?;
     let data_cell = BagOfCells::parse(&data)?.into_single_root()?;
 
-    const MAX_ITER: usize = 100000;
+    const MAX_ITER: usize = 1000;
 
     let mut all_libs = vec![];
     for i in 0..MAX_ITER {

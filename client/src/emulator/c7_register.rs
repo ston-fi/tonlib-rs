@@ -31,17 +31,17 @@ impl TvmEmulatorC7 {
         Ok(c7)
     }
 
-    pub fn with_balance(mut self, balance: u64) -> Self {
+    pub fn with_balance(&mut self, balance: u64) -> &mut Self {
         self.balance = balance;
         self
     }
 
-    pub fn with_seed(mut self, seed: TonHash) -> Self {
+    pub fn with_seed(&mut self, seed: TonHash) -> &mut Self {
         self.seed = seed;
         self
     }
 
-    pub fn with_unix_time(mut self, unix_time: u64) -> Self {
+    pub fn with_unix_time(&mut self, unix_time: u64) -> &mut Self {
         self.unix_time = unix_time;
         self
     }

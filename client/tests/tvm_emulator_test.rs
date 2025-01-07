@@ -159,8 +159,8 @@ async fn test_emulator_bigint_multiply() -> anyhow::Result<()> {
 fn bigint_multiplier(val1: &BigInt, val2: &BigInt) -> anyhow::Result<()> {
     let expected = val1 * val2;
     log::info!("Testing: {} = {} * {}", expected, val1, val2);
-    let mut emulator =
-        TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?.with_debug_enabled()?;
+    let mut emulator = TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?;
+    emulator.with_debug_enabled()?;
     let stack = vec![val1.clone().into(), val2.clone().into()];
     let emulator_result = assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
     assert_eq!(emulator_result.vm_exit_code, 0);
@@ -184,8 +184,8 @@ async fn test_emulator_i64_multiply() -> anyhow::Result<()> {
 fn i64_multiplier(val1: i64, val2: i64) -> anyhow::Result<()> {
     let expected = BigInt::from(val1) * BigInt::from(val2);
     log::info!("Testing: {} = {} * {}", expected, val1, val2);
-    let mut emulator =
-        TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?.with_debug_enabled()?;
+    let mut emulator = TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?;
+    emulator.with_debug_enabled()?;
     let stack = vec![val1.into(), val2.into()];
     let emulator_result = assert_ok!(emulator.run_get_method(&"get_val".into(), stack.as_slice()));
     assert_eq!(emulator_result.vm_exit_code, 0);
@@ -318,7 +318,8 @@ fn emulate_get_wallet_address(
     config_data: &[u8],
 ) -> anyhow::Result<TonAddress> {
     let tvm_emulator_c7 = TvmEmulatorC7::new(self_address.clone(), config_data.to_vec())?;
-    let mut emulator = TvmEmulator::new(code, data)?.with_c7(&tvm_emulator_c7)?;
+    let mut emulator = TvmEmulator::new(code, data)?;
+    emulator.with_c7(&tvm_emulator_c7)?;
 
     let stack: Vec<TvmStackEntry> = vec![assert_ok!(owner_address.try_into())];
     let emulator_result =
