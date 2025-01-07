@@ -1,9 +1,7 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::cell::dict::predefined_writers::val_writer_ref_cell;
-use tonlib_core::cell::{ArcCell, BagOfCells, CellBuilder, TonCellError};
+use tonlib_core::cell::{ArcCell, BagOfCells};
 use tonlib_core::TonHash;
 
 use crate::client::{TonClient, TonClientInterface};
@@ -14,22 +12,6 @@ use crate::tl::TonLibraryId;
 pub struct ContractLibraryDict {
     pub dict_boc: Vec<u8>,
     pub keys: Vec<TonHash>,
-}
-
-impl TryFrom<HashMap<TonHash, ArcCell>> for ContractLibraryDict {
-    type Error = TonCellError;
-
-    fn try_from(value: HashMap<TonHash, ArcCell>) -> Result<Self, Self::Error> {
-        let keys = value.keys().copied().collect();
-        let lib_cell = CellBuilder::new()
-            .store_dict_data(256, val_writer_ref_cell, value)?
-            .build()?;
-
-        let dict_boc = BagOfCells::from_root(lib_cell).serialize(false)?;
-
-        let dict = ContractLibraryDict { dict_boc, keys };
-        Ok(dict)
-    }
 }
 
 #[async_trait]
