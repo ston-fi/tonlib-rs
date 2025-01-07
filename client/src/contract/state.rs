@@ -118,7 +118,8 @@ impl TonContractState {
             tokio::task::spawn_blocking(move || {
                 let code = state.code.as_slice();
                 let data = state.data.as_slice();
-                let mut emulator = TvmEmulator::new(code, data)?
+                let mut emulator = TvmEmulator::new(code, data)?;
+                emulator
                     .with_c7(&c7)?
                     .with_libraries(libs.dict_boc.as_slice())?;
                 let run_result = emulator.run_get_method(&static_method_id, static_stack);
@@ -148,7 +149,8 @@ impl TonContractState {
         let run_result = tokio::task::spawn_blocking(move || {
             let code = state.code.as_slice();
             let data = state.data.as_slice();
-            let mut emulator = TvmEmulator::new(code, data)?.with_c7(&c7)?;
+            let mut emulator = TvmEmulator::new(code, data)?;
+            emulator.with_c7(&c7)?;
             emulator.send_internal_message(message, amount)
         })
         .await
@@ -193,7 +195,7 @@ impl TonContractState {
             .map_err(|e| TonContractError::TvmStackParseError {
                 method: method.into(),
                 address: self.address().clone(),
-                error: e,
+                error: Box::new(e),
             })?;
 
         let run_result = state
@@ -213,7 +215,7 @@ impl TonContractState {
             .map_err(|e| TonContractError::TvmStackParseError {
                 method: method.into(),
                 address: self.address().clone(),
-                error: e,
+                error: Box::new(e),
             })?;
         let result = TvmSuccess {
             vm_log: None,
@@ -236,9 +238,9 @@ impl TonContractState {
                 method: method.clone(),
                 address: address.clone(),
                 gas_used: run_result.gas_used.into(),
-                stack: run_result.stack,
+                stack: Box::new(run_result.stack),
                 exit_code: run_result.vm_exit_code,
-                vm_log: run_result.vm_log,
+                vm_log: Box::new(run_result.vm_log),
                 missing_library: run_result.missing_library,
             })
         } else {

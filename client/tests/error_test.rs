@@ -203,13 +203,13 @@ fn test_ton_contract_error_output() {
         TonContractError::TvmRunError {
             method: "some_get_method".into(),
             gas_used: 300,
-            stack: vec![
+            stack: Box::new(vec![
                 TvmStackEntry::Slice(assert_ok!(CellSlice::full_cell(cell.clone()))),
                 TvmStackEntry::Cell(Arc::new(cell)),
                 TvmStackEntry::Int257(BigInt::from(1234566789)),
-            ],
+            ]),
             exit_code: -123,
-            vm_log: None,
+            vm_log: Box::new(None),
             missing_library: None,
             address: TonAddress::null(),
         }
