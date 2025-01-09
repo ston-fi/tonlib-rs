@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::cell::Cell;
+use tonlib_core::cell::{BagOfCells, Cell};
 use tonlib_core::TonAddress;
 
+use super::MapCellError;
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::c7_register::TvmEmulatorC7;
@@ -81,7 +82,8 @@ impl TonContractState {
         M: Into<TonMethodId> + Send + Copy,
         S: AsRef<[TvmStackEntry]> + Send,
     {
-        let method_id = &method.into();
+        let method_id: TonMethodId = method.into();
+        let method_str = method_id.as_str();
         let stack_ref = stack.as_ref();
         let state = self.account_state.clone();
         let c7 = TvmEmulatorC7::new(
@@ -89,10 +91,18 @@ impl TonContractState {
             self.factory.get_config_cell_serial().await?.to_vec(),
         )?;
 
+        let code = BagOfCells::parse(&self.account_state.code)
+            .and_then(|mut boc| boc.into_single_root())
+            .map_cell_error(method_str.clone(), &self.address)?;
+
+        let data = BagOfCells::parse(&self.account_state.data)
+            .and_then(|mut boc| boc.into_single_root())
+            .map_cell_error(method_str, &self.address)?;
+
         let libs = self
             .factory
             .library_provider()
-            .get_contract_libraries(&self.address, &self.account_state)
+            .get_libs(&[code, data], None)
             .await?;
 
         let run_result = unsafe {
@@ -102,16 +112,17 @@ impl TonContractState {
             // outlive spawned future.
             // But we're know it for sure since we're awaiting it. In normal async/await block
             // this would be checked by the compiler, but not when using `spawn_blocking`
-            let static_method_id: &'static TonMethodId = std::mem::transmute(method_id);
+            let static_method_id: TonMethodId = method_id.clone();
             let static_stack: &'static [TvmStackEntry] = std::mem::transmute(stack_ref);
             #[allow(clippy::let_and_return)]
             tokio::task::spawn_blocking(move || {
                 let code = state.code.as_slice();
                 let data = state.data.as_slice();
-                let mut emulator = TvmEmulator::new(code, data)?
+                let mut emulator = TvmEmulator::new(code, data)?;
+                emulator
                     .with_c7(&c7)?
                     .with_libraries(libs.dict_boc.as_slice())?;
-                let run_result = emulator.run_get_method(static_method_id, static_stack);
+                let run_result = emulator.run_get_method(&static_method_id, static_stack);
                 run_result
             })
             .await
@@ -122,7 +133,7 @@ impl TonContractState {
             address: self.address().clone(),
             error: e,
         });
-        Self::raise_exit_error(self.address(), method_id, run_result?)
+        Self::raise_exit_error(self.address(), &method_id, run_result?)
     }
 
     pub async fn emulate_internal_message(
@@ -138,7 +149,8 @@ impl TonContractState {
         let run_result = tokio::task::spawn_blocking(move || {
             let code = state.code.as_slice();
             let data = state.data.as_slice();
-            let mut emulator = TvmEmulator::new(code, data)?.with_c7(&c7)?;
+            let mut emulator = TvmEmulator::new(code, data)?;
+            emulator.with_c7(&c7)?;
             emulator.send_internal_message(message, amount)
         })
         .await
@@ -183,13 +195,16 @@ impl TonContractState {
             .map_err(|e| TonContractError::TvmStackParseError {
                 method: method.into(),
                 address: self.address().clone(),
-                error: e,
+                error: Box::new(e),
             })?;
 
         let run_result = state
             .conn
             .smc_run_get_method(state.id, &method.into(), &stack_tl)
             .await?;
+
+        // TODO make it properly using drop!
+        tokio::spawn(async move { state.conn.smc_forget(state.id).await });
 
         let stack = run_result
             .stack
@@ -200,7 +215,7 @@ impl TonContractState {
             .map_err(|e| TonContractError::TvmStackParseError {
                 method: method.into(),
                 address: self.address().clone(),
-                error: e,
+                error: Box::new(e),
             })?;
         let result = TvmSuccess {
             vm_log: None,
@@ -223,9 +238,9 @@ impl TonContractState {
                 method: method.clone(),
                 address: address.clone(),
                 gas_used: run_result.gas_used.into(),
-                stack: run_result.stack,
+                stack: Box::new(run_result.stack),
                 exit_code: run_result.vm_exit_code,
-                vm_log: run_result.vm_log,
+                vm_log: Box::new(run_result.vm_log),
                 missing_library: run_result.missing_library,
             })
         } else {

@@ -39,7 +39,7 @@ enum NftItemContractMethods {
 #[async_trait]
 pub trait NftItemContract: TonContractInterface {
     async fn get_nft_data(&self) -> Result<NftItemData, TonContractError> {
-        let method = NftItemContractMethods::GetNftData.into();
+        let method: &str = NftItemContractMethods::GetNftData.into();
         const NFT_DATA_STACK_ELEMENTS: usize = 5;
         let address = self.address().clone();
 

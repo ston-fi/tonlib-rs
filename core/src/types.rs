@@ -2,10 +2,13 @@ mod address;
 mod error;
 mod tx_id;
 
+use std::fmt;
+
 pub use address::*;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use base64::Engine;
 pub use error::*;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 pub use tx_id::*;
 
@@ -18,7 +21,7 @@ pub const DEFAULT_CELL_HASH: TonHash = TonHash([
     93, 197, 184, 126, 65, 11, 120, 99, 10, 9, 207, 199,
 ]);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct TonHash([u8; TON_HASH_LEN]);
 
 impl TonHash {
@@ -82,6 +85,12 @@ impl From<&[u8; 32]> for TonHash {
     }
 }
 
+impl From<TonHash> for BigUint {
+    fn from(value: TonHash) -> Self {
+        BigUint::from_bytes_be(value.as_slice())
+    }
+}
+
 impl TryFrom<&[u8]> for TonHash {
     type Error = TonHashParseError;
 
@@ -104,5 +113,21 @@ impl TryFrom<Vec<u8>> for TonHash {
     type Error = TonHashParseError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Self::try_from(value.as_slice())
+    }
+}
+
+impl fmt::Debug for TonHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Delegate to Display for Debug formatting
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for TonHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
     }
 }

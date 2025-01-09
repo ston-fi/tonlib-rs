@@ -514,7 +514,7 @@ mod tests {
         let address1 = TonAddress::from_str("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")?;
 
         let cmp_result = address0 < address1;
-        assert_eq!(true, cmp_result);
+        assert!(cmp_result);
         Ok(())
     }
 }

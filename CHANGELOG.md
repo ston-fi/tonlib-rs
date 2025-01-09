@@ -64,3 +64,11 @@
 ### v0.22.4
 
 * make pub TvmEmulatorUnsafe
+### v0.23.0
+
+* Impl #BE-1846: library cache
+* Impl #BE-1881: Replaced dashmap by tokio::sync:Mutex to avoid mem leaks
+* Impl #BE-1839: Boxed long errors, updated builder methods
+* Impl #BE-1892: Display for TonHash
+* Impl #BE-1893: Library provider trait and implementation of BlockChainLibraryProvider
+* NI: bump tonlib-sys to 2024.10.4

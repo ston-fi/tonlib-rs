@@ -2,7 +2,7 @@ use tonlib_core::cell::ArcCell;
 
 use crate::types::TvmStackEntry;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TvmSuccess {
     pub vm_log: Option<String>,
     pub vm_exit_code: i32,

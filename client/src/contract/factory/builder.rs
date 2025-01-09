@@ -1,7 +1,8 @@
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{DefaultLibraryLoader, LibraryProvider};
+use super::{BlockchainLibraryProvider, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
@@ -13,7 +14,8 @@ pub struct TonContractFactoryBuilder {
     txid_cache_capacity: u64,
     txid_cache_time_to_live: Duration,
     presync_blocks: i32,
-    library_provider: LibraryProvider,
+    library_provider: Arc<dyn LibraryProvider>,
+    current_seqno: Arc<AtomicI32>,
 }
 
 impl TonContractFactoryBuilder {
@@ -26,21 +28,23 @@ impl TonContractFactoryBuilder {
     const DEFAULT_PRESYNC_BLOCKS: i32 = 50;
 
     pub(crate) fn new(client: &TonClient) -> Self {
-        let loader = DefaultLibraryLoader::new(client);
-        let library_provider = LibraryProvider::new(Arc::new(loader));
+        let current_seqno_counter: Arc<AtomicI32> = Arc::new(0.into());
+
+        let library_provider = Arc::new(BlockchainLibraryProvider::new(client, None));
         TonContractFactoryBuilder {
             client: client.clone(),
-            with_cache: false,
+            with_cache: true,
             account_state_cache_capacity: 0,
             account_state_cache_time_to_live: Duration::default(),
             txid_cache_capacity: 0,
             txid_cache_time_to_live: Duration::default(),
             presync_blocks: Self::DEFAULT_PRESYNC_BLOCKS,
             library_provider,
+            current_seqno: current_seqno_counter,
         }
     }
 
-    pub fn with_account_state_cache(
+    pub fn with_cache(
         &mut self,
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
@@ -64,7 +68,7 @@ impl TonContractFactoryBuilder {
         self
     }
 
-    pub fn presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
+    pub fn with_presync_blocks(&mut self, presync_blocks: i32) -> &mut Self {
         self.presync_blocks = presync_blocks;
         self
     }
@@ -79,20 +83,15 @@ impl TonContractFactoryBuilder {
             self.txid_cache_time_to_live,
             self.presync_blocks,
             self.library_provider.clone(),
+            self.current_seqno.clone(),
         )
         .await
     }
-}
 
-impl TonContractFactoryBuilder {
-    pub fn with_default_library_provider(&mut self) -> &mut Self {
-        let loader = DefaultLibraryLoader::new(&self.client);
-        let library_provider = LibraryProvider::new(Arc::new(loader));
-        self.library_provider = library_provider;
-        self
-    }
-
-    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
+    pub fn with_library_provider(
+        &mut self,
+        library_provider: Arc<dyn LibraryProvider>,
+    ) -> &mut Self {
         self.library_provider = library_provider.clone();
         self
     }

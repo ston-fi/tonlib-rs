@@ -88,6 +88,11 @@ impl TvmStackEntry {
     pub fn get_cell(&self) -> Result<ArcCell, StackParseError> {
         match self {
             TvmStackEntry::Cell(cell) => Ok(cell.clone()),
+            TvmStackEntry::Slice(slice) => {
+                let cell = slice.into_cell()?;
+                Ok(cell.into())
+            }
+
             t => Err(StackParseError::InvalidEntryType {
                 expected: "Cell".to_string(),
                 found: t.clone(),

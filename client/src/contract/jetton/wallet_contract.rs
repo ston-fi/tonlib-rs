@@ -24,7 +24,7 @@ enum JettonWalletMethods {
 pub trait JettonWalletContract: TonContractInterface {
     async fn get_wallet_data(&self) -> Result<WalletData, TonContractError> {
         const WALLET_DATA_STACK_ELEMENTS: usize = 4;
-        let method = JettonWalletMethods::GetWalletData.into();
+        let method: &str = JettonWalletMethods::GetWalletData.into();
         let address = self.address().clone();
 
         let res = self.run_get_method(method, Vec::new()).await?;

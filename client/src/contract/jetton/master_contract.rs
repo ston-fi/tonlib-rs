@@ -28,7 +28,7 @@ enum JettonMasterMethods {
 pub trait JettonMasterContract: TonContractInterface {
     async fn get_jetton_data(&self) -> Result<JettonData, TonContractError> {
         const JETTON_DATA_STACK_ELEMENTS: usize = 5;
-        let method = JettonMasterMethods::GetJettonData.into();
+        let method: &str = JettonMasterMethods::GetJettonData.into();
         let address = self.address().clone();
 
         let res = self.run_get_method(method, Vec::new()).await?;

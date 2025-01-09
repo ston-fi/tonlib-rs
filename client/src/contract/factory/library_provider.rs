@@ -1,36 +1,20 @@
-use std::sync::Arc;
+use async_trait::async_trait;
+use tonlib_core::cell::ArcCell;
+use tonlib_core::TonHash;
 
-use tonlib_core::TonAddress;
+use crate::contract::TonLibraryError;
 
-use super::{ContractLibraryDict, LibraryLoader};
-use crate::contract::TonContractError;
-use crate::tl::RawFullAccountState;
-
-#[derive(Clone)]
-pub struct LibraryProvider {
-    loader: Arc<dyn LibraryLoader>,
+#[derive(Debug, PartialEq)]
+pub struct ContractLibraryDict {
+    pub dict_boc: Vec<u8>,
+    pub keys: Vec<TonHash>,
 }
 
-impl LibraryProvider {
-    pub fn new(loader: Arc<dyn LibraryLoader>) -> LibraryProvider {
-        LibraryProvider { loader }
-    }
-
-    pub async fn get_contract_libraries(
+#[async_trait]
+pub trait LibraryProvider: Send + Sync {
+    async fn get_libs(
         &self,
-        address: &TonAddress,
-        account_state: &Arc<RawFullAccountState>,
-    ) -> Result<Arc<ContractLibraryDict>, TonContractError> {
-        self.get_libraries_by_contract_code(address, &account_state.code)
-            .await
-    }
-
-    pub async fn get_libraries_by_contract_code(
-        &self,
-        address: &TonAddress,
-        code: &[u8],
-    ) -> Result<Arc<ContractLibraryDict>, TonContractError> {
-        // TODO cache
-        self.loader.load_contract_libraries(address, code).await
-    }
+        cells: &[ArcCell],
+        mc_seqno: Option<i32>,
+    ) -> Result<ContractLibraryDict, TonLibraryError>;
 }
