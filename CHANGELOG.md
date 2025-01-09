@@ -72,3 +72,5 @@
 * Impl #BE-1892: Display for TonHash
 * Impl #BE-1893: Library provider trait and implementation of BlockChainLibraryProvider
 * NI: bump tonlib-sys to 2024.10.4
+### v0.23.1
+* NI: Factory cache disabled by default
