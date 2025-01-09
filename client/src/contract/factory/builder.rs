@@ -33,7 +33,7 @@ impl TonContractFactoryBuilder {
         let library_provider = Arc::new(BlockchainLibraryProvider::new(client, None));
         TonContractFactoryBuilder {
             client: client.clone(),
-            with_cache: true,
+            with_cache: false,
             account_state_cache_capacity: 0,
             account_state_cache_time_to_live: Duration::default(),
             txid_cache_capacity: 0,
