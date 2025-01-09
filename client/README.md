@@ -140,8 +140,7 @@ async fn call_blockchain_methods()-> anyhow::Result<()>{
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let mut t: TonHash = ZERO_HASH;
-            t.clone_from_slice(tx_id.account.as_slice());
+            let t = TonHash::try_from(tx_id.account.as_slice())?;
             let addr = TonAddress::new(workchain, &t);
             let id = InternalTransactionId {
                 hash: tx_id.hash.clone(),
