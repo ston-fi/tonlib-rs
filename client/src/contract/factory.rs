@@ -2,9 +2,10 @@ use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use blockchain_library_provider::*;
 pub use builder::*;
 pub use cache::*;
-pub use library_loader::*;
+pub use library_helper::*;
 pub use library_provider::*;
 use tokio::sync::OnceCell;
 use tonlib_core::TonAddress;
@@ -13,11 +14,11 @@ use crate::client::{TonClient, TonClientError, TonClientInterface};
 use crate::contract::{LoadedSmcState, TonContract, TonContractError, TonContractState};
 use crate::tl::{ConfigInfo, InternalTransactionId, RawFullAccountState};
 
+mod blockchain_library_provider;
 mod builder;
 mod cache;
-mod library_loader;
+mod library_helper;
 mod library_provider;
-
 #[derive(Clone)]
 pub struct TonContractFactory {
     inner: Arc<Inner>,
@@ -26,7 +27,7 @@ pub struct TonContractFactory {
 struct Inner {
     client: TonClient,
     config_info: OnceCell<ConfigInfo>,
-    library_provider: LibraryProvider,
+    library_provider: Arc<dyn LibraryProvider>,
     cache: Option<ContractFactoryCache>,
 }
 
@@ -44,7 +45,7 @@ impl TonContractFactory {
         txid_cache_capacity: u64,
         txid_cache_time_to_live: Duration,
         presync_blocks: i32,
-        library_provider: LibraryProvider,
+        library_provider: Arc<dyn LibraryProvider>,
         current_seqno: Arc<AtomicI32>,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
@@ -88,7 +89,7 @@ impl TonContractFactory {
         Ok(c.config.bytes.as_slice())
     }
 
-    pub fn library_provider(&self) -> LibraryProvider {
+    pub fn library_provider(&self) -> Arc<dyn LibraryProvider> {
         self.inner.library_provider.clone()
     }
 

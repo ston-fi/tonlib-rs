@@ -2,7 +2,7 @@ use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{BlockchainLibraryLoader, LibraryLoader, LibraryProvider};
+use super::{BlockchainLibraryProvider, LibraryProvider};
 use crate::client::TonClient;
 use crate::contract::{TonContractError, TonContractFactory};
 
@@ -14,7 +14,7 @@ pub struct TonContractFactoryBuilder {
     txid_cache_capacity: u64,
     txid_cache_time_to_live: Duration,
     presync_blocks: i32,
-    library_provider: LibraryProvider,
+    library_provider: Arc<dyn LibraryProvider>,
     current_seqno: Arc<AtomicI32>,
 }
 
@@ -29,8 +29,8 @@ impl TonContractFactoryBuilder {
 
     pub(crate) fn new(client: &TonClient) -> Self {
         let current_seqno_counter: Arc<AtomicI32> = Arc::new(0.into());
-        let loader = BlockchainLibraryLoader::new(client);
-        let library_provider = LibraryProvider::new(loader, None, current_seqno_counter.clone());
+
+        let library_provider = Arc::new(BlockchainLibraryProvider::new(client, None));
         TonContractFactoryBuilder {
             client: client.clone(),
             with_cache: true,
@@ -87,14 +87,11 @@ impl TonContractFactoryBuilder {
         )
         .await
     }
-    pub fn with_library_loader(&mut self, library_loader: &Arc<dyn LibraryLoader>) -> &mut Self {
-        let library_provider =
-            LibraryProvider::new(library_loader.clone(), None, self.current_seqno.clone());
-        self.library_provider = library_provider;
-        self
-    }
 
-    pub fn with_library_provider(&mut self, library_provider: &LibraryProvider) -> &mut Self {
+    pub fn with_library_provider(
+        &mut self,
+        library_provider: Arc<dyn LibraryProvider>,
+    ) -> &mut Self {
         self.library_provider = library_provider.clone();
         self
     }

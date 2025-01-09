@@ -244,7 +244,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     )?;
     let libs = factory
         .library_provider()
-        .get_libs_by_seqno(&[code_cell, data_cell], 47497716)
+        .get_libs(&[code_cell, data_cell], None)
         .await?;
 
     let mut sums: ((Duration, Duration, Duration, Duration), Duration) = (
@@ -358,7 +358,7 @@ async fn test_lib_cache_works() -> anyhow::Result<()> {
         let t = Instant::now();
         let libs = factory
             .library_provider()
-            .get_libs_latest(&[code_cell.clone(), data_cell.clone()])
+            .get_libs(&[code_cell.clone(), data_cell.clone()], None)
             .await?;
 
         if t.elapsed() > Duration::from_millis(10) {

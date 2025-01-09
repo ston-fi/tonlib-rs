@@ -181,4 +181,7 @@ pub enum TonLibraryError {
 
     #[error("Expected exactly one library, but got multiple")]
     MultipleLibrariesReturned,
+
+    #[error("Getting library by mc_seqno is not supported")]
+    SeqnoNotSupported,
 }
