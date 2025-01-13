@@ -9,7 +9,7 @@ use num_traits::{One, Zero};
 use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
-use crate::TonAddress;
+use crate::{TonAddress, TonHash};
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
 pub(crate) const MAX_CELL_REFERENCES: usize = 4;
@@ -342,6 +342,10 @@ impl CellBuilder {
         }
     }
 
+    pub fn store_tonhash(&mut self, ton_hash: &TonHash) -> Result<&mut Self, TonCellError> {
+        self.store_slice(ton_hash.as_slice())
+    }
+
     pub fn remaining_bits(&self) -> usize {
         MAX_CELL_BITS - self.bits_to_write
     }
@@ -425,6 +429,7 @@ mod tests {
     use crate::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
     use crate::cell::{CellBuilder, TonCellError};
     use crate::types::TonAddress;
+    use crate::TonHash;
 
     #[test]
     fn test_extend_and_invert_bits() -> Result<(), TonCellError> {
@@ -707,6 +712,21 @@ mod tests {
         let mut parser = cell.parser();
         let parsed = parser.load_dict(8, key_reader_u8, val_reader_uint)?;
         assert_eq!(data, parsed);
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_tonhash() -> Result<(), TonCellError> {
+        let mut writer = CellBuilder::new();
+        let ton_hash =
+            TonHash::from_hex("9f31f4f413a3accb706c88962ac69d59103b013a0addcfaeed5dd73c18fa98a8")?;
+
+        writer.store_tonhash(&ton_hash)?;
+        let cell = writer.build()?;
+        let mut parser = cell.parser();
+        let parsed = parser.load_tonhash()?;
+        assert_eq!(ton_hash, parsed);
+        parser.ensure_empty()?;
         Ok(())
     }
 }

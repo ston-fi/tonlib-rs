@@ -12,8 +12,8 @@ use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
-use crate::types::ZERO_HASH;
-use crate::TonAddress;
+use crate::types::{TON_HASH_LEN, ZERO_HASH};
+use crate::{TonAddress, TonHash};
 
 pub struct CellParser<'a> {
     pub(crate) bit_len: usize,
@@ -321,6 +321,12 @@ impl<'a> CellParser<'a> {
             Ok(None)
         }
     }
+
+    pub fn load_tonhash(&mut self) -> Result<TonHash, TonCellError> {
+        let mut res = [0_u8; TON_HASH_LEN];
+        self.load_slice(&mut res)?;
+        Ok(TonHash::from(res))
+    }
 }
 
 #[cfg(test)]
@@ -332,6 +338,7 @@ mod tests {
 
     use crate::cell::parser::TonAddress;
     use crate::cell::{Cell, CellBuilder, EitherCellLayout};
+    use crate::TonHash;
 
     #[test]
     fn test_load_bit() {
@@ -635,5 +642,16 @@ mod tests {
 
         assert!(result_first_bit);
         assert_eq!(result_cell_either, cell_either);
+    }
+
+    #[test]
+    fn test_load_tonhash() {
+        let ton_hash =
+            TonHash::from_hex("9f31f4f413a3accb706c88962ac69d59103b013a0addcfaeed5dd73c18fa98a8")
+                .unwrap();
+        let cell = Cell::new(ton_hash.to_vec(), 256, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        let loaded = parser.load_tonhash().unwrap();
+        assert_eq!(loaded, ton_hash);
     }
 }
