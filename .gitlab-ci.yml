@@ -1,5 +1,5 @@
 default:
-  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.80.0-e242770b
+  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.82.0
   tags:
     - zen4
 
@@ -68,7 +68,7 @@ test-mr:
     - !reference [.rust-cache-helper, before]
   script:
     - cargo fmt --check
-    - cargo clippy --release --no-default-features
+    - cargo clippy --release --no-default-features --no-deps
     - cargo build --release --no-default-features
     - cargo test --release --lib --no-default-features
     - cargo clippy --release --all-features
