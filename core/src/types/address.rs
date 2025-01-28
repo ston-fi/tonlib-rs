@@ -315,7 +315,7 @@ impl Serialize for TonAddress {
 
 struct TonAddressVisitor;
 
-impl<'de> Visitor<'de> for TonAddressVisitor {
+impl Visitor<'_> for TonAddressVisitor {
     type Value = TonAddress;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
@@ -341,7 +341,6 @@ impl<'de> Deserialize<'de> for TonAddress {
 
 #[cfg(test)]
 mod tests {
-
     use std::str::FromStr;
 
     use serde_json::Value;
@@ -355,8 +354,7 @@ mod tests {
             hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
                 .unwrap()
                 .as_slice()
-                .try_into()
-                .unwrap();
+                .try_into()?;
         let addr = TonAddress::new(0, &bytes);
         assert_eq!(
             addr.to_hex(),
@@ -374,13 +372,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_format_works() -> Result<(), TonAddressParseError> {
+    fn parse_format_works() -> anyhow::Result<()> {
         let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
-                .unwrap()
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
                 .as_slice()
-                .try_into()
-                .unwrap();
+                .try_into()?;
         let addr = TonAddress::new(0, &bytes);
         assert_eq!(
             TonAddress::from_hex_str(
@@ -400,13 +396,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_works() -> Result<(), TonAddressParseError> {
+    fn parse_works() -> anyhow::Result<()> {
         let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
-                .unwrap()
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
                 .as_slice()
-                .try_into()
-                .unwrap();
+                .try_into()?;
         let addr = TonAddress::new(0, &bytes);
         assert_eq!(
             "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
@@ -425,13 +419,11 @@ mod tests {
     }
 
     #[test]
-    fn try_from_works() -> Result<(), TonAddressParseError> {
+    fn try_from_works() -> anyhow::Result<()> {
         let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
-                .unwrap()
+            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
                 .as_slice()
-                .try_into()
-                .unwrap();
+                .try_into()?;
         let addr = TonAddress::new(0, &bytes);
         let res: TonAddress = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
             .to_string()
@@ -448,22 +440,22 @@ mod tests {
     }
 
     #[test]
-    fn serialization_works() -> Result<(), TonAddressParseError> {
+    fn serialization_works() -> anyhow::Result<()> {
         let expected = "\"EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR\"";
 
         let res = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?;
-        let serial = serde_json::to_string(&res).unwrap();
+        let serial = serde_json::to_string(&res)?;
         println!("{}", serial);
         assert_eq!(serial.as_str(), expected);
 
         let res = "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
             .parse::<TonAddress>()?;
-        let serial = serde_json::to_string(&res).unwrap();
+        let serial = serde_json::to_string(&res)?;
         println!("{}", serial);
         assert_eq!(serial.as_str(), expected);
 
         let res = "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?;
-        let serial = serde_json::to_string(&res).unwrap();
+        let serial = serde_json::to_string(&res)?;
         println!("{}", serial);
         assert_eq!(serial.as_str(), expected);
 
@@ -471,31 +463,31 @@ mod tests {
     }
 
     #[test]
-    fn deserialization_works() -> Result<(), TonAddressParseError> {
+    fn deserialization_works() -> anyhow::Result<()> {
         let address = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR";
         let a = format!("\"{}\"", address);
-        let deserial: TonAddress = serde_json::from_str(a.as_str()).unwrap();
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
         let expected = address.parse()?;
         println!("{}", deserial);
         assert_eq!(deserial, expected);
 
         let address = "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR";
         let a = format!("\"{}\"", address);
-        let deserial: TonAddress = serde_json::from_str(a.as_str()).unwrap();
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
         let expected = address.parse()?;
         println!("{}", deserial);
         assert_eq!(deserial, expected);
 
         let address = "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76";
         let a = format!("\"{}\"", address);
-        let deserial: TonAddress = serde_json::from_str(a.as_str()).unwrap();
+        let deserial: TonAddress = serde_json::from_str(a.as_str())?;
         let expected = address.parse()?;
         println!("{}", deserial);
         assert_eq!(deserial, expected);
 
         let address =
             String::from("0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76");
-        let deserial: TonAddress = serde_json::from_value(Value::String(address.clone())).unwrap();
+        let deserial: TonAddress = serde_json::from_value(Value::String(address.clone()))?;
         let expected = address.clone().parse()?;
         println!("{}", deserial);
         assert_eq!(deserial, expected);

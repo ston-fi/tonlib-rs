@@ -9,6 +9,7 @@ use num_traits::{One, Zero};
 use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
+use crate::tlb_types::traits::TLBObject;
 use crate::{TonAddress, TonHash};
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
@@ -189,8 +190,8 @@ impl CellBuilder {
 
     /// Stores address without optimizing hole address
     pub fn store_raw_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        self.store_u8(2, 0b10u8)?;
-        self.store_bit(false)?;
+        self.store_u8(2, 0b10u8)?; //store as MsgAddressInt
+        self.store_bit(false)?; // always no anycast
         let wc = (val.workchain & 0xff) as u8;
         self.store_u8(8, wc)?;
         self.store_slice(val.hash_part.as_slice())?;
@@ -287,6 +288,24 @@ impl CellBuilder {
             }
         }
 
+        Ok(self)
+    }
+
+    pub fn store_tlb<T: TLBObject>(&mut self, obj: &T) -> Result<&mut Self, TonCellError> {
+        obj.write(self)?;
+        Ok(self)
+    }
+
+    pub fn store_tlb_optional<T: TLBObject>(
+        &mut self,
+        maybe_obj: Option<&T>,
+    ) -> Result<&mut Self, TonCellError> {
+        if let Some(obj) = maybe_obj {
+            self.store_bit(true)?;
+            self.store_tlb(obj)?;
+        } else {
+            self.store_bit(false)?;
+        }
         Ok(self)
     }
 

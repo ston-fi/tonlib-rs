@@ -1,5 +1,5 @@
-/// Constants from jetton standard
-/// https://github.com/ton-blockchain/TEPs/blob/master/text/0062-jettons-standard.md
+//! Constants from jetton standard
+//! https://github.com/ton-blockchain/TEPs/blob/master/text/0062-jettons-standard.md
 
 /// transfer#5fcc3d14
 ///   query_id:uint64

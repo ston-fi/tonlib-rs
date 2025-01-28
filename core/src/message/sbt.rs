@@ -1,5 +1,5 @@
-/// Constants from soulbound nft standard
-/// https://github.com/ton-blockchain/TEPs/blob/master/text/0085-sbt-standard.md
+//! Constants from soulbound nft standard
+//! https://github.com/ton-blockchain/TEPs/blob/master/text/0085-sbt-standard.md
 
 /// prove_ownership#04ded148
 ///   query_id:uint64
