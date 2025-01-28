@@ -2,7 +2,6 @@ use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
 /// All functions except `add_leading_bit` expect 1 extra leading bit in `val` set to 1
-
 pub(super) fn all_bits_same(val: &BigUint) -> bool {
     if val.is_zero() {
         return true;

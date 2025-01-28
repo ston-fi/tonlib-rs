@@ -12,8 +12,10 @@ use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
-use crate::types::ZERO_HASH;
-use crate::TonAddress;
+use crate::tlb_types::msg_address::MsgAddress;
+use crate::tlb_types::traits::TLBObject;
+use crate::types::TON_HASH_LEN;
+use crate::{TonAddress, TonHash};
 
 pub struct CellParser<'a> {
     pub(crate) bit_len: usize,
@@ -176,23 +178,46 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn load_address(&mut self) -> Result<TonAddress, TonCellError> {
-        self.ensure_enough_bits(2)?;
-        let tp = self.bit_reader.read::<u8>(2).map_cell_parser_error()?;
-        match tp {
-            0 => Ok(TonAddress::null()),
-            2 => {
-                self.ensure_enough_bits(1 + 8 + 32 * 8)?;
-                let _res1 = self.bit_reader.read::<u8>(1).map_cell_parser_error()?;
-                let wc = self.bit_reader.read::<u8>(8).map_cell_parser_error()?;
-                let mut hash_part = ZERO_HASH;
-                self.bit_reader
-                    .read_bytes(hash_part.as_mut_slice())
-                    .map_cell_parser_error()?;
-                let addr = TonAddress::new(wc as i32, &hash_part);
-                Ok(addr)
+        let msg_addr: MsgAddress = self.load_tlb()?;
+        let mut addr_int = match msg_addr {
+            MsgAddress::Int(int) => int,
+            MsgAddress::Ext(ext) => {
+                if ext.address.is_empty() && ext.address_len_bits == 0 {
+                    return Ok(TonAddress::null());
+                } else {
+                    let err_msg = "Can't load TonAddress from MsgAddressExt".to_owned();
+                    return Err(TonCellError::InvalidCellData(err_msg));
+                }
             }
-            _ => Err(TonCellError::InvalidAddressType(tp)),
+        };
+
+        let anycast = match addr_int.anycast {
+            Some(anycast) => anycast,
+            None => {
+                let address = TonHash::try_from(addr_int.address.as_slice())?;
+                return Ok(TonAddress::new(addr_int.workchain, &address));
+            }
+        };
+
+        if addr_int.address_len_bits < anycast.depth as u32 {
+            let err_msg = format!(
+                "rewrite_pfx has {} bits, but address has only {} bits",
+                anycast.depth, addr_int.address_len_bits
+            );
+            return Err(TonCellError::InvalidCellData(err_msg));
         }
+
+        let new_prefix = anycast.rewrite_pfx.as_slice();
+        let address = addr_int.address.as_mut_slice();
+
+        let bits = anycast.depth as usize;
+        if !rewrite_bits(new_prefix, 0, address, 0, bits) {
+            let err_msg = format!("Failed to rewrite address prefix with new_prefix={new_prefix:?}, address={address:?}, bits={bits}");
+            return Err(TonCellError::InvalidCellData(err_msg));
+        }
+
+        let address = TonHash::try_from(addr_int.address)?;
+        Ok(TonAddress::new(addr_int.workchain, &address))
     }
 
     pub fn load_unary_length(&mut self) -> Result<usize, TonCellError> {
@@ -321,17 +346,36 @@ impl<'a> CellParser<'a> {
             Ok(None)
         }
     }
+
+    pub fn load_tlb<T: TLBObject>(&mut self) -> Result<T, TonCellError> {
+        T::read(self)
+    }
+
+    pub fn load_tlb_optional<T: TLBObject>(&mut self) -> Result<Option<T>, TonCellError> {
+        if self.load_bit()? {
+            self.load_tlb().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn load_tonhash(&mut self) -> Result<TonHash, TonCellError> {
+        let mut res = [0_u8; TON_HASH_LEN];
+        self.load_slice(&mut res)?;
+        Ok(TonHash::from(res))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-
     use std::sync::Arc;
 
     use num_bigint::{BigInt, BigUint};
+    use tokio_test::assert_ok;
 
     use crate::cell::parser::TonAddress;
-    use crate::cell::{Cell, CellBuilder, EitherCellLayout};
+    use crate::cell::{BagOfCells, Cell, CellBuilder, EitherCellLayout};
+    use crate::TonHash;
 
     #[test]
     fn test_load_bit() {
@@ -546,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_load_address() {
-        let cell = Cell::new([0].to_vec(), 3, vec![], false).unwrap();
+        let cell = Cell::new([0].to_vec(), 2, vec![], false).unwrap();
         let mut parser = cell.parser();
         assert_eq!(parser.load_address().unwrap(), TonAddress::null());
         assert!(parser.load_address().is_err());
@@ -635,5 +679,34 @@ mod tests {
 
         assert!(result_first_bit);
         assert_eq!(result_cell_either, cell_either);
+    }
+
+    #[test]
+    fn test_load_tonhash() {
+        let ton_hash =
+            TonHash::from_hex("9f31f4f413a3accb706c88962ac69d59103b013a0addcfaeed5dd73c18fa98a8")
+                .unwrap();
+        let cell = Cell::new(ton_hash.to_vec(), 256, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        let loaded = parser.load_tonhash().unwrap();
+        assert_eq!(loaded, ton_hash);
+    }
+
+    #[test]
+    fn test_load_address_anycast() -> anyhow::Result<()> {
+        let addr_boc = hex::decode("b5ee9c7201010101002800004bbe031053100134ea6c68e2f2cee9619bdd2732493f3a1361eccd7c5267a9eb3c5dcebc533bb6")?;
+        let addr_cell = BagOfCells::parse(&addr_boc)?.into_single_root()?;
+        let mut parser = addr_cell.parser();
+        let parsed = assert_ok!(parser.load_address());
+        let expected: TonAddress = "EQADEFMSOLyzulhm90nMkk_OhNh7M18Umep6zxdzrxTO7Zz7".parse()?;
+        assert_eq!(parsed, expected);
+
+        let addr_boc = hex::decode("b5ee9c7201010101002800004bbe779dcc80039c768512c82704ef59297e7991b21b469367a4aac9d9ae9fe74a834b2448490e")?;
+        let addr_cell = BagOfCells::parse(&addr_boc)?.into_single_root()?;
+        let mut parser = addr_cell.parser();
+        let parsed = assert_ok!(parser.load_address());
+        let expected: TonAddress = "EQB3ncyAsgnBO9ZKX55kbIbRpNnpKrJ2a6f50qDSyRISQ19D".parse()?;
+        assert_eq!(parsed, expected);
+        Ok(())
     }
 }

@@ -74,3 +74,6 @@
 * NI: bump tonlib-sys to 2024.10.4
 ### v0.23.1
 * NI: Factory cache disabled by default
+### v0.23.2
+* Impl #be-1988: impl tlb-types and support anycast in tonaddress
+* Implement load/store tonhash

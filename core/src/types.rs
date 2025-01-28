@@ -99,7 +99,10 @@ impl TryFrom<&[u8]> for TonHash {
             let formatted_input = format!("{:?}", value);
             Err(TonHashParseError::new(
                 formatted_input,
-                "TonHash must contain exactly 32 bytes",
+                format!(
+                    "TonHash must contain {TON_HASH_LEN} bytes, but {} given",
+                    value.len()
+                ),
             ))
         } else {
             let mut hash = [0u8; TON_HASH_LEN];
