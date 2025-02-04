@@ -10,8 +10,9 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
-use crate::cell::{ArcCell, CellBuilder, TonCellError};
-use crate::tlb_types::state_init::StateInit;
+use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
+use crate::tlb_types::block::msg_address::{MsgAddress, MsgAddressInt};
+use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
 
 lazy_static! {
@@ -305,6 +306,61 @@ impl FromStr for TonAddress {
         } else {
             TonAddress::from_hex_str(s)
         }
+    }
+}
+
+impl TryFrom<MsgAddress> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddress::Ext(ext) => {
+                if ext.address_len_bits == 0 {
+                    return Ok(TonAddress::null());
+                }
+                Err(TonAddressParseError::new(
+                    format!("{ext:?}"),
+                    "Can't load TonAddress from MsgAddressExt",
+                ))
+            }
+            MsgAddress::Int(int) => TonAddress::try_from(int),
+        }
+    }
+}
+
+impl TryFrom<MsgAddressInt> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(mut value: MsgAddressInt) -> Result<Self, Self::Error> {
+        let anycast = match &value.anycast {
+            Some(anycast) => anycast,
+            None => {
+                let address = TonHash::try_from(value.address.as_slice())?;
+                return Ok(TonAddress::new(value.workchain, &address));
+            }
+        };
+
+        if value.address_len_bits < anycast.depth.into() {
+            let err_msg = format!(
+                "rewrite_pfx has {} bits, but address has only {} bits",
+                anycast.depth, value.address_len_bits
+            );
+            let ext_addr_str = format!("{:?}", value);
+            return Err(TonAddressParseError::new(ext_addr_str, err_msg));
+        }
+
+        let new_prefix = anycast.rewrite_pfx.as_slice();
+        let address = value.address.as_mut_slice();
+
+        let bits = anycast.depth as usize;
+        if !rewrite_bits(new_prefix, 0, address, 0, bits) {
+            let err_msg = format!("Failed to rewrite address prefix with new_prefix={new_prefix:?}, address={address:?}, bits={bits}");
+            let ext_addr_str = format!("{:?}", value);
+            return Err(TonAddressParseError::new(ext_addr_str, err_msg));
+        }
+
+        let address = TonHash::try_from(value.address)?;
+        Ok(TonAddress::new(value.workchain, &address))
     }
 }
 

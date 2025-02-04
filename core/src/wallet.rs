@@ -9,7 +9,7 @@ pub use types::*;
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
-use crate::tlb_types::state_init::StateInit;
+use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
 use crate::{TonAddress, TonHash};
 

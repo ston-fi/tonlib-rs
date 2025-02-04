@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::io::Cursor;
+use std::io::{Cursor, SeekFrom};
 use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
@@ -12,7 +12,7 @@ use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
-use crate::tlb_types::msg_address::MsgAddress;
+use crate::tlb_types::block::msg_address::MsgAddress;
 use crate::tlb_types::traits::TLBObject;
 use crate::types::TON_HASH_LEN;
 use crate::{TonAddress, TonHash};
@@ -55,12 +55,28 @@ impl<'a> CellParser<'a> {
         self.bit_reader.read_bit().map_cell_parser_error()
     }
 
+    pub fn advance(&mut self, num_bits: i64) -> Result<(), TonCellError> {
+        let cur_pos = self.bit_reader.position_in_bits().map_cell_parser_error()?;
+        let new_pos = cur_pos as i64 + num_bits;
+        if new_pos < 0 || new_pos > self.bit_len as i64 {
+            let err_msg = format!(
+                "Attempt to advance beyond data range (new_pos: {new_pos}, bit_len: {})",
+                self.bit_len
+            );
+            return Err(TonCellError::CellParserError(err_msg));
+        }
+        self.bit_reader
+            .seek_bits(SeekFrom::Current(num_bits))
+            .map_cell_parser_error()?;
+        Ok(())
+    }
+
     pub fn load_u8(&mut self, bit_len: usize) -> Result<u8, TonCellError> {
         self.load_number(bit_len)
     }
 
     pub fn load_i8(&mut self, bit_len: usize) -> Result<i8, TonCellError> {
-        self.load_number(bit_len)
+        Ok(self.load_number::<u8>(bit_len)? as i8)
     }
 
     pub fn load_u16(&mut self, bit_len: usize) -> Result<u16, TonCellError> {
@@ -68,7 +84,7 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn load_i16(&mut self, bit_len: usize) -> Result<i16, TonCellError> {
-        self.load_number(bit_len)
+        Ok(self.load_number::<u16>(bit_len)? as i16)
     }
 
     pub fn load_u32(&mut self, bit_len: usize) -> Result<u32, TonCellError> {
@@ -76,7 +92,7 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn load_i32(&mut self, bit_len: usize) -> Result<i32, TonCellError> {
-        self.load_number(bit_len)
+        Ok(self.load_number::<u32>(bit_len)? as i32)
     }
 
     pub fn load_u64(&mut self, bit_len: usize) -> Result<u64, TonCellError> {
@@ -84,7 +100,7 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn load_i64(&mut self, bit_len: usize) -> Result<i64, TonCellError> {
-        self.load_number(bit_len)
+        Ok(self.load_number::<u64>(bit_len)? as i64)
     }
 
     pub fn load_uint(&mut self, bit_len: usize) -> Result<BigUint, TonCellError> {
@@ -186,46 +202,8 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn load_address(&mut self) -> Result<TonAddress, TonCellError> {
-        let msg_addr: MsgAddress = self.load_tlb()?;
-        let mut addr_int = match msg_addr {
-            MsgAddress::Int(int) => int,
-            MsgAddress::Ext(ext) => {
-                if ext.address.is_empty() && ext.address_len_bits == 0 {
-                    return Ok(TonAddress::null());
-                } else {
-                    let err_msg = "Can't load TonAddress from MsgAddressExt".to_owned();
-                    return Err(TonCellError::InvalidCellData(err_msg));
-                }
-            }
-        };
-
-        let anycast = match addr_int.anycast {
-            Some(anycast) => anycast,
-            None => {
-                let address = TonHash::try_from(addr_int.address.as_slice())?;
-                return Ok(TonAddress::new(addr_int.workchain, &address));
-            }
-        };
-
-        if addr_int.address_len_bits < anycast.depth as u32 {
-            let err_msg = format!(
-                "rewrite_pfx has {} bits, but address has only {} bits",
-                anycast.depth, addr_int.address_len_bits
-            );
-            return Err(TonCellError::InvalidCellData(err_msg));
-        }
-
-        let new_prefix = anycast.rewrite_pfx.as_slice();
-        let address = addr_int.address.as_mut_slice();
-
-        let bits = anycast.depth as usize;
-        if !rewrite_bits(new_prefix, 0, address, 0, bits) {
-            let err_msg = format!("Failed to rewrite address prefix with new_prefix={new_prefix:?}, address={address:?}, bits={bits}");
-            return Err(TonCellError::InvalidCellData(err_msg));
-        }
-
-        let address = TonHash::try_from(addr_int.address)?;
-        Ok(TonAddress::new(addr_int.workchain, &address))
+        let msg_addr = MsgAddress::read(self)?;
+        TonAddress::try_from(msg_addr).map_err(|e| TonCellError::InvalidCellData(e.to_string()))
     }
 
     pub fn load_unary_length(&mut self) -> Result<usize, TonCellError> {
@@ -370,14 +348,6 @@ impl<'a> CellParser<'a> {
         T::read(self)
     }
 
-    pub fn load_tlb_optional<T: TLBObject>(&mut self) -> Result<Option<T>, TonCellError> {
-        if self.load_bit()? {
-            self.load_tlb().map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
     pub fn load_tonhash(&mut self) -> Result<TonHash, TonCellError> {
         let mut res = [0_u8; TON_HASH_LEN];
         self.load_slice(&mut res)?;
@@ -390,11 +360,25 @@ mod tests {
     use std::sync::Arc;
 
     use num_bigint::{BigInt, BigUint};
-    use tokio_test::assert_ok;
+    use tokio_test::{assert_err, assert_ok};
 
     use crate::cell::parser::TonAddress;
     use crate::cell::{BagOfCells, Cell, CellBuilder, EitherCellLayout};
     use crate::TonHash;
+
+    #[test]
+    fn test_remaining_bits() -> anyhow::Result<()> {
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 13, vec![], false)?;
+        let mut parser = cell.parser();
+        assert_eq!(parser.remaining_bits(), 13);
+        parser.load_bit()?;
+        assert_eq!(parser.remaining_bits(), 12);
+        parser.load_u8(4)?;
+        assert_eq!(parser.remaining_bits(), 8);
+        parser.load_u8(8)?;
+        assert_eq!(parser.remaining_bits(), 0);
+        Ok(())
+    }
 
     #[test]
     fn test_load_bit() {
@@ -487,14 +471,12 @@ mod tests {
     }
 
     #[test]
-    fn test_load_uint() {
-        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
+    fn test_load_uint() -> anyhow::Result<()> {
+        let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false)?;
         let mut parser = cell.parser();
-        assert_eq!(
-            parser.load_uint(10).unwrap(),
-            BigUint::from(0b1010101001u64)
-        );
+        assert_eq!(parser.load_uint(10)?, BigUint::from(0b1010101001u64));
         assert!(parser.load_uint(5).is_err());
+        Ok(())
     }
 
     #[test]
@@ -726,6 +708,21 @@ mod tests {
         let parsed = assert_ok!(parser.load_address());
         let expected: TonAddress = "EQB3ncyAsgnBO9ZKX55kbIbRpNnpKrJ2a6f50qDSyRISQ19D".parse()?;
         assert_eq!(parsed, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_advance() -> anyhow::Result<()> {
+        let cell = Cell::new([0b11000011].to_vec(), 8, vec![], false)?;
+        let mut parser = cell.parser();
+        assert_ok!(parser.advance(4));
+        assert_eq!(parser.load_u8(4)?, 0b0011);
+        assert_ok!(parser.advance(-8));
+        assert_eq!(parser.load_u8(4)?, 0b1100);
+        assert_ok!(parser.advance(-4));
+        assert_eq!(parser.load_u8(4)?, 0b1100);
+        assert_err!(parser.advance(-5));
+        assert_eq!(parser.load_u8(4)?, 0b0011);
         Ok(())
     }
 }

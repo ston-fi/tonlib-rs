@@ -1,4 +1,5 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
+use crate::tlb_types::primitives::option::OptionRef;
 use crate::tlb_types::traits::TLBObject;
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L281
@@ -6,8 +7,8 @@ use crate::tlb_types::traits::TLBObject;
 pub struct StateInit {
     pub split_depth: Option<u8>,
     pub tick_tock: Option<TickTock>,
-    pub code: Option<ArcCell>,
-    pub data: Option<ArcCell>,
+    pub code: OptionRef<ArcCell>,
+    pub data: OptionRef<ArcCell>,
     // there is likely library:(HashmapE 256 SimpleLib)
     pub library: Option<ArcCell>,
 }
@@ -39,8 +40,8 @@ impl StateInit {
         StateInit {
             split_depth: None,
             tick_tock: None,
-            code: Some(code),
-            data: Some(data),
+            code: OptionRef::new(code),
+            data: OptionRef::new(data),
             library: None,
         }
     }
@@ -50,19 +51,19 @@ impl TLBObject for StateInit {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(StateInit {
             split_depth: parser.load_number_optional(5)?,
-            tick_tock: parser.load_tlb_optional()?,
-            code: parser.load_ref_cell_optional()?,
-            data: parser.load_ref_cell_optional()?,
-            library: parser.load_ref_cell_optional()?,
+            tick_tock: TLBObject::read(parser)?,
+            code: TLBObject::read(parser)?,
+            data: TLBObject::read(parser)?,
+            library: TLBObject::read(parser)?,
         })
     }
 
-    fn write(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_number_optional(5, self.split_depth)?;
-        dst.store_tlb_optional(self.tick_tock.as_ref())?;
-        dst.store_ref_cell_optional(self.code.as_ref())?;
-        dst.store_ref_cell_optional(self.data.as_ref())?;
-        dst.store_ref_cell_optional(self.library.as_ref())?;
+        self.tick_tock.write_to(dst)?;
+        self.code.write_to(dst)?;
+        self.data.write_to(dst)?;
+        self.library.write_to(dst)?;
         Ok(())
     }
 }
@@ -74,7 +75,7 @@ impl TLBObject for TickTock {
         Ok(TickTock { tick, tock })
     }
 
-    fn write(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         builder.store_bit(self.tick)?;
         builder.store_bit(self.tock)?;
         Ok(())

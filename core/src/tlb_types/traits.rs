@@ -1,14 +1,15 @@
 use std::ops::Deref;
+use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 
-use crate::cell::{BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
+use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
 
 pub trait TLBObject: Sized {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError>;
 
-    fn write(&self, builder: &mut CellBuilder) -> Result<(), TonCellError>;
+    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError>;
 
     /// Parsing
     ///
@@ -35,7 +36,7 @@ pub trait TLBObject: Sized {
     ///
     fn to_cell(&self) -> Result<Cell, TonCellError> {
         let mut builder = CellBuilder::new();
-        self.write(&mut builder)?;
+        self.write_to(&mut builder)?;
         builder.build()
     }
 
@@ -49,5 +50,29 @@ pub trait TLBObject: Sized {
 
     fn to_boc_b64(&self) -> Result<String, TonCellError> {
         Ok(BASE64_STANDARD.encode(self.to_boc()?))
+    }
+}
+
+/// Dependencies implementation
+///
+impl TLBObject for Cell {
+    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        parser.load_remaining()
+    }
+
+    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        builder.store_cell(self)?;
+        Ok(())
+    }
+}
+
+impl TLBObject for ArcCell {
+    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        parser.load_remaining().map(Arc::new)
+    }
+
+    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        builder.store_cell(self)?;
+        Ok(())
     }
 }
