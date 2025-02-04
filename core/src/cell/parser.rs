@@ -137,6 +137,14 @@ impl<'a> CellParser<'a> {
         Ok(res)
     }
 
+    pub fn load_ref_cell_optional(&mut self) -> Result<Option<ArcCell>, TonCellError> {
+        if self.load_bit()? {
+            Ok(Some(self.next_reference()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn load_bits_to_slice(
         &mut self,
         num_bits: usize,
@@ -296,6 +304,17 @@ impl<'a> CellParser<'a> {
         self.bit_reader
             .read::<N>(bit_len as u32)
             .map_cell_parser_error()
+    }
+
+    pub fn load_number_optional<N: Numeric>(
+        &mut self,
+        bit_len: usize,
+    ) -> Result<Option<N>, TonCellError> {
+        if self.load_bit()? {
+            self.load_number(bit_len).map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     fn ensure_enough_bits(&mut self, bit_len: usize) -> Result<(), TonCellError> {

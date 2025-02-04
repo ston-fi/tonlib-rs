@@ -72,7 +72,7 @@ impl TonMessage for NftTransferMessage {
 
         builder.store_address(&self.new_owner)?;
         builder.store_address(&self.response_destination)?;
-        builder.store_maybe_cell_ref(&self.custom_payload)?;
+        builder.store_ref_cell_optional(self.custom_payload.as_ref())?;
         builder.store_coins(&self.forward_ton_amount)?;
         builder
             .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
