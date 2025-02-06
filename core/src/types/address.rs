@@ -10,7 +10,9 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
-use crate::cell::CellBuilder;
+use crate::cell::{ArcCell, CellBuilder, TonCellError};
+use crate::tlb_types::state_init::StateInit;
+use crate::tlb_types::traits::TLBObject;
 
 lazy_static! {
     pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -37,6 +39,16 @@ impl TonAddress {
 
     pub fn null() -> TonAddress {
         TonAddress::NULL.clone()
+    }
+
+    pub fn derive(
+        workchain: i32,
+        code: ArcCell,
+        data: ArcCell,
+    ) -> Result<TonAddress, TonCellError> {
+        let state_cell = StateInit::new(code, data).to_cell()?;
+        let hash = state_cell.cell_hash();
+        Ok(TonAddress::new(workchain, &hash))
     }
 
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
@@ -342,10 +354,14 @@ impl<'de> Deserialize<'de> for TonAddress {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    use std::sync::Arc;
 
+    use num_bigint::BigUint;
+    use num_traits::Zero;
     use serde_json::Value;
 
     use super::TonAddressParseError;
+    use crate::cell::{BagOfCells, CellBuilder};
     use crate::{TonAddress, TonHash};
 
     #[test]
@@ -415,6 +431,25 @@ mod tests {
             "EQDk2VTvn04SUKJrW7rXahzdF8/Qi6utb0wj43InCu9vdjrR".parse::<TonAddress>()?,
             addr
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive() -> anyhow::Result<()> {
+        let user_addr = TonAddress::from_str("UQAO9JsDEbOjnb8AZRyxNHiODjVeAvgR2n03T0utYgkpx-K0")?;
+        let pool_addr = TonAddress::from_str("EQDMk-2P8ziShAYGcnYq-z_U33zA_Ynt88iav4PwkSGRru2B")?;
+        let code_cell = BagOfCells::parse_hex("b5ee9c7201010201002d00010eff0088d0ed1ed801084202e70a306c00272796243f569ce0c928ea4cfc9f1b65c5b0066e382159f5e80df5")?.into_single_root()?;
+        let data_cell = CellBuilder::new()
+            .store_address(&user_addr)?
+            .store_address(&pool_addr)?
+            .store_coins(&BigUint::zero())?
+            .store_coins(&BigUint::zero())?
+            .build()?;
+        let derived_addr = TonAddress::derive(0, code_cell, Arc::new(data_cell))?;
+
+        let expected_addr =
+            TonAddress::from_str("EQBWxdw3leOoaHqcK3ATf0T7ae5M8XS6jiP_Din4mh7o7gj2")?;
+        assert_eq!(derived_addr, expected_addr);
         Ok(())
     }
 

@@ -6,11 +6,11 @@ use lazy_static::lazy_static;
 use nacl::sign::signature;
 pub use types::*;
 
-use crate::cell::{
-    ArcCell, BagOfCells, Cell, CellBuilder, StateInit, StateInitBuilder, TonCellError,
-};
+use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::mnemonic::KeyPair;
+use crate::tlb_types::state_init::StateInit;
+use crate::tlb_types::traits::TLBObject;
 use crate::{TonAddress, TonHash};
 
 pub const DEFAULT_WALLET_ID_V5R1: i32 = 0x7FFFFF11;
@@ -196,8 +196,7 @@ impl TonWallet {
     ) -> Result<TonWallet, TonCellError> {
         let data = version.initial_data(key_pair, wallet_id)?;
         let code = version.code()?;
-        let state_init_hash = StateInit::create_account_id(code, &data)?;
-        let addr = TonAddress::new(workchain, &state_init_hash);
+        let addr = TonAddress::derive(workchain, code.clone(), data)?;
         Ok(TonWallet {
             key_pair: key_pair.clone(),
             version,
@@ -216,8 +215,7 @@ impl TonWallet {
         };
         let data = version.initial_data(key_pair, wallet_id)?;
         let code = version.code()?;
-        let state_init_hash = StateInit::create_account_id(code, &data)?;
-        let addr = TonAddress::new(0, &state_init_hash);
+        let addr = TonAddress::derive(0, code.clone(), data)?;
         Ok(TonWallet {
             key_pair: key_pair.clone(),
             version,
@@ -286,7 +284,7 @@ impl TonWallet {
             wrap_builder.store_bit(true)?; // state init in ref
             let initial_data = self.version.initial_data(&self.key_pair, self.wallet_id)?;
             let code = WALLET_V4R2_CODE.single_root()?.clone();
-            let state_init = StateInitBuilder::new(&code, &initial_data).build()?;
+            let state_init = StateInit::new(code, initial_data).to_cell()?;
             wrap_builder.store_child(state_init)?;
         } else {
             wrap_builder.store_bit(false)?; // state init absent

@@ -15,7 +15,6 @@ pub use parser::*;
 pub use raw::*;
 use sha2::Sha256;
 pub use slice::*;
-pub use state_init::*;
 pub use util::*;
 
 use crate::cell::cell_type::CellType;
@@ -34,7 +33,6 @@ mod parser;
 mod raw;
 mod raw_boc_from_boc;
 mod slice;
-mod state_init;
 mod util;
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;

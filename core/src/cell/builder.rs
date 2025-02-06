@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::Add;
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite, BitWriter, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
 
@@ -51,52 +51,54 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
+    pub fn store_number<N: Numeric>(
+        &mut self,
+        bit_len: usize,
+        val: N,
+    ) -> Result<&mut Self, TonCellError> {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
         self.bits_to_write += bit_len;
         Ok(self)
+    }
+
+    pub fn store_number_optional<N: Numeric>(
+        &mut self,
+        bit_len: usize,
+        maybe_val: Option<N>,
+    ) -> Result<&mut Self, TonCellError> {
+        if let Some(val) = maybe_val {
+            self.store_bit(true)?;
+            self.store_number(bit_len, val)?;
+        } else {
+            self.store_bit(false)?;
+        }
+        Ok(self)
+    }
+
+    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_u32(&mut self, bit_len: usize, val: u32) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i32(&mut self, bit_len: usize, val: i32) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i64(&mut self, bit_len: usize, val: i64) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
@@ -153,7 +155,7 @@ impl CellBuilder {
     }
 
     pub fn store_byte(&mut self, val: u8) -> Result<&mut Self, TonCellError> {
-        self.store_u8(8, val)
+        self.store_number(8, val)
     }
 
     pub fn store_slice(&mut self, slice: &[u8]) -> Result<&mut Self, TonCellError> {
@@ -310,9 +312,9 @@ impl CellBuilder {
     }
 
     // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
-    pub fn store_maybe_cell_ref(
+    pub fn store_ref_cell_optional(
         &mut self,
-        maybe_cell: &Option<ArcCell>,
+        maybe_cell: Option<&ArcCell>,
     ) -> Result<&mut Self, TonCellError> {
         if let Some(cell) = maybe_cell {
             self.store_bit(true)?;
@@ -320,7 +322,6 @@ impl CellBuilder {
         } else {
             self.store_bit(false)?;
         }
-
         Ok(self)
     }
 

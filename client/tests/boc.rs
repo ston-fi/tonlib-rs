@@ -1,12 +1,7 @@
 use std::collections::HashSet;
-use std::str::FromStr;
-use std::sync::Arc;
 
 use base64::prelude::*;
-use num_bigint::BigUint;
-use num_traits::Zero;
-use tonlib_core::cell::{BagOfCells, CellBuilder, StateInit};
-use tonlib_core::TonAddress;
+use tonlib_core::cell::BagOfCells;
 
 #[test]
 fn account_proof_cell() {
@@ -99,34 +94,4 @@ fn typical_boc_test(entry: &str, expected_hash: &str) {
     let boc_again = BagOfCells::parse(&bytes_entry_again).unwrap();
     let hash_again = boc_again.roots[0].cell_hash().to_hex();
     assert_eq!(hash_again, expected_hash);
-}
-
-#[test]
-fn library_cell() {
-    let entry = "b5ee9c7201010201002d00010eff0088d0ed1ed801084202e70a306c00272796243f569ce0c928ea4cfc9f1b65c5b0066e382159f5e80df5";
-    let user_address = "UQAO9JsDEbOjnb8AZRyxNHiODjVeAvgR2n03T0utYgkpx-K0"
-        .parse()
-        .unwrap();
-    let pool_address =
-        TonAddress::from_str("EQDMk-2P8ziShAYGcnYq-z_U33zA_Ynt88iav4PwkSGRru2B").unwrap();
-    let boc_bytes = hex::decode(entry).unwrap();
-    let boc = BagOfCells::parse(&boc_bytes).unwrap();
-    let data_cell = CellBuilder::new()
-        .store_address(&user_address)
-        .unwrap()
-        .store_address(&pool_address)
-        .unwrap()
-        .store_coins(&BigUint::zero())
-        .unwrap()
-        .store_coins(&BigUint::zero())
-        .unwrap()
-        .build()
-        .unwrap();
-    let state_init_hash =
-        StateInit::create_account_id(boc.single_root().unwrap(), &Arc::new(data_cell)).unwrap();
-    let addr = TonAddress::new(0, &state_init_hash);
-    assert_eq!(
-        addr,
-        TonAddress::from_str("EQBWxdw3leOoaHqcK3ATf0T7ae5M8XS6jiP_Din4mh7o7gj2").unwrap()
-    );
 }

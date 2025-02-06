@@ -52,7 +52,7 @@ impl TonMessage for JettonBurnMessage {
         builder.store_u64(64, self.query_id)?;
         builder.store_coins(&self.amount)?;
         builder.store_address(&self.response_destination)?;
-        builder.store_maybe_cell_ref(&self.custom_payload)?;
+        builder.store_ref_cell_optional(self.custom_payload.as_ref())?;
 
         Ok(builder.build()?)
     }
