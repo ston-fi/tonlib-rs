@@ -19,22 +19,6 @@ pub struct TickTock {
     pub tock: bool,
 }
 
-impl TickTock {
-    pub fn tick() -> Self {
-        TickTock {
-            tick: true,
-            tock: false,
-        }
-    }
-
-    pub fn tock() -> Self {
-        TickTock {
-            tick: false,
-            tock: true,
-        }
-    }
-}
-
 impl StateInit {
     pub fn new(code: ArcCell, data: ArcCell) -> Self {
         StateInit {

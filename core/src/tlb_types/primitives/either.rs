@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::cell::{CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::traits::TLBObject;
 
-// https://github.com/ton-blockchain/ton/blob/master/crypto/block/block.tlb#L11
+// https://github.com/ton-blockchain/ton/blob/2a68c8610bf28b43b2019a479a70d0606c2a0aa1/crypto/block/block.tlb#L11
 #[derive(Clone, Debug, PartialEq)]
 pub enum Either<L, R> {
     Left(L),
@@ -47,7 +47,6 @@ impl<L: TLBObject, R: TLBObject> TLBObject for Either<L, R> {
     }
 }
 
-// (Either X ^X)
 impl<T> EitherRef<T> {
     pub fn new(value: T) -> Self {
         EitherRef {

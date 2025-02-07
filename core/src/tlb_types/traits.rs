@@ -11,6 +11,10 @@ pub trait TLBObject: Sized {
 
     fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError>;
 
+    fn prefix() -> Option<&'static TLBPrefix> {
+        None
+    }
+
     /// Parsing
     ///
     fn from_cell(cell: &Cell) -> Result<Self, TonCellError> {
@@ -50,6 +54,41 @@ pub trait TLBObject: Sized {
 
     fn to_boc_b64(&self) -> Result<String, TonCellError> {
         Ok(BASE64_STANDARD.encode(self.to_boc()?))
+    }
+
+    /// Helpers - for internal use
+    ///
+    fn verify_prefix(parser: &mut CellParser) -> Result<(), TonCellError> {
+        if let Some(prefix) = Self::prefix() {
+            let value = parser.load_u64(prefix.bit_len as usize)?;
+            if value != prefix.value {
+                let err_str = format!(
+                    "[{}] Invalid prefix: {value} (expected: {})",
+                    std::any::type_name::<Self>(),
+                    prefix.value
+                );
+                return Err(TonCellError::InvalidCellData(err_str));
+            }
+        }
+        Ok(())
+    }
+
+    fn write_prefix(builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        if let Some(prefix) = Self::prefix() {
+            builder.store_u64(prefix.bit_len as usize, prefix.value)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct TLBPrefix {
+    pub bit_len: u8,
+    pub value: u64,
+}
+
+impl TLBPrefix {
+    pub const fn new(bit_len: u8, value: u64) -> Self {
+        Self { bit_len, value }
     }
 }
 

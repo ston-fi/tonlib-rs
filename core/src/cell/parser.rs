@@ -55,7 +55,7 @@ impl<'a> CellParser<'a> {
         self.bit_reader.read_bit().map_cell_parser_error()
     }
 
-    pub fn advance(&mut self, num_bits: i64) -> Result<(), TonCellError> {
+    pub fn seek(&mut self, num_bits: i64) -> Result<(), TonCellError> {
         let cur_pos = self.bit_reader.position_in_bits().map_cell_parser_error()?;
         let new_pos = cur_pos as i64 + num_bits;
         if new_pos < 0 || new_pos > self.bit_len as i64 {
@@ -712,16 +712,16 @@ mod tests {
     }
 
     #[test]
-    fn test_advance() -> anyhow::Result<()> {
+    fn test_seek() -> anyhow::Result<()> {
         let cell = Cell::new([0b11000011].to_vec(), 8, vec![], false)?;
         let mut parser = cell.parser();
-        assert_ok!(parser.advance(4));
+        assert_ok!(parser.seek(4));
         assert_eq!(parser.load_u8(4)?, 0b0011);
-        assert_ok!(parser.advance(-8));
+        assert_ok!(parser.seek(-8));
         assert_eq!(parser.load_u8(4)?, 0b1100);
-        assert_ok!(parser.advance(-4));
+        assert_ok!(parser.seek(-4));
         assert_eq!(parser.load_u8(4)?, 0b1100);
-        assert_err!(parser.advance(-5));
+        assert_err!(parser.seek(-5));
         assert_eq!(parser.load_u8(4)?, 0b0011);
         Ok(())
     }
