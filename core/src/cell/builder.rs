@@ -51,7 +51,7 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_number<N: Numeric>(
+    fn store_number<N: Numeric>(
         &mut self,
         bit_len: usize,
         val: N,
@@ -82,6 +82,10 @@ impl CellBuilder {
     }
 
     pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
+        self.store_number(bit_len, val as u8)
+    }
+
+    pub fn store_u16(&mut self, bit_len: usize, val: u16) -> Result<&mut Self, TonCellError> {
         self.store_number(bit_len, val)
     }
 
@@ -90,7 +94,7 @@ impl CellBuilder {
     }
 
     pub fn store_i32(&mut self, bit_len: usize, val: i32) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_u32(bit_len, val as u32)
     }
 
     pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
@@ -98,7 +102,7 @@ impl CellBuilder {
     }
 
     pub fn store_i64(&mut self, bit_len: usize, val: i64) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_number(bit_len, val as u64)
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
@@ -294,20 +298,7 @@ impl CellBuilder {
     }
 
     pub fn store_tlb<T: TLBObject>(&mut self, obj: &T) -> Result<&mut Self, TonCellError> {
-        obj.write(self)?;
-        Ok(self)
-    }
-
-    pub fn store_tlb_optional<T: TLBObject>(
-        &mut self,
-        maybe_obj: Option<&T>,
-    ) -> Result<&mut Self, TonCellError> {
-        if let Some(obj) = maybe_obj {
-            self.store_bit(true)?;
-            self.store_tlb(obj)?;
-        } else {
-            self.store_bit(false)?;
-        }
+        obj.write_to(self)?;
         Ok(self)
     }
 
@@ -747,6 +738,24 @@ mod tests {
         let parsed = parser.load_tonhash()?;
         assert_eq!(ton_hash, parsed);
         parser.ensure_empty()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_load_signed_unaligned() -> Result<(), TonCellError> {
+        let mut builder = CellBuilder::new();
+        builder.store_bit(false)?;
+        builder.store_i8(8, -4)?;
+        builder.store_i32(32, -5)?;
+        builder.store_i64(64, -6)?;
+        builder.store_u32(9, 256)?;
+        let cell = builder.build()?;
+        let mut parser = cell.parser();
+        assert!(!parser.load_bit()?);
+        assert_eq!(parser.load_i8(8)?, -4);
+        assert_eq!(parser.load_i32(32)?, -5);
+        assert_eq!(parser.load_i64(64)?, -6);
+        assert_eq!(parser.load_u32(9)?, 256);
         Ok(())
     }
 }

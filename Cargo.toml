@@ -19,6 +19,10 @@ repository = "https://github.com/ston-fi/tonlib-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
+# Internal
+tonlib-core = { version = "0.23", path = "core" }
+
+# External
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"
@@ -51,10 +55,7 @@ ton_liteapi = "0.2.0"
 adnl = "2.0"
 tonlib-sys = "=2024.10.4"
 tokio-tower = "0.6.0"
-tl-proto = "0.4.11"
-rustc-hash = "2.1.0"
 tower = "0.5.1"
 libc = "0.2"
 
 # internal deps
-tonlib-core = { version = "0.23", path = "core" }
