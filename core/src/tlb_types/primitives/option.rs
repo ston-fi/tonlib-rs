@@ -8,11 +8,11 @@ use crate::tlb_types::traits::TLBObject;
 pub struct OptionRef<T>(pub Option<T>);
 
 impl<T> OptionRef<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         OptionRef(Some(value))
     }
 
-    pub fn none() -> Self {
+    pub const fn none() -> Self {
         OptionRef(None)
     }
 }

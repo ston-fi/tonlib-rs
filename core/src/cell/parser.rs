@@ -348,7 +348,7 @@ impl<'a> CellParser<'a> {
         T::read(self)
     }
 
-    pub fn load_tonhash(&mut self) -> Result<TonHash, TonCellError> {
+    pub fn load_ton_hash(&mut self) -> Result<TonHash, TonCellError> {
         let mut res = [0_u8; TON_HASH_LEN];
         self.load_slice(&mut res)?;
         Ok(TonHash::from(res))
@@ -593,7 +593,7 @@ mod tests {
     fn test_load_address() {
         let cell = Cell::new([0].to_vec(), 2, vec![], false).unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
+        assert_eq!(&parser.load_address().unwrap(), TonAddress::null());
         assert!(parser.load_address().is_err());
 
         // with full addresses
@@ -611,8 +611,8 @@ mod tests {
         )
         .unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
+        assert_eq!(&parser.load_address().unwrap(), TonAddress::null());
+        assert_eq!(&parser.load_address().unwrap(), TonAddress::null());
         assert!(parser.load_address().is_err());
     }
 
@@ -689,7 +689,7 @@ mod tests {
                 .unwrap();
         let cell = Cell::new(ton_hash.to_vec(), 256, vec![], false).unwrap();
         let mut parser = cell.parser();
-        let loaded = parser.load_tonhash().unwrap();
+        let loaded = parser.load_ton_hash().unwrap();
         assert_eq!(loaded, ton_hash);
     }
 

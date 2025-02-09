@@ -146,7 +146,7 @@ impl Cell {
     }
 
     pub fn get_hash(&self, level: u8) -> TonHash {
-        self.hashes[level.min(3) as usize]
+        self.hashes[level.min(3) as usize].clone()
     }
 
     pub fn is_exotic(&self) -> bool {

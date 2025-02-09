@@ -63,7 +63,7 @@ impl CommonMsgInfo {
             ihr_disabled: false,
             bounce: true,
             bounced: true,
-            src: TonAddress::NULL,
+            src: TonAddress::null().clone(),
             dest: dest.clone(),
             value: value.clone(),
             ihr_fee: ZERO_COINS.clone(),

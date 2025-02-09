@@ -40,7 +40,7 @@ impl JettonTransferMessage {
             query_id: 0,
             amount: amount.clone(),
             destination: destination.clone(),
-            response_destination: TonAddress::null(),
+            response_destination: TonAddress::null().clone(),
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),

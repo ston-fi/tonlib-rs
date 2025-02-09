@@ -115,12 +115,12 @@ impl CellType {
                     let pruned = self
                         .pruned(data, bit_len, level_mask)
                         .map_cell_builder_error()?;
-                    (pruned[hash_index].hash, pruned[hash_index].depth)
+                    (pruned[hash_index].hash.clone(), pruned[hash_index].depth)
                 } else {
-                    (hashes[0], depths[0])
+                    (hashes[0].clone(), depths[0])
                 }
             } else {
-                (hashes[hash_index], depths[hash_index])
+                (hashes[hash_index].clone(), depths[hash_index])
             };
 
             resolved_hashes[i as usize] = hash;

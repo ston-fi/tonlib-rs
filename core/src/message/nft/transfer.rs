@@ -41,7 +41,7 @@ impl NftTransferMessage {
         NftTransferMessage {
             query_id: 0,
             new_owner: new_owner.clone(),
-            response_destination: TonAddress::null(),
+            response_destination: TonAddress::null().clone(),
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),

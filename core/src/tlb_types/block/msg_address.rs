@@ -40,6 +40,12 @@ pub struct Anycast {
     pub rewrite_pfx: Vec<u8>,
 }
 
+impl MsgAddress {
+    pub const fn none() -> Self {
+        MsgAddress::None(MsgAddrNone {})
+    }
+}
+
 impl TLBObject for MsgAddress {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tag = parser.load_u8(2)?;

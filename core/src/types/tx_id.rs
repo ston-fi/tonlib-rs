@@ -5,7 +5,6 @@ use base64::alphabet::{STANDARD, URL_SAFE};
 use base64::engine::general_purpose::{NO_PAD, PAD};
 use base64::engine::GeneralPurpose;
 use base64::Engine;
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use super::{TonHash, TransactionIdParseError};
@@ -17,14 +16,14 @@ pub struct TonTxId {
     pub hash: TonHash,
 }
 
-lazy_static! {
-    pub static ref NULL_TRANSACTION_ID: TonTxId = TonTxId {
-        lt: 0i64,
-        hash: ZERO_HASH
-    };
-}
-
 impl TonTxId {
+    pub const fn null() -> &'static Self {
+        const NULL: TonTxId = TonTxId {
+            lt: 0i64,
+            hash: ZERO_HASH,
+        };
+        &NULL
+    }
     pub fn hash_string(&self) -> String {
         self.hash.to_hex()
     }
@@ -36,7 +35,7 @@ impl TonTxId {
     pub fn from_lt_hash(lt: i64, hash_str: &str) -> Result<TonTxId, TransactionIdParseError> {
         let hash: TonHash = if hash_str.len() == 64 {
             match hex::decode(hash_str) {
-                Ok(hash) => Self::tx_hash_to_array(lt, hash)?,
+                Ok(hash) => Self::parse_ton_hash(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
                         format!("{}, {}", lt, hash_str),
@@ -57,7 +56,7 @@ impl TonTxId {
             let engine = GeneralPurpose::new(&char_set, config);
 
             match engine.decode(hash_str) {
-                Ok(hash) => Self::tx_hash_to_array(lt, hash)?,
+                Ok(hash) => Self::parse_ton_hash(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
                         format!("{}, {}", lt, hash_str),
@@ -70,21 +69,12 @@ impl TonTxId {
         Ok(TonTxId { lt, hash })
     }
 
-    fn tx_hash_to_array(lt: i64, hash: Vec<u8>) -> Result<TonHash, TransactionIdParseError> {
-        if hash.len() == 32 {
-            match &hash.clone().try_into() {
-                Ok(array) => Ok(*array),
-                Err(_) => Err(TransactionIdParseError::new(
-                    format!("{}:{:?}", lt, hash),
-                    "Incorrect tx hash format".to_string(),
-                )),
-            }
-        } else {
-            Err(TransactionIdParseError::new(
-                format!("{}:{:?}", lt, hash),
-                "Incorrect tx hash format".to_string(),
-            ))
-        }
+    fn parse_ton_hash(lt: i64, hash: Vec<u8>) -> Result<TonHash, TransactionIdParseError> {
+        TonHash::try_from(hash.as_slice()).map_err(|err| {
+            let tx_id_str = format!("{}:{:?}", lt, hash);
+            let err_msg = format!("Fail to parse TonHash: {err}");
+            TransactionIdParseError::new(tx_id_str, err_msg)
+        })
     }
 }
 

@@ -206,11 +206,7 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        if val == &TonAddress::NULL {
-            self.store_u8(2, 0)?;
-        } else {
-            self.store_raw_address(val)?;
-        }
+        val.to_tlb_msg_addr().write_to(self)?;
         Ok(self)
     }
 
@@ -735,7 +731,7 @@ mod tests {
         writer.store_tonhash(&ton_hash)?;
         let cell = writer.build()?;
         let mut parser = cell.parser();
-        let parsed = parser.load_tonhash()?;
+        let parsed = parser.load_ton_hash()?;
         assert_eq!(ton_hash, parsed);
         parser.ensure_empty()?;
         Ok(())

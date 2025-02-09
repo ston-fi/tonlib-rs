@@ -266,8 +266,8 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
             txs.incomplete
         );
         for tx_id in txs.transactions {
-            let t = TonHash::try_from(tx_id.account)?;
-            let addr = TonAddress::new(workchain, &t);
+            let hash = TonHash::try_from(tx_id.account)?;
+            let addr = TonAddress::new(workchain, hash);
             let id = InternalTransactionId {
                 hash: tx_id.hash.clone(),
                 lt: tx_id.lt,
