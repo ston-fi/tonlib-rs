@@ -4,13 +4,13 @@ use crate::tlb_types::traits::{TLBObject, TLBPrefix};
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L100
 #[derive(Debug, Clone, PartialEq)]
 pub enum MsgAddress {
-    None(MsgAddrNone), // Is not covered by tests
-    Ext(MsgAddrExt),   // Is not covered by tests
+    None(MsgAddrNone),
+    Ext(MsgAddrExt),
     IntStd(MsgAddrIntStd),
     IntVar(MsgAddrIntVar),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MsgAddrNone {}
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +38,10 @@ pub struct MsgAddrIntVar {
 pub struct Anycast {
     pub depth: u8, // rewrite_pfx_len_bits
     pub rewrite_pfx: Vec<u8>,
+}
+
+impl MsgAddress {
+    pub const NONE: MsgAddress = MsgAddress::None(MsgAddrNone {});
 }
 
 impl TLBObject for MsgAddress {

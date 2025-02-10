@@ -593,7 +593,7 @@ mod tests {
     fn test_load_address() {
         let cell = Cell::new([0].to_vec(), 2, vec![], false).unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
+        assert_eq!(parser.load_address().unwrap(), TonAddress::NULL);
         assert!(parser.load_address().is_err());
 
         // with full addresses
@@ -611,8 +611,8 @@ mod tests {
         )
         .unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
-        assert_eq!(parser.load_address().unwrap(), TonAddress::null());
+        assert_eq!(parser.load_address().unwrap(), TonAddress::NULL);
+        assert_eq!(parser.load_address().unwrap(), TonAddress::NULL);
         assert!(parser.load_address().is_err());
     }
 

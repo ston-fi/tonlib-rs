@@ -2,7 +2,6 @@ use std::ops::Sub;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use std::{thread, time};
 
 use anyhow::anyhow;
 use futures::future::join_all;
@@ -44,7 +43,7 @@ async fn get_txs_for_frequent_works() {
     assert!(trs.first().unwrap().transaction_id.lt > trs.last().unwrap().transaction_id.lt);
     check_order(trs).expect("Invalid transactions list");
 
-    thread::sleep(time::Duration::from_millis(10000));
+    tokio::time::sleep(Duration::from_millis(10000)).await;
 
     let trs = assert_ok!(trans.get(16).await);
     log::info!(
@@ -95,9 +94,9 @@ async fn get_txs_for_rare_works() {
         check_order(trs).expect("Invalid transactions list");
     }
 
-    let mut missing_hash = addr.hash_part;
+    let mut missing_hash = addr.hash_part.clone();
     missing_hash.as_mut_slice()[31] += 1;
-    let missing_addr = TonAddress::new(addr.workchain, &missing_hash);
+    let missing_addr = TonAddress::new(addr.workchain, missing_hash);
     let missing_trans =
         LatestContractTransactionsCache::new(&factory, &missing_addr, 100, true, None);
     let missing_trs = assert_ok!(missing_trans.get(30).await);
@@ -222,8 +221,7 @@ async fn timestamp_limit_test() -> anyhow::Result<()> {
 
         let expected_min_utime = SystemTime::now()
             .sub(time_limit)
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .duration_since(UNIX_EPOCH)?
             .as_secs() as i64;
 
         assert!(last.utime > expected_min_utime);

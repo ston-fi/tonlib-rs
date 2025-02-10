@@ -21,7 +21,7 @@ pub const DEFAULT_CELL_HASH: TonHash = TonHash([
     93, 197, 184, 126, 65, 11, 120, 99, 10, 9, 207, 199,
 ]);
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct TonHash([u8; TON_HASH_LEN]);
 
 impl TonHash {

@@ -104,17 +104,17 @@ impl Inner {
 
         let cached_libs_future = lib_hashes
             .iter()
-            .map(|key| async move { (key, self.cache.get(key).await) });
+            .map(|key| async move { (key.clone(), self.cache.get(key).await) });
         let maybe_cached_libs = join_all(cached_libs_future).await;
 
         let mut hashes_to_load = vec![];
         for (hash, value) in maybe_cached_libs {
             match value {
                 Some(lib) => {
-                    result_libs.insert(*hash, lib);
+                    result_libs.insert(hash, lib);
                 }
                 None => {
-                    hashes_to_load.push(*hash);
+                    hashes_to_load.push(hash);
                 }
             }
         }
@@ -139,10 +139,7 @@ impl Inner {
         &self,
         hashes: &[TonHash],
     ) -> Result<Vec<ArcCell>, TonLibraryError> {
-        let library_list: Vec<_> = hashes
-            .iter()
-            .map(|hash| TonLibraryId::from(*hash))
-            .collect();
+        let library_list: Vec<_> = hashes.iter().map(TonLibraryId::from).collect();
         let library_result = self.client.smc_get_libraries(&library_list).await?;
 
         let libraries: Vec<ArcCell> = library_result

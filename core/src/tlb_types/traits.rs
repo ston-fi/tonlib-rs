@@ -5,6 +5,7 @@ use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
+use crate::TonHash;
 
 pub trait TLBObject: Sized {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError>;
@@ -13,6 +14,12 @@ pub trait TLBObject: Sized {
 
     fn prefix() -> Option<&'static TLBPrefix> {
         None
+    }
+
+    /// Utilities
+    ///
+    fn cell_hash(&self) -> Result<TonHash, TonCellError> {
+        Ok(self.to_cell()?.cell_hash())
     }
 
     /// Parsing

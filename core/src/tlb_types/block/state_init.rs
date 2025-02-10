@@ -20,7 +20,7 @@ pub struct TickTock {
 }
 
 impl StateInit {
-    pub fn new(code: ArcCell, data: ArcCell) -> Self {
+    pub const fn new(code: ArcCell, data: ArcCell) -> Self {
         StateInit {
             split_depth: None,
             tick_tock: None,

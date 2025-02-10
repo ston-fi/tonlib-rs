@@ -53,7 +53,7 @@ impl TryFrom<Cell> for WalletDataV3 {
         Ok(Self {
             seqno,
             wallet_id,
-            public_key: *public_key,
+            public_key: public_key.clone(),
         })
     }
 }
@@ -84,13 +84,12 @@ impl TryFrom<Cell> for WalletDataV4 {
         let mut parser = value.parser();
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
-        let public_key = &mut ZERO_HASH.clone();
-        parser.load_slice(public_key.as_mut_slice())?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle plugin dict
         Ok(Self {
             seqno,
             wallet_id,
-            public_key: *public_key,
+            public_key,
         })
     }
 }
@@ -125,15 +124,14 @@ impl TryFrom<Cell> for WalletDataV5 {
         let signature_allowed = parser.load_bit()?;
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
-        let public_key = &mut ZERO_HASH.clone();
-        parser.load_slice(public_key.as_mut_slice())?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle plugin dict
         let _has_extensions = parser.load_bit()?;
         Ok(Self {
             signature_allowed,
             seqno,
             wallet_id,
-            public_key: *public_key,
+            public_key,
         })
     }
 }
@@ -167,13 +165,12 @@ impl TryFrom<Cell> for WalletDataHighloadV2R2 {
         let mut parser = value.parser();
         let wallet_id = parser.load_i32(32)?;
         let last_cleaned_time = parser.load_u64(64)?;
-        let public_key = &mut ZERO_HASH.clone();
-        parser.load_slice(public_key.as_mut_slice())?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle queries dict
         Ok(Self {
             wallet_id,
             last_cleaned_time,
-            public_key: *public_key,
+            public_key,
         })
     }
 }

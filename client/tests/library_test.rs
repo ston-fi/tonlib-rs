@@ -17,12 +17,10 @@ async fn test_get_libs_by_hash() -> anyhow::Result<()> {
 
     let library_loader = BlockchainLibraryProvider::new(&client, None);
     let maybe_lib = library_loader
-        .load_libraries(&[expected_lib_id, expected_lib_id])
+        .load_libraries(&[expected_lib_id.clone(), expected_lib_id.clone()])
         .await?;
 
-    let boc = BagOfCells::from_root(maybe_lib[0].as_ref().clone())
-        .serialize(true)
-        .unwrap();
+    let boc = BagOfCells::from_root(maybe_lib[0].as_ref().clone()).serialize(true)?;
     log::info!("{}", hex::encode(boc));
 
     assert_eq!(maybe_lib.len(), 1);
