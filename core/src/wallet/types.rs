@@ -84,7 +84,7 @@ impl TryFrom<Cell> for WalletDataV4 {
         let mut parser = value.parser();
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
-        let public_key = parser.load_ton_hash()?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle plugin dict
         Ok(Self {
             seqno,
@@ -124,7 +124,7 @@ impl TryFrom<Cell> for WalletDataV5 {
         let signature_allowed = parser.load_bit()?;
         let seqno = parser.load_u32(32)?;
         let wallet_id = parser.load_i32(32)?;
-        let public_key = parser.load_ton_hash()?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle plugin dict
         let _has_extensions = parser.load_bit()?;
         Ok(Self {
@@ -165,7 +165,7 @@ impl TryFrom<Cell> for WalletDataHighloadV2R2 {
         let mut parser = value.parser();
         let wallet_id = parser.load_i32(32)?;
         let last_cleaned_time = parser.load_u64(64)?;
-        let public_key = parser.load_ton_hash()?;
+        let public_key = parser.load_tonhash()?;
         // TODO: handle queries dict
         Ok(Self {
             wallet_id,

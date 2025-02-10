@@ -17,13 +17,11 @@ pub struct TonTxId {
 }
 
 impl TonTxId {
-    pub const fn null() -> &'static Self {
-        const NULL: TonTxId = TonTxId {
-            lt: 0i64,
-            hash: ZERO_HASH,
-        };
-        &NULL
-    }
+    pub const NULL: TonTxId = TonTxId {
+        lt: 0i64,
+        hash: ZERO_HASH,
+    };
+
     pub fn hash_string(&self) -> String {
         self.hash.to_hex()
     }

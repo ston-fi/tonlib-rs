@@ -146,7 +146,7 @@ fn test_ton_contract_error_output() {
         "{}",
         TonContractError::CellError {
             method: "some_get_method".to_string(),
-            address: TonAddress::null().clone(),
+            address: TonAddress::NULL,
             error: TonCellError::InvalidIndex {
                 idx: 4,
                 ref_count: 5
@@ -179,7 +179,7 @@ fn test_ton_contract_error_output() {
         "{}",
         TonContractError::InvalidMethodResultStackSize {
             method: "some_get_method".to_string(),
-            address: TonAddress::null().clone(),
+            address: TonAddress::NULL,
             actual: 10,
             expected: 2,
         }
@@ -189,14 +189,14 @@ fn test_ton_contract_error_output() {
         "{}",
         TonContractError::MethodResultStackError {
             method: "some_get_method".into(),
-            address: TonAddress::null().clone(),
+            address: TonAddress::NULL,
             error: TvmStackError::TonCellError(TonCellError::BagOfCellsDeserializationError(
                 "Some error message".to_string()
             )),
         }
     );
 
-    let cell = assert_ok!(assert_ok!(CellBuilder::new().store_address(TonAddress::null())).build());
+    let cell = assert_ok!(assert_ok!(CellBuilder::new().store_address(&TonAddress::NULL)).build());
     log::error!(
         "{}",
         TonContractError::TvmRunError {
@@ -210,7 +210,7 @@ fn test_ton_contract_error_output() {
             exit_code: -123,
             vm_log: Box::new(None),
             missing_library: None,
-            address: TonAddress::null().clone(),
+            address: TonAddress::NULL,
         }
     );
 }

@@ -731,7 +731,7 @@ mod tests {
         writer.store_tonhash(&ton_hash)?;
         let cell = writer.build()?;
         let mut parser = cell.parser();
-        let parsed = parser.load_ton_hash()?;
+        let parsed = parser.load_tonhash()?;
         assert_eq!(ton_hash, parsed);
         parser.ensure_empty()?;
         Ok(())

@@ -29,7 +29,7 @@ impl JettonBurnMessage {
         JettonBurnMessage {
             query_id: 0,
             amount: amount.clone(),
-            response_destination: TonAddress::null().clone(),
+            response_destination: TonAddress::NULL,
             custom_payload: None,
         }
     }

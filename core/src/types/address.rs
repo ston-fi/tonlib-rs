@@ -1,16 +1,16 @@
-mod from_impl;
-mod serde_impl;
-
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
+use std::str::FromStr;
 
 use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use crc::Crc;
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
 use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
-use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddress};
+use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
 
@@ -23,19 +23,16 @@ pub struct TonAddress {
 }
 
 impl TonAddress {
+    pub const NULL: TonAddress = TonAddress {
+        workchain: 0,
+        hash_part: ZERO_HASH,
+    };
+
     pub const fn new(workchain: i32, hash_part: TonHash) -> TonAddress {
         TonAddress {
             workchain,
             hash_part,
         }
-    }
-
-    pub const fn null() -> &'static Self {
-        const NULL: TonAddress = TonAddress {
-            workchain: 0,
-            hash_part: ZERO_HASH,
-        };
-        &NULL
     }
 
     pub fn derive(
@@ -289,8 +286,8 @@ impl TonAddress {
     }
 
     pub fn to_tlb_msg_addr(&self) -> MsgAddress {
-        if self == TonAddress::null() {
-            return MsgAddress::none().clone();
+        if self == &TonAddress::NULL {
+            return MsgAddress::NONE;
         }
         MsgAddress::IntStd(MsgAddrIntStd {
             anycast: None,
@@ -330,6 +327,103 @@ impl Display for TonAddress {
 impl Debug for TonAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.to_base64_url().as_str())
+    }
+}
+
+impl FromStr for TonAddress {
+    type Err = TonAddressParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() == 48 {
+            // Some form of base64 address, check which one
+            if s.contains('-') || s.contains('_') {
+                TonAddress::from_base64_url(s)
+            } else {
+                TonAddress::from_base64_std(s)
+            }
+        } else {
+            TonAddress::from_hex_str(s)
+        }
+    }
+}
+
+impl TryFrom<String> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(value.as_str())
+    }
+}
+
+impl TryFrom<MsgAddress> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddress::None(_) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+                format!("{ext:?}"),
+                "Can't load TonAddress from MsgAddressExt",
+            )),
+            MsgAddress::IntStd(addr) => TonAddress::try_from(addr),
+            MsgAddress::IntVar(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
+impl TryFrom<MsgAddrIntStd> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntStd) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(value.workchain, value.address, 256, value.anycast.as_ref())
+    }
+}
+
+impl TryFrom<MsgAddrIntVar> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntVar) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(
+            value.workchain,
+            value.address,
+            value.address_bit_len,
+            value.anycast.as_ref(),
+        )
+    }
+}
+
+impl Serialize for TonAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.to_base64_url().as_str())
+    }
+}
+
+struct TonAddressVisitor;
+
+impl Visitor<'_> for TonAddressVisitor {
+    type Value = TonAddress;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("an string representing TON address in Hex or Base64 format")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        v.parse().map_err(E::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for TonAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(TonAddressVisitor)
     }
 }
 
