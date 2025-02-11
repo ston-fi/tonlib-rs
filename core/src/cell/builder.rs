@@ -321,6 +321,11 @@ impl CellBuilder {
     where
         BigUint: From<K>,
     {
+        if data.is_empty() {
+            return Err(TonCellError::CellBuilderError(
+                "can't save empty dict as dict_data".to_string(),
+            ));
+        }
         let dict_builder = DictBuilder::new(key_len_bits, value_writer, data)?;
         let dict_cell = dict_builder.build()?;
         self.store_cell(&dict_cell)
@@ -719,6 +724,18 @@ mod tests {
         let mut parser = cell.parser();
         let parsed = parser.load_dict(8, key_reader_u8, val_reader_uint)?;
         assert_eq!(data, parsed);
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_dict_data_empty() -> Result<(), TonCellError> {
+        let mut builder = CellBuilder::new();
+        let data: HashMap<BigUint, BigUint> = HashMap::new();
+        let value_writer = |writer: &mut CellBuilder, value: BigUint| {
+            writer.store_uint(8, &value)?;
+            Ok(())
+        };
+        assert!(builder.store_dict_data(8, value_writer, data).is_err());
         Ok(())
     }
 
