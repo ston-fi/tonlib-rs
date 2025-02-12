@@ -16,7 +16,7 @@ use tonlib_client::tl::{
 use tonlib_client::types::TvmStackEntry;
 use tonlib_core::cell::{CellBuilder, CellSlice, TonCellError};
 use tonlib_core::message::TonMessageError;
-use tonlib_core::mnemonic::MnemonicError;
+use tonlib_core::wallet::error::MnemonicError;
 use tonlib_core::{TonAddress, TonAddressParseError, TransactionIdParseError};
 
 mod common;

@@ -1,9 +1,6 @@
-mod error;
-
 use std::collections::HashMap;
 use std::{cmp, fmt};
 
-pub use error::*;
 use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
@@ -11,7 +8,9 @@ use pbkdf2::password_hash::Output;
 use pbkdf2::{pbkdf2_hmac, Params};
 use sha2::Sha512;
 
-const WORDLIST_EN: &str = include_str!("../resources/mnemonic/wordlist.EN");
+use crate::wallet::error::MnemonicError;
+
+const WORDLIST_EN: &str = include_str!("../../resources/mnemonic/wordlist.EN");
 const PBKDF_ITERATIONS: u32 = 100000;
 
 lazy_static! {
@@ -154,8 +153,7 @@ fn pbkdf2_sha512(
 ///Based on https://github.com/tonwhales/ton-crypto/blob/master/src/mnemonic/mnemonic.spec.ts
 #[cfg(test)]
 mod tests {
-    use super::MnemonicError;
-    use crate::mnemonic::Mnemonic;
+    use super::{Mnemonic, MnemonicError};
 
     #[test]
     fn mnemonic_parse_works() -> Result<(), MnemonicError> {
