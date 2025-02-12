@@ -51,9 +51,9 @@ impl LibraryProvider for BlockchainLibraryProvider {
             return Err(TonLibraryError::SeqnoNotSupported);
         }
 
-        let lib_hashes = LibraryHelper::extract_library_hashes(cells)?;
-        let libs = self.inner.get_libs(lib_hashes.as_slice()).await?;
-        LibraryHelper::store_to_dict(lib_hashes.as_slice(), libs)
+        let lib_ids = LibraryHelper::extract_library_hashes(cells)?;
+        let libs = self.inner.get_libs(lib_ids).await?;
+        LibraryHelper::store_to_dict(libs)
     }
 }
 
@@ -98,13 +98,14 @@ impl Inner {
 
     async fn get_libs(
         &self,
-        lib_hashes: &[TonHash],
+        lib_ids: Vec<TonHash>,
     ) -> Result<HashMap<TonHash, ArcCell>, TonLibraryError> {
         let mut result_libs = HashMap::new();
 
-        let cached_libs_future = lib_hashes
-            .iter()
-            .map(|key| async move { (key.clone(), self.cache.get(key).await) });
+        let cached_libs_future = lib_ids.into_iter().map(|key| async move {
+            let maybe_cached = self.cache.get(&key).await;
+            (key, maybe_cached)
+        });
         let maybe_cached_libs = join_all(cached_libs_future).await;
 
         let mut hashes_to_load = vec![];

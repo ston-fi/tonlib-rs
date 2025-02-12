@@ -1,29 +1,43 @@
-use tonlib_client::contract::BlockchainLibraryProvider;
-use tonlib_core::cell::BagOfCells;
+use tonlib_client::contract::{BlockchainLibraryProvider, LibraryProvider};
+use tonlib_core::cell::CellBuilder;
 use tonlib_core::TonHash;
 
 mod common;
 
 #[tokio::test]
-async fn test_get_libs_by_hash() -> anyhow::Result<()> {
+async fn test_load_libraries() -> anyhow::Result<()> {
     common::init_logging();
     let client = common::new_mainnet_client().await;
 
-    let expected_lib_id = TonHash::from([
+    let known_lib = TonHash::from([
         159, 49, 244, 244, 19, 163, 172, 203, 112, 108, 136, 150, 42, 198, 157, 89, 16, 59, 1, 58,
         10, 221, 207, 174, 237, 93, 215, 60, 24, 250, 152, 168,
     ]);
-    log::info!("{:?}", expected_lib_id);
+    log::debug!("known_lib: {known_lib:?}");
+    let unknown_lib =
+        TonHash::from_hex("f05e730bac652b0414b4673644999c81b8bd28595804c014fdf8078282799729")?;
+    log::debug!("unknown_lib: {unknown_lib:?}");
 
     let library_loader = BlockchainLibraryProvider::new(&client, None);
-    let maybe_lib = library_loader
-        .load_libraries(&[expected_lib_id.clone(), expected_lib_id.clone()])
+    let loaded_libs = library_loader
+        .load_libraries(&[known_lib.clone(), known_lib.clone(), unknown_lib.clone()])
         .await?;
+    assert_eq!(loaded_libs.len(), 1);
 
-    let boc = BagOfCells::from_root(maybe_lib[0].as_ref().clone()).serialize(true)?;
-    log::info!("{}", hex::encode(boc));
+    assert_eq!(loaded_libs[0].cell_hash(), known_lib);
+    Ok(())
+}
 
-    assert_eq!(maybe_lib.len(), 1);
-    assert_eq!(maybe_lib[0].cell_hash(), expected_lib_id);
+#[tokio::test]
+async fn test_get_no_lib() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+
+    let library_loader = BlockchainLibraryProvider::new(&client, None);
+    let libs = library_loader
+        .get_libs(&[CellBuilder::new().build()?.to_arc()], None)
+        .await?;
+    assert_eq!(libs.keys, Vec::new());
+    assert_eq!(libs.dict_boc.len(), 0);
     Ok(())
 }
