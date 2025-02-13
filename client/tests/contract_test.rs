@@ -1,14 +1,16 @@
+use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use common::new_mainnet_client;
 use num_bigint::BigUint;
 use tokio_test::assert_ok;
+use tonlib_client::client::TonClientInterface;
 use tonlib_client::contract::{
     TonContractError, TonContractFactory, TonContractInterface, TonContractState,
 };
+use tonlib_client::tl::AccountState;
 use tonlib_client::types::TvmSuccess;
 use tonlib_core::wallet::mnemonic::Mnemonic;
 use tonlib_core::wallet::ton_wallet::TonWallet;
@@ -68,7 +70,7 @@ impl<T> PoolContract for T where T: TonContractInterface {}
 #[tokio::test]
 async fn contract_get_pool_data_works() {
     common::init_logging();
-    let client = new_mainnet_client().await;
+    let client = common::new_mainnet_client().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
     let contract = factory.get_contract(&assert_ok!(
         "EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()
@@ -210,7 +212,7 @@ async fn test_derive_undeployed() {
     let mnemonic_str = "mechanic sudden cannon bind monkey brown moment able street pride struggle team outdoor canyon coin tourist service second crazy tank sell regret sample attitude";
     let mnemonic = assert_ok!(Mnemonic::from_str(mnemonic_str, &None));
     let key_pair = assert_ok!(mnemonic.to_key_pair());
-    let wallet_v4r2 = assert_ok!(TonWallet::new_default(WalletVersion::V4R2, &key_pair));
+    let wallet_v4r2 = assert_ok!(TonWallet::new(WalletVersion::V4R2, key_pair));
 
     let address = wallet_v4r2.address;
     log::info!("addr: {}", address);
@@ -224,12 +226,16 @@ async fn test_derive_undeployed() {
 #[tokio::test]
 async fn test_string_in_tvm_success() -> anyhow::Result<()> {
     common::init_logging();
-    let client = new_mainnet_client().await;
+    let client = common::new_mainnet_client().await;
     let factory = TonContractFactory::builder(&client).build().await?;
     let pool_address = "EQB7kbyu5u26057eqT1wDmC0rbV0ybVDjr0xzp6yDXtcDmOn";
     let pool = factory.get_contract(&pool_address.parse()?);
     let pool_type =
         assert_ok!(pool.run_get_method("get_pool_type", vec![]).await?.stack[0].get_string());
     assert_eq!("constant_product", pool_type);
+
+    let address = TonAddress::from_str("UQDwj2jGHWEbPpDf0I2qktDwqtv6tBCfBVNH9gJEnM-QmHDa")?;
+    let wallet_v4r2 = client.get_raw_account_state(&address).await?;
+    log::warn!("data_hex: {:?}", hex::encode(wallet_v4r2.data));
     Ok(())
 }

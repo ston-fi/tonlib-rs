@@ -10,7 +10,7 @@ pub struct StateInit {
     pub code: OptionRef<ArcCell>,
     pub data: OptionRef<ArcCell>,
     // there is likely library:(HashmapE 256 SimpleLib)
-    pub library: Option<ArcCell>,
+    pub library: OptionRef<ArcCell>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +26,7 @@ impl StateInit {
             tick_tock: None,
             code: OptionRef::new(code),
             data: OptionRef::new(data),
-            library: None,
+            library: OptionRef::NONE,
         }
     }
 }
@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(state_init.tick_tock, None);
         assert!(state_init.code.is_some());
         assert!(state_init.data.is_some());
-        assert_eq!(state_init.library, None);
+        assert_eq!(state_init.library, OptionRef::NONE);
         let serial_cell = CellBuilder::new().store_tlb(&state_init)?.build()?;
         assert_eq!(source_cell.deref(), &serial_cell);
         Ok(())

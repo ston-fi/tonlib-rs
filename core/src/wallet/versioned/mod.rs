@@ -1,5 +1,5 @@
-// https://docs.ton.org/participate/wallets/contracts
 pub mod highload_v2;
+mod utils;
 pub mod v1_v2;
 pub mod v3;
 pub mod v4;
