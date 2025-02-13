@@ -10,7 +10,6 @@ use tonlib_client::client::TonClientInterface;
 use tonlib_client::contract::{
     TonContractError, TonContractFactory, TonContractInterface, TonContractState,
 };
-use tonlib_client::tl::AccountState;
 use tonlib_client::types::TvmSuccess;
 use tonlib_core::wallet::mnemonic::Mnemonic;
 use tonlib_core::wallet::ton_wallet::TonWallet;

@@ -1,6 +1,6 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
-use crate::tlb_types::block::msg_address::MsgAddress;
+use crate::tlb_types::block::msg_address::{MsgAddress, MsgAddressInt};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::primitives::either::EitherRef;
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
@@ -26,8 +26,8 @@ pub struct IntMsgInfo {
     pub ihr_disabled: bool,
     pub bounce: bool,
     pub bounced: bool,
-    pub src: MsgAddress,
-    pub dest: MsgAddress,
+    pub src: MsgAddressInt,
+    pub dest: MsgAddressInt,
     pub value: CurrencyCollection,
     pub ihr_fee: Grams,
     pub fwd_fee: Grams,
@@ -141,9 +141,9 @@ impl TLBObject for IntMsgInfo {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(1, 0b0);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -166,9 +166,9 @@ impl TLBObject for ExtInMsgInfo {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -193,9 +193,9 @@ impl TLBObject for ExtOutMsgInfo {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 

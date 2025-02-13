@@ -139,7 +139,7 @@ mod tests {
         assert!(!parser.load_bit()?); // to_cell
         assert_ok!(parser.load_bits(32)); // skipping
         assert!(parser.load_bit()?); // to_ref
-        assert_eq!(parser.references.len(), 1);
+        assert_eq!(parser.cell.references().len(), 1);
         assert!(!parser.load_bit()?); // to_cell
         assert_ok!(parser.load_bits(32)); // skipping
         Ok(())

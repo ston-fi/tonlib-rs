@@ -87,7 +87,7 @@ impl Cell {
     }
 
     pub fn parser(&self) -> CellParser {
-        CellParser::new(self.bit_len, &self.data, &self.references)
+        CellParser::new(self)
     }
 
     #[allow(clippy::let_and_return)]

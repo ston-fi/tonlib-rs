@@ -49,7 +49,7 @@ impl TLBObject for WalletExtMsgBodyV2 {
         let _signature = parser.load_bytes(64)?;
         let msg_seqno = parser.load_u32(32)?;
         let valid_until = parser.load_u32(32)?;
-        let msgs_cnt = parser.references.len();
+        let msgs_cnt = parser.cell.references().len();
         let mut msgs_modes = Vec::with_capacity(msgs_cnt);
         let mut msgs = Vec::with_capacity(msgs_cnt);
         for _ in 0..msgs_cnt {
