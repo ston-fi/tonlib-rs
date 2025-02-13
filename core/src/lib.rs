@@ -1,7 +1,6 @@
 pub mod cell;
 pub mod constants;
 pub mod message;
-pub mod mnemonic;
 pub mod tlb_types;
 pub mod types;
 pub mod wallet;
