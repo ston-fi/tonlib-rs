@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::cell::{ArcCell, Cell, CellBuilder, CellParser, TonCellError};
+use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::traits::TLBObject;
 use crate::types::TON_HASH_LEN;
 use crate::TonHash;
@@ -22,6 +22,18 @@ impl TLBObject for Cell {
         builder.store_cell(self)?;
         Ok(())
     }
+
+    fn from_boc(boc: &[u8]) -> Result<Self, TonCellError> {
+        let arc_cell = BagOfCells::parse(boc)?.single_root()?;
+        let cell = match Arc::try_unwrap(arc_cell) {
+            Ok(cell) => cell,
+            Err(arc_cell) => {
+                // we just constructed the cell, so this should never happen
+                panic!("Failed to unwrap Arc: {arc_cell:?}")
+            }
+        };
+        Ok(cell)
+    }
 }
 
 impl TLBObject for ArcCell {
@@ -32,6 +44,10 @@ impl TLBObject for ArcCell {
     fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         self.as_ref().write_to(builder)?;
         Ok(())
+    }
+
+    fn from_boc(boc: &[u8]) -> Result<Self, TonCellError> {
+        BagOfCells::parse(boc)?.single_root()
     }
 }
 
