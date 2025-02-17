@@ -9,7 +9,7 @@ macro_rules! load_code {
     ($path:expr) => {
         BagOfCells::parse_base64(include_str!($path))
             .unwrap()
-            .into_single_root()
+            .single_root()
             .unwrap()
     };
 }

@@ -522,7 +522,7 @@ mod tests {
     fn test_derive() -> anyhow::Result<()> {
         let user_addr = TonAddress::from_str("UQAO9JsDEbOjnb8AZRyxNHiODjVeAvgR2n03T0utYgkpx-K0")?;
         let pool_addr = TonAddress::from_str("EQDMk-2P8ziShAYGcnYq-z_U33zA_Ynt88iav4PwkSGRru2B")?;
-        let code_cell = BagOfCells::parse_hex("b5ee9c7201010201002d00010eff0088d0ed1ed801084202e70a306c00272796243f569ce0c928ea4cfc9f1b65c5b0066e382159f5e80df5")?.into_single_root()?;
+        let code_cell = BagOfCells::parse_hex("b5ee9c7201010201002d00010eff0088d0ed1ed801084202e70a306c00272796243f569ce0c928ea4cfc9f1b65c5b0066e382159f5e80df5")?.single_root()?;
         let data_cell = CellBuilder::new()
             .store_address(&user_addr)?
             .store_address(&pool_addr)?

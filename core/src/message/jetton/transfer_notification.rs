@@ -107,34 +107,30 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::cell::{BagOfCells, Cell, EitherCellLayout};
-    use crate::message::{JettonTransferNotificationMessage, TonMessage, TonMessageError};
+    use crate::message::{JettonTransferNotificationMessage, TonMessage};
     use crate::TonAddress;
 
     const JETTON_TRANSFER_NOTIFICATION_MSG: &str = "b5ee9c720101020100a60001647362d09c000000d2c7ceef23401312d008003be20895401cd8539741eb7815d5e63b3429014018d7e5f7800de16a984f27730100dd25938561800f2465b65c76b1b562f32423676970b431319419d5f45ffd2eeb2155ce6ab7eacc78ee0250ef0300077c4112a8039b0a72e83d6f02babcc766852028031afcbef001bc2d5309e4ee700257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";
     const TRANSFER_NOTIFICATION_PAYLOAD: &str = "25938561800f2465b65c76b1b562f32423676970b431319419d5f45ffd2eeb2155ce6ab7eacc78ee0250ef0300077c4112a8039b0a72e83d6f02babcc766852028031afcbef001bc2d5309e4ee700257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad94";
 
     #[test]
-    fn test_jetton_transfer_notification_parser() -> Result<(), TonMessageError> {
-        let boc = BagOfCells::parse_hex(JETTON_TRANSFER_NOTIFICATION_MSG).unwrap();
-        let cell = boc.single_root().unwrap();
+    fn test_jetton_transfer_notification_parser() -> anyhow::Result<()> {
+        let boc = BagOfCells::parse_hex(JETTON_TRANSFER_NOTIFICATION_MSG)?;
+        let cell = boc.single_root()?;
 
         let expected_jetton_transfer_notification_msg = JettonTransferNotificationMessage {
             query_id: 905295359779,
             amount: BigUint::from(20000000u64),
-            sender: TonAddress::from_str("EQAd8QRKoA5sKcug9bwK6vMdmhSAoAxr8vvABvC1TCeTude5")
-                .unwrap(),
-            forward_payload: Arc::new(
-                Cell::new(
-                    hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
-                    886,
-                    vec![],
-                    false,
-                )
-                .unwrap(),
-            ),
+            sender: TonAddress::from_str("EQAd8QRKoA5sKcug9bwK6vMdmhSAoAxr8vvABvC1TCeTude5")?,
+            forward_payload: Arc::new(Cell::new(
+                hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
+                886,
+                vec![],
+                false,
+            )?),
             forward_payload_layout: EitherCellLayout::Native,
         };
-        let result_jetton_transfer_msg = JettonTransferNotificationMessage::parse(cell)?;
+        let result_jetton_transfer_msg = JettonTransferNotificationMessage::parse(&cell)?;
 
         assert_eq!(
             expected_jetton_transfer_notification_msg,
@@ -144,28 +140,25 @@ mod tests {
     }
 
     #[test]
-    fn test_jetton_transfer_notification_builder() -> Result<(), TonMessageError> {
+    fn test_jetton_transfer_notification_builder() -> anyhow::Result<()> {
         let jetton_transfer_notification_msg = JettonTransferNotificationMessage {
             query_id: 905295359779,
             amount: BigUint::from(20000000u64),
             sender: TonAddress::from_str("EQAd8QRKoA5sKcug9bwK6vMdmhSAoAxr8vvABvC1TCeTude5")
                 .unwrap(),
-            forward_payload: Arc::new(
-                Cell::new(
-                    hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
-                    886,
-                    vec![],
-                    false,
-                )
-                .unwrap(),
-            ),
+            forward_payload: Arc::new(Cell::new(
+                hex::decode(TRANSFER_NOTIFICATION_PAYLOAD).unwrap(),
+                886,
+                vec![],
+                false,
+            )?),
             forward_payload_layout: EitherCellLayout::Native,
         };
 
         let result_cell = jetton_transfer_notification_msg.build()?;
 
-        let expected_boc_serialized = hex::decode(JETTON_TRANSFER_NOTIFICATION_MSG).unwrap();
-        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false).unwrap();
+        let expected_boc_serialized = hex::decode(JETTON_TRANSFER_NOTIFICATION_MSG)?;
+        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false)?;
 
         assert_eq!(expected_boc_serialized, result_boc_serialized);
         Ok(())

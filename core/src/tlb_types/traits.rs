@@ -29,17 +29,17 @@ pub trait TLBObject: Sized {
     }
 
     fn from_boc(boc: &[u8]) -> Result<Self, TonCellError> {
-        let cell = BagOfCells::parse(boc)?.into_single_root()?;
+        let cell = BagOfCells::parse(boc)?.single_root()?;
         Self::from_cell(cell.deref())
     }
 
     fn from_boc_hex(boc_hex: &str) -> Result<Self, TonCellError> {
-        let cell = BagOfCells::parse_hex(boc_hex)?.into_single_root()?;
+        let cell = BagOfCells::parse_hex(boc_hex)?.single_root()?;
         Self::from_cell(cell.deref())
     }
 
     fn from_boc_b64(boc_b64: &str) -> Result<Self, TonCellError> {
-        let cell = BagOfCells::parse_base64(boc_b64)?.into_single_root()?;
+        let cell = BagOfCells::parse_base64(boc_b64)?.single_root()?;
         Self::from_cell(cell.deref())
     }
 

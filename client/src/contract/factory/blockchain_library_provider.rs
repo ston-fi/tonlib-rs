@@ -146,7 +146,7 @@ impl Inner {
         let libraries: Vec<ArcCell> = library_result
             .result
             .into_iter()
-            .map(|lib| BagOfCells::parse(&lib.data)?.into_single_root())
+            .map(|lib| BagOfCells::parse(&lib.data)?.single_root())
             .collect::<Result<_, _>>()?;
 
         Ok(libraries)

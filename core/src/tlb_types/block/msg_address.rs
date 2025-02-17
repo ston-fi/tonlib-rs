@@ -227,7 +227,7 @@ mod tests {
     fn test_read_write_msg_address() -> anyhow::Result<()> {
         // Anyhow read/write is covered under the hood
         let boc = hex::decode("b5ee9c7201010101002800004bbe031053100134ea6c68e2f2cee9619bdd2732493f3a1361eccd7c5267a9eb3c5dcebc533bb6")?;
-        let cell = BagOfCells::parse(&boc)?.into_single_root()?;
+        let cell = BagOfCells::parse(&boc)?.single_root()?;
         let mut parser = cell.parser();
         let parsed = assert_ok!(MsgAddress::read(&mut parser));
 
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_read_msg_address_int_i8_workchain() -> anyhow::Result<()> {
-        let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.into_single_root()?;
+        let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.single_root()?;
         for s in cell.data() {
             print!("{:b}", s);
         }
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_read_msg_address_int() -> anyhow::Result<()> {
-        let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.into_single_root()?;
+        let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.single_root()?;
         for s in cell.data() {
             print!("{:b}", s);
         }

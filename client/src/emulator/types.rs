@@ -43,7 +43,7 @@ impl TvmEmulatorResponse {
                     .map_err(|e| TvmEmulatorError::InternalError(e.to_string()))?;
                 let boc = BagOfCells::parse_base64(stack_string.as_str())?;
 
-                let stack = Self::extract_stack(&boc)?;
+                let stack = Self::extract_stack(boc)?;
 
                 Ok(TvmSuccess {
                     vm_log: Some(vm_log),
@@ -64,7 +64,7 @@ impl TvmEmulatorResponse {
         result
     }
 
-    fn extract_stack(boc: &BagOfCells) -> Result<Vec<TvmStackEntry>, TvmEmulatorError> {
+    fn extract_stack(boc: BagOfCells) -> Result<Vec<TvmStackEntry>, TvmEmulatorError> {
         let mut stack = vec![];
 
         let mut current_cell = boc.single_root()?;
@@ -115,7 +115,7 @@ impl TvmEmulatorResponse {
                 stack_entry
             );
             if element != elements_count - 1 {
-                current_cell = current_cell.reference(0)?;
+                current_cell = current_cell.reference(0)?.clone();
                 parser = current_cell.parser();
             }
             stack.push(stack_entry);

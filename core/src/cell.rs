@@ -33,7 +33,10 @@ mod parser;
 mod raw;
 mod raw_boc_from_boc;
 mod slice;
+#[cfg(test)]
+mod test_boc;
 mod util;
+
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 

@@ -213,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_common_msg_info_int() -> anyhow::Result<()> {
-        let msg_cell = BagOfCells::parse_hex("b5ee9c720101010100580000ab69fe00000000000000000000000000000000000000000000000000000000000000013fccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccd3050ec744000000617bc90dda80cf41ab8e40")?.into_single_root()?;
+        let msg_cell = BagOfCells::parse_hex("b5ee9c720101010100580000ab69fe00000000000000000000000000000000000000000000000000000000000000013fccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccd3050ec744000000617bc90dda80cf41ab8e40")?.single_root()?;
         let mut parser = msg_cell.parser();
         let parsed_msg = assert_ok!(Message::read(&mut parser));
         assert!(parsed_msg.init.is_none());
