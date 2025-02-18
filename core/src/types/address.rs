@@ -184,7 +184,7 @@ impl TonAddress {
         bytes: &[u8; 36],
         src: &str,
     ) -> Result<(TonAddress, bool, bool), TonAddressParseError> {
-        let (non_production, non_bounceable) = match bytes[0] {
+        let (testnet, non_bounceable) = match bytes[0] {
             0x11 => (false, false),
             0x51 => (false, true),
             0x91 => (true, false),
@@ -210,7 +210,7 @@ impl TonAddress {
             workchain,
             hash_part,
         };
-        Ok((addr, non_bounceable, non_production))
+        Ok((addr, non_bounceable, testnet))
     }
 
     pub fn from_tlb_data(
@@ -256,9 +256,9 @@ impl TonAddress {
         self.to_base64_url_flags(false, false)
     }
 
-    pub fn to_base64_url_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+    pub fn to_base64_url_flags(&self, non_bounceable: bool, testnet: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
-        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        self.to_base64_src(&mut buf, non_bounceable, testnet);
         URL_SAFE_NO_PAD.encode(buf)
     }
 
@@ -266,14 +266,14 @@ impl TonAddress {
         self.to_base64_std_flags(false, false)
     }
 
-    pub fn to_base64_std_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+    pub fn to_base64_std_flags(&self, non_bounceable: bool, testnet: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
-        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        self.to_base64_src(&mut buf, non_bounceable, testnet);
         STANDARD_NO_PAD.encode(buf)
     }
 
-    fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, non_production: bool) {
-        let tag: u8 = match (non_production, non_bounceable) {
+    fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, testnet: bool) {
+        let tag: u8 = match (testnet, non_bounceable) {
             (false, false) => 0x11,
             (false, true) => 0x51,
             (true, false) => 0x91,
