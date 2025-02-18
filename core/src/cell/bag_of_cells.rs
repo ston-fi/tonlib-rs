@@ -52,6 +52,9 @@ impl BagOfCells {
     }
 
     pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
+        if serial.is_empty() {
+            return Err(TonCellError::boc_deserialization_error("Empty BoC"));
+        }
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
         let mut cells: Vec<ArcCell> = Vec::with_capacity(num_cells);

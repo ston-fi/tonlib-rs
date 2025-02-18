@@ -166,7 +166,7 @@ mod test {
     use super::*;
     use crate::cell::Cell;
     use crate::tlb_types::traits::TLBObject;
-    use crate::wallet::versioned::DEFAULT_WALLET_ID_V5R1;
+    use crate::wallet::versioned::{DEFAULT_WALLET_ID_V5R1, DEFAULT_WALLET_ID_V5R1_TESTNET};
 
     #[test]
     fn test_wallet_data_v5() -> anyhow::Result<()> {
@@ -185,6 +185,15 @@ mod test {
         assert_eq!(src_boc_hex, serial_boc_hex);
         let restored = WalletDataV5::from_boc_hex(&serial_boc_hex)?;
         assert_eq!(wallet_data, restored);
+        Ok(())
+    }
+
+    #[test]
+    fn test_wallet_data_v5_testnet() -> anyhow::Result<()> {
+        let src_boc_hex = "b5ee9c7201010101002b000051800000013ffffffed2b31b23dbe5144a626b9d5d1d4208e36d97e4adb472d42c073bfff85b3107e4a0";
+        let wallet_data = WalletDataV5::from_boc_hex(src_boc_hex)?;
+        assert_eq!(wallet_data.seqno, 2);
+        assert_eq!(wallet_data.wallet_id, DEFAULT_WALLET_ID_V5R1_TESTNET);
         Ok(())
     }
 
