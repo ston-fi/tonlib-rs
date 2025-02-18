@@ -106,10 +106,11 @@ impl TonWallet {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::cell::{Cell, CellBuilder};
     use crate::tlb_types::traits::TLBObject;
     use crate::types::TonAddress;
-    use std::str::FromStr;
 
     const MNEMONIC_STR: &str = "fancy carpet hello mandate penalty trial consider property top vicious exit rebuild tragic profit urban major total month holiday sudden rib gather media vicious";
     const MNEMONIC_STR_V5: &str = "section garden tomato dinner season dice renew length useful spin trade intact use universe what post spike keen mandate behind concert egg doll rug";
@@ -148,7 +149,8 @@ mod tests {
     use crate::wallet::ton_wallet::{TonWallet, WalletVersion};
     use crate::wallet::versioned::v3::WalletExtMsgBodyV3;
     use crate::wallet::versioned::v4::WalletExtMsgBodyV4;
-    use crate::wallet::versioned::DEFAULT_WALLET_ID;
+    use crate::wallet::versioned::v5::WalletExtMsgBodyV5;
+    use crate::wallet::versioned::{DEFAULT_WALLET_ID, DEFAULT_WALLET_ID_V5R1};
 
     #[test]
     fn test_ton_wallet_debug() -> anyhow::Result<()> {
@@ -188,7 +190,7 @@ mod tests {
                     let mut builder = CellBuilder::new();
                     let data_size_bits = body.bit_len() - 512;
                     builder.store_bits(data_size_bits, &parser.load_bits(data_size_bits)?)?;
-                    for ref_cell in parser.references {
+                    for ref_cell in parser.cell.references() {
                         builder.store_reference(ref_cell)?;
                     }
                     assert_eq!(body, builder.build()?)
@@ -239,6 +241,35 @@ mod tests {
             valid_until: 13,
             msgs_modes: vec![3],
             msgs: vec![int_msg],
+        };
+        assert_eq!(body, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ton_wallet_create_external_msg_v5() -> anyhow::Result<()> {
+        let key_pair = make_keypair(MNEMONIC_STR_V5);
+        let wallet = TonWallet::new(WalletVersion::V5R1, key_pair)?;
+
+        let msgs_cnt = 10usize;
+        let mut int_msgs = vec![];
+        for i in 0..msgs_cnt {
+            let int_msg = CellBuilder::new()
+                .store_u32(32, i as u32)?
+                .build()?
+                .to_arc();
+            int_msgs.push(int_msg);
+        }
+        CellBuilder::new().build()?.to_arc();
+
+        let ext_body_cell = wallet.create_external_body(13, 7, &int_msgs)?;
+        let body = WalletExtMsgBodyV5::from_cell(&ext_body_cell)?;
+        let expected = WalletExtMsgBodyV5 {
+            wallet_id: DEFAULT_WALLET_ID_V5R1,
+            msg_seqno: 7,
+            valid_until: 13,
+            msgs_modes: vec![3; msgs_cnt],
+            msgs: int_msgs,
         };
         assert_eq!(body, expected);
         Ok(())

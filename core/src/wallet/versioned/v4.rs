@@ -1,5 +1,5 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::primitives::option::OptionRef;
+use crate::tlb_types::primitives::reference::Ref;
 use crate::tlb_types::traits::TLBObject;
 use crate::types::TonHash;
 use crate::wallet::versioned::utils::write_up_to_4_msgs;
@@ -10,7 +10,7 @@ pub struct WalletDataV4 {
     pub seqno: u32,
     pub wallet_id: i32,
     pub public_key: TonHash,
-    pub plugins: OptionRef<ArcCell>,
+    pub plugins: Option<Ref<ArcCell>>,
 }
 
 /// https://docs.ton.org/participate/wallets/contracts#wallet-v4
@@ -31,7 +31,7 @@ impl WalletDataV4 {
             seqno: 0,
             wallet_id,
             public_key,
-            plugins: OptionRef::NONE,
+            plugins: None,
         }
     }
 }
@@ -66,7 +66,7 @@ impl TLBObject for WalletExtMsgBodyV4 {
             return Err(TonCellError::InternalError(err_str));
         }
 
-        let msgs_cnt = parser.references.len();
+        let msgs_cnt = parser.cell.references().len();
         let mut msgs_modes = Vec::with_capacity(msgs_cnt);
         let mut msgs = Vec::with_capacity(msgs_cnt);
         for _ in 0..msgs_cnt {
@@ -106,7 +106,7 @@ mod test {
 
     #[test]
     fn test_wallet_data_v4() -> anyhow::Result<()> {
-        // UQCS65EGyiApUTLOYXDs4jOLoQNCE0o8oNnkmfIcm0iX5FRT
+        // https://tonviewer.com/UQCS65EGyiApUTLOYXDs4jOLoQNCE0o8oNnkmfIcm0iX5FRT
         let src_boc_hex = "b5ee9c7241010101002b0000510000001429a9a317cbf377c9b73604c70bf73488ddceba14f763baef2ac70f68d1d6032a120149f440a6c9f37d";
         let wallet_data = WalletDataV4::from_boc_hex(src_boc_hex)?;
         assert_eq!(wallet_data.seqno, 20);
@@ -115,9 +115,9 @@ mod test {
             wallet_data.public_key,
             TonHash::from_hex("cbf377c9b73604c70bf73488ddceba14f763baef2ac70f68d1d6032a120149f4")?
         );
-        assert_eq!(wallet_data.plugins, OptionRef::NONE);
+        assert_eq!(wallet_data.plugins, None);
 
-        let serial_boc_hex = wallet_data.to_boc_hex()?;
+        let serial_boc_hex = wallet_data.to_boc_hex(false)?;
         let restored = WalletDataV4::from_boc_hex(&serial_boc_hex)?;
         assert_eq!(wallet_data, restored);
         Ok(())

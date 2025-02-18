@@ -214,12 +214,8 @@ impl CellBuilder {
     ///
     /// The reference is passed as `ArcCell` so it might be references from other cells.
     pub fn store_reference(&mut self, cell: &ArcCell) -> Result<&mut Self, TonCellError> {
-        let ref_count = self.references.len() + 1;
-        if ref_count > 4 {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Cell must contain at most 4 references, got {}",
-                ref_count
-            )));
+        if self.references.len() == 4 {
+            return Err(TonCellError::cell_builder_error("Cell already has 4 refs"));
         }
         self.references.push(cell.clone());
         Ok(self)
@@ -232,11 +228,10 @@ impl CellBuilder {
         Ok(self)
     }
 
-    /// Adds a reference to a newly constructed `Cell`.
+    /// Adds a newly constructed `Cell` as a reference.
     ///
-    /// The cell is wrapped it the `Arc`.
     pub fn store_child(&mut self, cell: Cell) -> Result<&mut Self, TonCellError> {
-        self.store_reference(&Arc::new(cell))
+        self.store_reference(&cell.to_arc())
     }
 
     pub fn store_remaining_bits(

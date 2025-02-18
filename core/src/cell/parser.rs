@@ -18,31 +18,33 @@ use crate::types::TON_HASH_LEN;
 use crate::{TonAddress, TonHash};
 
 pub struct CellParser<'a> {
-    pub(crate) bit_len: usize,
-    pub(crate) bit_reader: BitReader<Cursor<&'a [u8]>, BigEndian>,
-    pub(crate) references: &'a [ArcCell],
+    pub cell: &'a Cell,
+    data_bit_reader: BitReader<Cursor<&'a [u8]>, BigEndian>,
     next_ref: usize,
 }
 
 impl<'a> CellParser<'a> {
-    pub fn new(bit_len: usize, data: &'a [u8], references: &'a [ArcCell]) -> Self {
-        let cursor = Cursor::new(data);
-        let bit_reader = BitReader::endian(cursor, BigEndian);
+    pub fn new(cell: &'a Cell) -> Self {
+        let cursor = Cursor::new(cell.data.as_slice());
+        let data_bit_reader = BitReader::endian(cursor, BigEndian);
         CellParser {
-            bit_len,
-            bit_reader,
-            references,
+            cell,
+            data_bit_reader,
             next_ref: 0,
         }
     }
 
     pub fn remaining_bits(&mut self) -> usize {
-        let pos = self.bit_reader.position_in_bits().unwrap_or_default() as usize;
-        if self.bit_len > pos {
-            self.bit_len - pos
+        let pos = self.data_bit_reader.position_in_bits().unwrap_or_default() as usize;
+        if self.cell.bit_len > pos {
+            self.cell.bit_len - pos
         } else {
             0
         }
+    }
+
+    pub fn remaining_refs(&self) -> usize {
+        self.cell.references.len() - self.next_ref
     }
 
     /// Return number of full bytes remaining
@@ -52,20 +54,23 @@ impl<'a> CellParser<'a> {
 
     pub fn load_bit(&mut self) -> Result<bool, TonCellError> {
         self.ensure_enough_bits(1)?;
-        self.bit_reader.read_bit().map_cell_parser_error()
+        self.data_bit_reader.read_bit().map_cell_parser_error()
     }
 
     pub fn seek(&mut self, num_bits: i64) -> Result<(), TonCellError> {
-        let cur_pos = self.bit_reader.position_in_bits().map_cell_parser_error()?;
+        let cur_pos = self
+            .data_bit_reader
+            .position_in_bits()
+            .map_cell_parser_error()?;
         let new_pos = cur_pos as i64 + num_bits;
-        if new_pos < 0 || new_pos > self.bit_len as i64 {
+        if new_pos < 0 || new_pos > self.cell.bit_len as i64 {
             let err_msg = format!(
                 "Attempt to advance beyond data range (new_pos: {new_pos}, bit_len: {})",
-                self.bit_len
+                self.cell.bit_len
             );
             return Err(TonCellError::CellParserError(err_msg));
         }
-        self.bit_reader
+        self.data_bit_reader
             .seek_bits(SeekFrom::Current(num_bits))
             .map_cell_parser_error()?;
         Ok(())
@@ -144,7 +149,9 @@ impl<'a> CellParser<'a> {
 
     pub fn load_slice(&mut self, slice: &mut [u8]) -> Result<(), TonCellError> {
         self.ensure_enough_bits(slice.len() * 8)?;
-        self.bit_reader.read_bytes(slice).map_cell_parser_error()
+        self.data_bit_reader
+            .read_bytes(slice)
+            .map_cell_parser_error()
     }
 
     pub fn load_bytes(&mut self, num_bytes: usize) -> Result<Vec<u8>, TonCellError> {
@@ -167,7 +174,7 @@ impl<'a> CellParser<'a> {
         slice: &mut [u8],
     ) -> Result<(), TonCellError> {
         self.ensure_enough_bits(num_bits)?;
-        self.bit_reader.read_bits(num_bits, slice)?;
+        self.data_bit_reader.read_bits(num_bits, slice)?;
         Ok(())
     }
 
@@ -195,9 +202,9 @@ impl<'a> CellParser<'a> {
     pub fn load_remaining(&mut self) -> Result<Cell, TonCellError> {
         let mut builder = CellBuilder::new();
         builder.store_remaining_bits(self)?;
-        builder.store_references(&self.references[self.next_ref..])?;
+        builder.store_references(&self.cell.references[self.next_ref..])?;
         let cell = builder.build();
-        self.next_ref = self.references.len();
+        self.next_ref = self.cell.references.len();
         cell
     }
 
@@ -257,7 +264,7 @@ impl<'a> CellParser<'a> {
 
     pub fn ensure_empty(&mut self) -> Result<(), TonCellError> {
         let remaining_bits = self.remaining_bits();
-        let remaining_refs = self.references.len() - self.next_ref;
+        let remaining_refs = self.cell.references.len() - self.next_ref;
         // if remaining_bits == 0 && remaining_refs == 0 { // todo: We will restore reference checking in in 0.18
         if remaining_bits == 0 {
             Ok(())
@@ -271,7 +278,7 @@ impl<'a> CellParser<'a> {
 
     pub fn skip_bits(&mut self, num_bits: usize) -> Result<(), TonCellError> {
         self.ensure_enough_bits(num_bits)?;
-        self.bit_reader
+        self.data_bit_reader
             .skip(num_bits as u32)
             .map_cell_parser_error()
     }
@@ -279,7 +286,7 @@ impl<'a> CellParser<'a> {
     fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
 
-        self.bit_reader
+        self.data_bit_reader
             .read::<N>(bit_len as u32)
             .map_cell_parser_error()
     }
@@ -305,8 +312,8 @@ impl<'a> CellParser<'a> {
     }
 
     pub fn next_reference(&mut self) -> Result<ArcCell, TonCellError> {
-        if self.next_ref < self.references.len() {
-            let reference = self.references[self.next_ref].clone();
+        if self.next_ref < self.cell.references.len() {
+            let reference = self.cell.references[self.next_ref].clone();
             self.next_ref += 1;
 
             Ok(reference)
@@ -325,7 +332,7 @@ impl<'a> CellParser<'a> {
         } else {
             let remaining_bits = self.remaining_bits();
             let data = self.load_bits(remaining_bits)?;
-            let remaining_ref_count = self.references.len() - self.next_ref;
+            let remaining_ref_count = self.cell.references.len() - self.next_ref;
             let mut references = vec![];
             for _ in 0..remaining_ref_count {
                 references.push(self.next_reference()?)

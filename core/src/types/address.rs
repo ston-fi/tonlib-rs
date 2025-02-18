@@ -10,7 +10,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
 use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
-use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress};
+use crate::tlb_types::block::msg_address::{
+    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressInt,
+};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
 
@@ -40,8 +42,8 @@ impl TonAddress {
         code: ArcCell,
         data: ArcCell,
     ) -> Result<TonAddress, TonCellError> {
-        let hash = StateInit::new(code, data).cell_hash()?;
-        Ok(TonAddress::new(workchain, hash))
+        let state_init = StateInit::new(code, data);
+        Ok(TonAddress::new(workchain, state_init.cell_hash()?))
     }
 
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
@@ -371,6 +373,17 @@ impl TryFrom<MsgAddress> for TonAddress {
     }
 }
 
+impl TryFrom<MsgAddressInt> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddressInt) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddressInt::Std(addr) => TonAddress::try_from(addr),
+            MsgAddressInt::Var(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
 impl TryFrom<MsgAddrIntStd> for TonAddress {
     type Error = TonAddressParseError;
 
@@ -437,8 +450,9 @@ mod tests {
     use serde_json::Value;
 
     use super::TonAddressParseError;
-    use crate::cell::{BagOfCells, CellBuilder};
+    use crate::cell::{BagOfCells, Cell, CellBuilder};
     use crate::tlb_types::block::msg_address::{MsgAddrIntStd, MsgAddress};
+    use crate::tlb_types::traits::TLBObject;
     use crate::{TonAddress, TonHash};
 
     #[test]
@@ -520,6 +534,17 @@ mod tests {
         let expected_addr =
             TonAddress::from_str("EQBWxdw3leOoaHqcK3ATf0T7ae5M8XS6jiP_Din4mh7o7gj2")?;
         assert_eq!(derived_addr, expected_addr);
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive_stonfi_pool() -> anyhow::Result<()> {
+        let code_cell = Cell::from_boc_hex("b5ee9c7201010101002300084202a9338ecd624ca15d37e4a8d9bf677ddc9b84f0e98f05f2fb84c7afe332a281b4")?;
+        let data_cell = Cell::from_boc_hex("b5ee9c720101040100b900010d000000000000050102c9801459f7c0a12bb4ac4b78a788c425ee4d52f8b6041dda17b77b09fc5a03e894d6900287cd9fbe2ea663415da0aa6bbdf0cb136abe9c4f45214dd259354b80da8c265a006aebb27f5d0f1daf43e200f52408f3eb9ff5610f5b43284224644e7c6a590d14400203084202c00836440d084e44fb94316132ac5a21417ef4f429ee09b5560b5678b334c3e8084202c95a2ed22ab516f77f9d4898dc4578e72f18a2448e8f6832334b0b4bf501bc79")?;
+        let address = TonAddress::derive(0, code_cell.to_arc(), data_cell.to_arc())?;
+        let exp_addr = TonAddress::from_str("EQAdltEfzXG_xteLFaKFGd-HPVKrEJqv_FdC7z2roOddRNdM")?;
+        assert_eq!(address, exp_addr);
+        // assert!(false);
         Ok(())
     }
 

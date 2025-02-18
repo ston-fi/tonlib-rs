@@ -1,5 +1,5 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::primitives::option::OptionRef;
+use crate::tlb_types::primitives::reference::Ref;
 use crate::tlb_types::traits::TLBObject;
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L281
@@ -7,10 +7,10 @@ use crate::tlb_types::traits::TLBObject;
 pub struct StateInit {
     pub split_depth: Option<u8>,
     pub tick_tock: Option<TickTock>,
-    pub code: OptionRef<ArcCell>,
-    pub data: OptionRef<ArcCell>,
+    pub code: Option<Ref<ArcCell>>,
+    pub data: Option<Ref<ArcCell>>,
     // there is likely library:(HashmapE 256 SimpleLib)
-    pub library: OptionRef<ArcCell>,
+    pub library: Option<Ref<ArcCell>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,9 +24,9 @@ impl StateInit {
         StateInit {
             split_depth: None,
             tick_tock: None,
-            code: OptionRef::new(code),
-            data: OptionRef::new(data),
-            library: OptionRef::NONE,
+            code: Some(Ref::new(code)),
+            data: Some(Ref::new(data)),
+            library: None,
         }
     }
 }
@@ -83,9 +83,12 @@ mod tests {
         assert_eq!(state_init.tick_tock, None);
         assert!(state_init.code.is_some());
         assert!(state_init.data.is_some());
-        assert_eq!(state_init.library, OptionRef::NONE);
+        assert_eq!(state_init.library, None);
         let serial_cell = CellBuilder::new().store_tlb(&state_init)?.build()?;
         assert_eq!(source_cell.deref(), &serial_cell);
+
+        let parsed_back = StateInit::from_cell(&serial_cell)?;
+        assert_eq!(state_init, parsed_back);
         Ok(())
     }
 }

@@ -1,10 +1,10 @@
+use std::any::type_name;
 use std::ops::Deref;
-use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 
-use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
+use crate::cell::{BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
 use crate::TonHash;
 
 pub trait TLBObject: Sized {
@@ -12,8 +12,8 @@ pub trait TLBObject: Sized {
 
     fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError>;
 
-    fn prefix() -> Option<&'static TLBPrefix> {
-        None
+    fn prefix() -> &'static TLBPrefix {
+        &TLBPrefix::NULL
     }
 
     /// Utilities
@@ -51,74 +51,58 @@ pub trait TLBObject: Sized {
         builder.build()
     }
 
-    fn to_boc(&self) -> Result<Vec<u8>, TonCellError> {
-        BagOfCells::from_root(self.to_cell()?).serialize(false)
+    fn to_boc(&self, add_crc32: bool) -> Result<Vec<u8>, TonCellError> {
+        BagOfCells::from_root(self.to_cell()?).serialize(add_crc32)
     }
 
-    fn to_boc_hex(&self) -> Result<String, TonCellError> {
-        Ok(hex::encode(self.to_boc()?))
+    fn to_boc_hex(&self, add_crc32: bool) -> Result<String, TonCellError> {
+        Ok(hex::encode(self.to_boc(add_crc32)?))
     }
 
-    fn to_boc_b64(&self) -> Result<String, TonCellError> {
-        Ok(BASE64_STANDARD.encode(self.to_boc()?))
+    fn to_boc_b64(&self, add_crc32: bool) -> Result<String, TonCellError> {
+        Ok(BASE64_STANDARD.encode(self.to_boc(add_crc32)?))
     }
 
     /// Helpers - for internal use
     ///
     fn verify_prefix(parser: &mut CellParser) -> Result<(), TonCellError> {
-        if let Some(prefix) = Self::prefix() {
-            let value = parser.load_u64(prefix.bit_len as usize)?;
-            if value != prefix.value {
-                let err_str = format!(
-                    "[{}] Invalid prefix: {value} (expected: {})",
-                    std::any::type_name::<Self>(),
-                    prefix.value
-                );
-                return Err(TonCellError::InvalidCellData(err_str));
-            }
+        let prefix = Self::prefix();
+        if prefix == &TLBPrefix::NULL {
+            return Ok(());
+        }
+        let value = parser.load_u64(prefix.bit_len as usize)?;
+        if value != prefix.value {
+            let err_str = format!(
+                "[{}] Invalid prefix: {value:X} (expected: {:X})",
+                type_name::<Self>(),
+                prefix.value
+            );
+            return Err(TonCellError::InvalidCellData(err_str));
         }
         Ok(())
     }
 
     fn write_prefix(builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        if let Some(prefix) = Self::prefix() {
+        let prefix = Self::prefix();
+        if prefix != &TLBPrefix::NULL {
             builder.store_u64(prefix.bit_len as usize, prefix.value)?;
         }
         Ok(())
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TLBPrefix {
     pub bit_len: u8,
     pub value: u64,
 }
 
 impl TLBPrefix {
+    pub const NULL: TLBPrefix = TLBPrefix {
+        bit_len: 0,
+        value: 0,
+    };
     pub const fn new(bit_len: u8, value: u64) -> Self {
         Self { bit_len, value }
-    }
-}
-
-/// Dependencies implementation
-///
-impl TLBObject for Cell {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        parser.load_remaining()
-    }
-
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        builder.store_cell(self)?;
-        Ok(())
-    }
-}
-
-impl TLBObject for ArcCell {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        parser.load_remaining().map(Arc::new)
-    }
-
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        builder.store_cell(self)?;
-        Ok(())
     }
 }

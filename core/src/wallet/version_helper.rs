@@ -5,7 +5,7 @@ use crate::wallet::versioned::highload_v2::WalletDataHighloadV2R2;
 use crate::wallet::versioned::v1_v2::{WalletDataV1V2, WalletExtMsgBodyV2};
 use crate::wallet::versioned::v3::{WalletDataV3, WalletExtMsgBodyV3};
 use crate::wallet::versioned::v4::{WalletDataV4, WalletExtMsgBodyV4};
-use crate::wallet::versioned::v5::WalletDataV5;
+use crate::wallet::versioned::v5::{WalletDataV5, WalletExtMsgBodyV5};
 use crate::wallet::wallet_code::WALLET_CODE_BY_VERSION;
 use crate::wallet::wallet_version::WalletVersion;
 use crate::TonHash;
@@ -55,8 +55,8 @@ impl VersionHelper {
 
     pub fn build_ext_msg<T: AsRef<[ArcCell]>>(
         version: WalletVersion,
-        expire_at: u32,
-        seqno: u32,
+        valid_until: u32,
+        msg_seqno: u32,
         wallet_id: i32,
         msgs_refs: T,
     ) -> Result<Cell, TonCellError> {
@@ -64,33 +64,37 @@ impl VersionHelper {
 
         match version {
             WalletVersion::V2R1 | WalletVersion::V2R2 => WalletExtMsgBodyV2 {
-                msg_seqno: seqno,
-                valid_until: expire_at,
+                msg_seqno,
+                valid_until,
                 msgs_modes: vec![3u8; msgs.len()],
                 msgs,
             }
             .to_cell(),
             WalletVersion::V3R1 | WalletVersion::V3R2 => WalletExtMsgBodyV3 {
                 subwallet_id: wallet_id,
-                msg_seqno: seqno,
-                valid_until: expire_at,
+                msg_seqno,
+                valid_until,
                 msgs_modes: vec![3u8; msgs.len()],
                 msgs,
             }
             .to_cell(),
             WalletVersion::V4R1 | WalletVersion::V4R2 => WalletExtMsgBodyV4 {
                 subwallet_id: wallet_id,
-                valid_until: expire_at,
-                msg_seqno: seqno,
+                valid_until,
+                msg_seqno,
                 opcode: 0,
                 msgs_modes: vec![3u8; msgs.len()],
                 msgs,
             }
             .to_cell(),
-            WalletVersion::V5R1 => {
-                let err_str = format!("build_ext_msg for {version:?} is unsupported");
-                Err(TonCellError::InternalError(err_str))
+            WalletVersion::V5R1 => WalletExtMsgBodyV5 {
+                wallet_id,
+                valid_until,
+                msg_seqno,
+                msgs_modes: vec![3u8; msgs.len()],
+                msgs,
             }
+            .to_cell(),
             _ => {
                 let err_str = format!("build_ext_msg for {version:?} is unsupported");
                 Err(TonCellError::InternalError(err_str))

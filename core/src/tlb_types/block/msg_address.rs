@@ -20,6 +20,12 @@ pub struct MsgAddrExt {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum MsgAddressInt {
+    Std(MsgAddrIntStd),
+    Var(MsgAddrIntVar),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct MsgAddrIntStd {
     pub anycast: Option<Anycast>,
     pub workchain: i32,
@@ -70,6 +76,28 @@ impl TLBObject for MsgAddress {
     }
 }
 
+impl TLBObject for MsgAddressInt {
+    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        let tag = parser.load_u8(2)?;
+        parser.seek(-2)?;
+        match tag {
+            0b10 => Ok(MsgAddressInt::Std(TLBObject::read(parser)?)),
+            0b11 => Ok(MsgAddressInt::Var(TLBObject::read(parser)?)),
+            _ => Err(TonCellError::CellParserError(format!(
+                "MsgAddress: unexpected tag {tag}"
+            ))),
+        }
+    }
+
+    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        match self {
+            MsgAddressInt::Std(addr) => addr.write_to(builder)?,
+            MsgAddressInt::Var(addr) => addr.write_to(builder)?,
+        };
+        Ok(())
+    }
+}
+
 impl TLBObject for MsgAddrNone {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Self::verify_prefix(parser)?;
@@ -81,9 +109,9 @@ impl TLBObject for MsgAddrNone {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b00);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -111,9 +139,9 @@ impl TLBObject for MsgAddrExt {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b01);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -135,9 +163,9 @@ impl TLBObject for MsgAddrIntStd {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -165,9 +193,9 @@ impl TLBObject for MsgAddrIntVar {
         Ok(())
     }
 
-    fn prefix() -> Option<&'static TLBPrefix> {
+    fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
-        Some(&PREFIX)
+        &PREFIX
     }
 }
 
@@ -248,6 +276,35 @@ mod tests {
         println!();
         let mut parser = serial_cell.parser();
         let parsed_back = assert_ok!(MsgAddress::read(&mut parser));
+        assert_eq!(parsed, parsed_back);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_msg_address_int() -> anyhow::Result<()> {
+        let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.into_single_root()?;
+        for s in cell.data() {
+            print!("{:b}", s);
+        }
+        println!();
+        let mut parser = cell.parser();
+        let parsed = assert_ok!(MsgAddressInt::read(&mut parser));
+
+        let expected = MsgAddrIntStd {
+            anycast: None,
+            workchain: -1,
+            address: vec![0; 32],
+        };
+        assert_eq!(parsed, MsgAddressInt::Std(expected));
+
+        // don't support same layout, so check deserialized data again
+        let serial_cell = parsed.to_cell()?;
+        for s in serial_cell.data() {
+            print!("{:b}", s);
+        }
+        println!();
+        let mut parser = serial_cell.parser();
+        let parsed_back = assert_ok!(MsgAddressInt::read(&mut parser));
         assert_eq!(parsed, parsed_back);
         Ok(())
     }

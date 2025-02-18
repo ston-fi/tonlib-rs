@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::{cmp, fmt};
 
-use crate::wallet::error::MnemonicError;
 use hmac::{Hmac, Mac};
 use lazy_static::lazy_static;
 use nacl::sign::generate_keypair;
 use pbkdf2::password_hash::Output;
 use pbkdf2::{pbkdf2_hmac, Params};
 use sha2::Sha512;
+
+use crate::wallet::error::MnemonicError;
 
 const WORDLIST_EN: &str = include_str!("../../resources/mnemonic/wordlist.EN");
 const PBKDF_ITERATIONS: u32 = 100000;

@@ -54,7 +54,7 @@ impl TLBObject for WalletExtMsgBodyV3 {
         let subwallet_id = parser.load_i32(32)?;
         let valid_until = parser.load_u32(32)?;
         let msg_seqno = parser.load_u32(32)?;
-        let msgs_cnt = parser.references.len();
+        let msgs_cnt = parser.cell.references().len();
         let mut msgs_modes = Vec::with_capacity(msgs_cnt);
         let mut msgs = Vec::with_capacity(msgs_cnt);
         for _ in 0..msgs_cnt {
@@ -88,7 +88,7 @@ mod test {
 
     #[test]
     fn test_wallet_data_v3() -> anyhow::Result<()> {
-        // UQAMY2B4xfQO6m3YpmzfX5Za-Ning4kWKFjPdubbPPV3Ffel
+        // https://tonviewer.com/UQAMY2B4xfQO6m3YpmzfX5Za-Ning4kWKFjPdubbPPV3Ffel
         let src_boc_hex = "b5ee9c7241010101002a0000500000000129a9a317cbf377c9b73604c70bf73488ddceba14f763baef2ac70f68d1d6032a120149f4b6de3f10";
         let wallet_data = WalletDataV3::from_boc_hex(src_boc_hex)?;
         assert_eq!(wallet_data.seqno, 1);
@@ -97,7 +97,7 @@ mod test {
             wallet_data.public_key,
             TonHash::from_hex("cbf377c9b73604c70bf73488ddceba14f763baef2ac70f68d1d6032a120149f4")?
         );
-        let serial_boc_hex = wallet_data.to_boc_hex()?;
+        let serial_boc_hex = wallet_data.to_boc_hex(false)?;
         let restored = WalletDataV3::from_boc_hex(&serial_boc_hex)?;
         assert_eq!(wallet_data, restored);
         Ok(())
