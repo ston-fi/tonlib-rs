@@ -172,40 +172,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ton_wallet_sign_msg() -> anyhow::Result<()> {
-        let key_pair_v3 = make_keypair(MNEMONIC_STR);
-        let key_pair_v5 = make_keypair(MNEMONIC_STR_V5);
-        let wallet_v3 = TonWallet::new(WalletVersion::V3R1, key_pair_v3)?;
-        let _wallet_v5 = TonWallet::new(WalletVersion::V5R1, key_pair_v5)?;
-        let msg = CellBuilder::new().store_u32(32, 100)?.build()?.to_arc();
-
-        // TODO add wallet_v5
-        for wallet in [wallet_v3] {
-            let body = wallet.create_external_body(1, 3, &[msg.clone()])?;
-            let signed_msg = wallet.sign_external_body(&body)?;
-            let mut parser = signed_msg.parser();
-            match wallet.version {
-                WalletVersion::V5R1 => {
-                    // sign in last 512 bits
-                    let mut builder = CellBuilder::new();
-                    let data_size_bits = body.bit_len() - 512;
-                    builder.store_bits(data_size_bits, &parser.load_bits(data_size_bits)?)?;
-                    for ref_cell in parser.cell.references() {
-                        builder.store_reference(ref_cell)?;
-                    }
-                    assert_eq!(body, builder.build()?)
-                }
-                _ => {
-                    // sign in first 512 bits
-                    parser.load_bits(512)?;
-                    assert_eq!(body, Cell::read(&mut parser)?);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
     fn test_ton_wallet_create_external_msg_v3() -> anyhow::Result<()> {
         let key_pair = make_keypair(MNEMONIC_STR);
         let wallet = TonWallet::new(WalletVersion::V3R1, key_pair)?;
@@ -272,6 +238,43 @@ mod tests {
             msgs: int_msgs,
         };
         assert_eq!(body, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ton_wallet_create_external_msg_signed() -> anyhow::Result<()> {
+        let key_pair_v3 = make_keypair(MNEMONIC_STR);
+        let wallet_v3 = TonWallet::new(WalletVersion::V3R1, key_pair_v3)?;
+
+        let key_pair_v5 = make_keypair(MNEMONIC_STR_V5);
+        let wallet_v5 = TonWallet::new(WalletVersion::V5R1, key_pair_v5)?;
+
+        let msg = CellBuilder::new().store_u32(32, 100)?.build()?.to_arc();
+
+        for wallet in [wallet_v3, wallet_v5] {
+            let body = wallet.create_external_body(1, 3, &[msg.clone()])?;
+            let signed_msg = wallet.sign_external_body(&body)?;
+
+            let mut parser = signed_msg.parser();
+            match wallet.version {
+                WalletVersion::V5R1 => {
+                    // sign in last 512 bits
+                    let data_size_bits = signed_msg.bit_len() - 512;
+                    let mut builder = CellBuilder::new();
+                    builder.store_bits(data_size_bits, &parser.load_bits(data_size_bits)?)?;
+                    for ref_cell in parser.cell.references() {
+                        builder.store_reference(ref_cell)?;
+                    }
+
+                    assert_eq!(body, builder.build()?)
+                }
+                _ => {
+                    // sign in first 512 bits
+                    parser.load_bits(512)?;
+                    assert_eq!(body, Cell::read(&mut parser)?);
+                }
+            }
+        }
         Ok(())
     }
 }

@@ -151,10 +151,10 @@ mod tests {
 
     #[test]
     fn test_jetton_transfer_parser() -> Result<(), TonMessageError> {
-        let boc = BagOfCells::parse_hex(JETTON_TRANSFER_MSG).unwrap();
-        let cell = boc.single_root().unwrap();
+        let boc = BagOfCells::parse_hex(JETTON_TRANSFER_MSG)?;
+        let cell = boc.single_root()?;
 
-        let result_jetton_transfer_msg = JettonTransferMessage::parse(cell)?;
+        let result_jetton_transfer_msg = JettonTransferMessage::parse(&cell)?;
 
         let transfer_message_cell = Arc::new(Cell::new(
             hex::decode(TRANSFER_PAYLOAD).unwrap(),
@@ -183,40 +183,40 @@ mod tests {
     }
 
     #[test]
-    fn test_jetton_transfer_builder() -> Result<(), TonMessageError> {
+    fn test_jetton_transfer_builder() -> anyhow::Result<()> {
         let jetton_transfer_msg = JettonTransferMessage {
             query_id: 8819263745311958,
             amount: BigUint::from(1000000000u64),
-            destination: TonAddress::from_str("EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt")
-                .unwrap(),
+            destination: TonAddress::from_str("EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt")?,
             response_destination: TonAddress::from_str(
                 "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c",
-            )
-            .unwrap(),
+            )?,
             custom_payload: None,
             forward_ton_amount: BigUint::from(215000000u64),
-            forward_payload: Arc::new(
-                Cell::new(hex::decode(TRANSFER_PAYLOAD).unwrap(), 862, vec![], false).unwrap(),
-            ),
+            forward_payload: Arc::new(Cell::new(
+                hex::decode(TRANSFER_PAYLOAD).unwrap(),
+                862,
+                vec![],
+                false,
+            )?),
             forward_payload_layout: EitherCellLayout::Native,
         };
 
         let result_cell = jetton_transfer_msg.build()?;
 
-        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false).unwrap();
-        let expected_boc_serialized = hex::decode(JETTON_TRANSFER_MSG).unwrap();
+        let result_boc_serialized = BagOfCells::from_root(result_cell).serialize(false)?;
+        let expected_boc_serialized = hex::decode(JETTON_TRANSFER_MSG)?;
 
         assert_eq!(expected_boc_serialized, result_boc_serialized);
         Ok(())
     }
 
     #[test]
-    fn test_jetton_transfer_builder_bad_forward_amount() -> Result<(), TonMessageError> {
-        let forward_payload =
-            Arc::new(CellBuilder::new().store_byte(123).unwrap().build().unwrap());
+    fn test_jetton_transfer_builder_bad_forward_amount() -> anyhow::Result<()> {
+        let forward_payload = Arc::new(CellBuilder::new().store_byte(123)?.build()?);
 
         let mut jetton_transfer_msg = JettonTransferMessage::new(
-            &TonAddress::from_str("EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt").unwrap(),
+            &TonAddress::from_str("EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt")?,
             &BigUint::from(300u32),
         );
 

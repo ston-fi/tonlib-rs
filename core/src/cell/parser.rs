@@ -703,14 +703,14 @@ mod tests {
     #[test]
     fn test_load_address_anycast() -> anyhow::Result<()> {
         let addr_boc = hex::decode("b5ee9c7201010101002800004bbe031053100134ea6c68e2f2cee9619bdd2732493f3a1361eccd7c5267a9eb3c5dcebc533bb6")?;
-        let addr_cell = BagOfCells::parse(&addr_boc)?.into_single_root()?;
+        let addr_cell = BagOfCells::parse(&addr_boc)?.single_root()?;
         let mut parser = addr_cell.parser();
         let parsed = assert_ok!(parser.load_address());
         let expected: TonAddress = "EQADEFMSOLyzulhm90nMkk_OhNh7M18Umep6zxdzrxTO7Zz7".parse()?;
         assert_eq!(parsed, expected);
 
         let addr_boc = hex::decode("b5ee9c7201010101002800004bbe779dcc80039c768512c82704ef59297e7991b21b469367a4aac9d9ae9fe74a834b2448490e")?;
-        let addr_cell = BagOfCells::parse(&addr_boc)?.into_single_root()?;
+        let addr_cell = BagOfCells::parse(&addr_boc)?.single_root()?;
         let mut parser = addr_cell.parser();
         let parsed = assert_ok!(parser.load_address());
         let expected: TonAddress = "EQB3ncyAsgnBO9ZKX55kbIbRpNnpKrJ2a6f50qDSyRISQ19D".parse()?;

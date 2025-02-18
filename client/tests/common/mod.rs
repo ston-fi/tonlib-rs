@@ -49,7 +49,7 @@ pub async fn new_testnet_client() -> TonClient {
 }
 
 #[allow(dead_code)]
-pub async fn new_archive_testnet_client() -> TonClient {
+pub async fn new_testnet_client_archive() -> TonClient {
     let params = TonConnectionParams {
         config: TESTNET_CONFIG.to_string(),
         ..Default::default()
@@ -85,7 +85,7 @@ pub async fn new_mainnet_client() -> TonClient {
 }
 
 #[allow(dead_code)]
-pub async fn new_archive_mainnet_client() -> TonClient {
+pub async fn new_mainnet_client_archive() -> TonClient {
     let params = TonConnectionParams {
         config: MAINNET_CONFIG.to_string(),
         ..Default::default()

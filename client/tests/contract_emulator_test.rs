@@ -114,7 +114,7 @@ async fn test_emulator_get_wallet_address() {
 #[tokio::test]
 async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await;
+    let client = common::new_mainnet_client_archive().await;
     let factory = TonContractFactory::builder(&client).build().await?;
 
     let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
@@ -151,7 +151,7 @@ async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
     ];
     for call_parameters in call_parameters_vec {
         let method_id = call_parameters.0;
-        let result: tonlib_client::types::TvmSuccess = assert_ok!(
+        let result: TvmSuccess = assert_ok!(
             state
                 .emulate_get_method(method_id, call_parameters.1.as_slice())
                 .await
@@ -159,8 +159,7 @@ async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
 
         let expected_result = state
             .tonlib_run_get_method(method_id, call_parameters.1.as_slice())
-            .await
-            .unwrap();
+            .await?;
 
         log::info!(
             "Called router with method: {:?}, stack: {:?}",
@@ -186,7 +185,7 @@ async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
                 (TvmStackEntry::Cell(e), TvmStackEntry::Cell(a)) => assert_eq!(e, a),
 
                 (TvmStackEntry::Slice(e), TvmStackEntry::Slice(a)) => {
-                    assert_eq!(e.into_cell().unwrap(), a.into_cell().unwrap())
+                    assert_eq!(e.into_cell()?, a.into_cell()?)
                 }
 
                 (TvmStackEntry::Int257(e), TvmStackEntry::Int64(a)) => assert_eq!(e, a.into()),
@@ -203,7 +202,7 @@ async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
 #[tokio::test]
 async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await;
+    let client = common::new_mainnet_client_archive().await;
     let factory = TonContractFactory::builder(&client).build().await?;
 
     let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
@@ -235,8 +234,8 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     let code = state.get_account_state().code.clone();
     let data = state.get_account_state().data.clone();
 
-    let code_cell = BagOfCells::parse(&code)?.into_single_root()?;
-    let data_cell = BagOfCells::parse(&data)?.into_single_root()?;
+    let code_cell = BagOfCells::parse(&code)?.single_root()?;
+    let data_cell = BagOfCells::parse(&data)?.single_root()?;
 
     let c7 = TvmEmulatorC7::new(
         router_address.clone(),
@@ -327,57 +326,6 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
         MAX_ITER
     );
     log::info!("creation_time: {:?}, c7_time: {:?}, lib_time: {:?}, running_time: {:?}, overall+tokio: {:?}", sums.0.0, sums.0.1,sums.0.2,sums.0.3,sums.1);
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_lib_cache_works() -> anyhow::Result<()> {
-    common::init_logging();
-    let client = common::new_mainnet_client().await;
-    let factory = TonContractFactory::builder(&client)
-        .with_default_cache()
-        .build()
-        .await?;
-
-    let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
-
-    let contract = factory.get_contract(&router_address);
-    let state = contract.get_state().await?;
-
-    let code = state.get_account_state().code.clone();
-    let data = state.get_account_state().data.clone();
-
-    let code_cell = BagOfCells::parse(&code)?.into_single_root()?;
-    let data_cell = BagOfCells::parse(&data)?.into_single_root()?;
-
-    const MAX_ITER: usize = 1000;
-
-    let mut all_libs = vec![];
-    for i in 0..MAX_ITER {
-        let t = Instant::now();
-        let libs = factory
-            .library_provider()
-            .get_libs(&[code_cell.clone(), data_cell.clone()], None)
-            .await?;
-
-        if t.elapsed() > Duration::from_millis(10) {
-            log::info!("iteraion: {}DT {:?}", i, t.elapsed());
-        }
-
-        tokio::time::sleep(Duration::from_millis(10)).await;
-
-        all_libs.push(libs)
-    }
-
-    let bc_lib = &all_libs[0].dict_boc;
-    let cache_lib = &all_libs[1].dict_boc;
-
-    let bc_cell = BagOfCells::parse(bc_lib)?.into_single_root()?;
-
-    let cache_cell = BagOfCells::parse(cache_lib)?.into_single_root()?;
-
-    assert_eq!(bc_cell, cache_cell);
 
     Ok(())
 }

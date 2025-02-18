@@ -230,6 +230,7 @@ impl CellBuilder {
 
     /// Adds a newly constructed `Cell` as a reference.
     ///
+    /// The cell is wrapped it the `Arc`.
     pub fn store_child(&mut self, cell: Cell) -> Result<&mut Self, TonCellError> {
         self.store_reference(&cell.to_arc())
     }

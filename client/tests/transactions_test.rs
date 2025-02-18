@@ -62,7 +62,7 @@ async fn get_txs_for_rare_works() {
     common::init_logging();
     let addr: &TonAddress = &assert_ok!("EQC9kYAEZS0ePT8KCnwk6Fo69HO0t_FEqIRmIY7rW6fh3lK7".parse());
 
-    let client = common::new_archive_mainnet_client().await;
+    let client = common::new_mainnet_client_archive().await;
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
     let trans = LatestContractTransactionsCache::new(&factory, addr, 100, true, None);
 

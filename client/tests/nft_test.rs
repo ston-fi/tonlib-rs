@@ -102,7 +102,7 @@ async fn test_get_nft_data_internal() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_get_collection_data_is_valid() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_archive_mainnet_client().await;
+    let client = common::new_mainnet_client_archive().await;
     let factory = TonContractFactory::builder(&client).build().await?;
     let contract = factory.get_contract(&assert_ok!(
         "EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N".parse()
