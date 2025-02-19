@@ -30,7 +30,7 @@ pub trait JettonWalletContract: TonContractInterface {
         let res = self.run_get_method(method, Vec::new()).await?;
 
         let stack = res.stack;
-        if stack.len() == WALLET_DATA_STACK_ELEMENTS {
+        if stack.len() >= WALLET_DATA_STACK_ELEMENTS {
             let balance = stack[0].get_biguint().map_stack_error(method, &address)?;
             let owner_address = stack[1].get_address().map_stack_error(method, &address)?;
             let master_address = stack[2].get_address().map_stack_error(method, &address)?;
