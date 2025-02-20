@@ -1,9 +1,12 @@
 mod common;
+
+use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 use tokio_test::assert_ok;
 use tonlib_client::contract::{
-    JettonData, JettonMasterContract, TonContractError, TonContractFactory, TonContractInterface,
+    JettonData, JettonMasterContract, JettonWalletContract, TonContractError, TonContractFactory,
+    TonContractInterface,
 };
 use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
@@ -13,20 +16,17 @@ use tonlib_client::types::{TonMethodId, TvmStackEntry, TvmSuccess};
 use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
 use tonlib_core::{TonAddress, TonTxId};
 
+use crate::common::new_contract_factory;
+
 #[tokio::test]
 async fn test_emulator_get_jetton_data() -> anyhow::Result<()> {
-    common::init_logging();
-    let client = common::new_mainnet_client().await;
-
-    let address = assert_ok!(TonAddress::from_base64_url(
-        "EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86"
-    )); //jetton master
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let factory = new_contract_factory(false, false).await?;
+    let address = TonAddress::from_str("EQDCJL0iQHofcBBvFBHdVG233Ri2V4kCNFgfRT-gqAd3Oc86")?; //jetton master
     let contract = factory.get_contract(&address);
-    let state = assert_ok!(contract.get_account_state().await);
+    let state = contract.get_account_state().await?;
 
     let emulated_data = emulate_get_jetton_data(&state, &factory, &address).await?;
-    let blockchain_data = assert_ok!(contract.get_jetton_data().await);
+    let blockchain_data = contract.get_jetton_data().await?;
 
     assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
     assert_eq!(blockchain_data.mintable, emulated_data.mintable);
@@ -74,48 +74,38 @@ async fn emulate_get_jetton_data(
 }
 
 #[tokio::test]
-async fn test_emulator_get_wallet_address() {
-    common::init_logging();
-    let client = common::new_mainnet_client().await;
+async fn test_emulator_get_wallet_address() -> anyhow::Result<()> {
+    let factory = new_contract_factory(false, false).await?;
 
-    let minter_address = assert_ok!("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR".parse());
-    let owner_address = &assert_ok!(TonAddress::from_base64_url(
-        "EQB2BtXDXaQuIcMYW7JEWhHmwHfPPwa-eoCdefiAxOhU3pQg"
-    ));
-    let expected: TonAddress =
-        assert_ok!("EQCGY3OVLtD9KRcOsP2ldQDtuY0FMzV7wPoxjrFbayBXc23c".parse());
+    let minter_address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let owner_address = TonAddress::from_str("EQB2BtXDXaQuIcMYW7JEWhHmwHfPPwa-eoCdefiAxOhU3pQg")?;
+    let expected = TonAddress::from_str("EQCGY3OVLtD9KRcOsP2ldQDtuY0FMzV7wPoxjrFbayBXc23c")?;
 
-    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
     let contract = factory.get_contract(&minter_address);
-    let state = assert_ok!(contract.get_state().await);
+    let state = contract.get_state().await?;
 
-    let stack = vec![assert_ok!(owner_address.try_into())];
+    let stack = vec![TvmStackEntry::try_from(&owner_address)?];
+    let stack_slice = stack.as_slice();
     let method = "get_wallet_address";
     let method_id = method;
 
-    let r1 = assert_ok!(state.emulate_get_method(method_id, stack.as_slice()).await);
-    let r2 = assert_ok!(
-        state
-            .tonlib_run_get_method(method_id, stack.as_slice())
-            .await
-    );
-    let r3 = assert_ok!(state.run_get_method(method, stack.as_slice()).await);
+    let r1 = assert_ok!(state.emulate_get_method(method_id, stack_slice).await);
+    let r2 = assert_ok!(state.tonlib_run_get_method(method_id, stack_slice).await);
+    let r3 = assert_ok!(state.run_get_method(method, stack_slice).await);
 
     assert_eq!(assert_ok!(r1.stack[0].get_address()), expected);
-    assert_eq!(r1.stack, r2.stack);
-    assert_eq!(r1.stack, r3.stack);
-
-    assert_eq!(r1.gas_used, r2.gas_used);
-    assert_eq!(r1.gas_used, r3.gas_used);
-    assert_eq!(r1.vm_exit_code, r2.vm_exit_code);
-    assert_eq!(r1.vm_exit_code, r3.vm_exit_code);
+    for res in [&r2, &r3] {
+        assert_eq!(r1.stack, res.stack);
+        assert_eq!(r1.gas_used, res.gas_used);
+        assert_eq!(r1.vm_exit_code, res.vm_exit_code);
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
     common::init_logging();
-    let client = common::new_mainnet_client_archive().await;
-    let factory = TonContractFactory::builder(&client).build().await?;
+    let factory = new_contract_factory(false, false).await?;
 
     let router_address = "EQCqX53C_Th32Xg7UyrlqF0ypmePjljxG8edlwfT-1QpG3TB".parse()?;
     let tx_id = TonTxId::from_lt_hash(
@@ -326,6 +316,38 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
         MAX_ITER
     );
     log::info!("creation_time: {:?}, c7_time: {:?}, lib_time: {:?}, running_time: {:?}, overall+tokio: {:?}", sums.0.0, sums.0.1,sums.0.2,sums.0.3,sums.1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_get_wallet_data() -> anyhow::Result<()> {
+    let factory = new_contract_factory(false, false).await?;
+    // regular jetton wallet
+    let addr = TonAddress::from_str("EQCS65EHXVI70mKFXJuERbAHjpy-Jh5v3hqF9mpxL_ofMMZe")?;
+    let contract = factory.get_contract(&addr);
+    let wallet_data = assert_ok!(contract.get_wallet_data().await);
+    assert_eq!(
+        wallet_data.owner_address,
+        "EQCS65EGyiApUTLOYXDs4jOLoQNCE0o8oNnkmfIcm0iX5AmW".parse()?
+    );
+    assert_eq!(
+        wallet_data.master_address,
+        "EQB7OmvtVzILIJzkkeqNYeb5mr-sVAqgacvKpgux2JbX7Dmg".parse()?
+    );
+
+    // weird jetton wallet with 5 elements in stack
+    let addr = TonAddress::from_str("EQBncdA9V_79UPebRsvRO5xFgTT6lcnHW6u5BP1r6IS4T8jn")?;
+    let contract = factory.get_contract(&addr);
+    let wallet_data = assert_ok!(contract.get_wallet_data().await);
+    assert_eq!(
+        wallet_data.owner_address,
+        "EQCDT9dCT52pdfsLNW0e6qP5T3cgq7M4Ug72zkGYgP17tsWD".parse()?
+    );
+    assert_eq!(
+        wallet_data.master_address,
+        "EQBHi6foQfVfj_moRtubwuFdmDlOM1pNFYBio9clh089NYYs".parse()?
+    );
 
     Ok(())
 }
