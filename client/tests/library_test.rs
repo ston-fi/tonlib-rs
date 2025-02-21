@@ -4,6 +4,8 @@ use tonlib_core::TonHash;
 
 mod common;
 
+// TODO: un-ignore on next revision of ton monorepo
+#[ignore = "Undefined behavior in an underlying client method (https://github.com/ton-blockchain/ton/pull/1528)"]
 #[tokio::test]
 async fn test_load_libraries() -> anyhow::Result<()> {
     common::init_logging();
