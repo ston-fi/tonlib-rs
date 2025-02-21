@@ -21,6 +21,8 @@ repository = "https://github.com/ston-fi/tonlib-rs"
 [workspace.dependencies]
 # Internal
 tonlib-core = { version = "0.23", path = "core" }
+#tonlib-sys = "=2024.10.4"
+tonlib-sys = { git = "https://ston-read:-sFs4_H5GsRZTbvFCCqE@git.stonfi.net/ston-fi/rust/tonlib-sys.git", rev = "1a4ed2f" }
 
 # External
 anyhow = "1"
@@ -53,7 +55,6 @@ tokio-retry = "0.3"
 tokio-test = "0.4"
 ton_liteapi = "0.2.0"
 adnl = "2.0"
-tonlib-sys = "=2024.10.4"
 tokio-tower = "0.6.0"
 tower = "0.5.1"
 libc = "0.2"

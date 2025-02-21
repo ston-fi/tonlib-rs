@@ -1,5 +1,5 @@
 default:
-  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.82.0
+  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.84.0-c421eb08
   tags:
     - zen4
 
@@ -28,8 +28,8 @@ variables:
 test:
   stage: test
   before_script:
-    - !reference [.rust-cache-helper, install]
-    - !reference [.rust-cache-helper, before]
+    - !reference [ .rust-cache-helper, install ]
+    - !reference [ .rust-cache-helper, before ]
   script:
     - cargo fmt --check
     - cargo clippy --release
@@ -41,7 +41,7 @@ test:
     - cargo test --release --doc
     - cargo test --release --lib
     - cargo test --release --lib --features "emulate_get_method"
-    - !reference [.rust-cache-helper, after]
+    - !reference [ .rust-cache-helper, after ]
   rules:
     - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != 'merge_request_event'
   interruptible: true
@@ -49,13 +49,13 @@ test:
 integration_test:
   stage: test
   before_script:
-    - !reference [.rust-cache-helper, install]
-    - !reference [.rust-cache-helper, before]
+    - !reference [ .rust-cache-helper, install ]
+    - !reference [ .rust-cache-helper, before ]
   script:
     - cargo install cargo-nextest
     - cargo nextest run --release
     - cargo nextest run --release --features "emulate_get_method"
-    - !reference [.rust-cache-helper, after]
+    - !reference [ .rust-cache-helper, after ]
   when: manual
   interruptible: true
 
@@ -64,8 +64,8 @@ test-mr:
     - zen4
   stage: test
   before_script:
-    - !reference [.rust-cache-helper, install]
-    - !reference [.rust-cache-helper, before]
+    - !reference [ .rust-cache-helper, install ]
+    - !reference [ .rust-cache-helper, before ]
   script:
     - cargo fmt --check
     - cargo clippy --release --no-default-features --no-deps
@@ -74,7 +74,7 @@ test-mr:
     - cargo clippy --release --all-features
     - cargo build --release --all-features
     - cargo test --release --lib --all-features
-    - !reference [.rust-cache-helper, after]
+    - !reference [ .rust-cache-helper, after ]
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   interruptible: true
@@ -82,13 +82,13 @@ test-mr:
 test-master:
   stage: test
   before_script:
-    - !reference [.rust-cache-helper, install]
-    - !reference [.rust-cache-helper, before]
+    - !reference [ .rust-cache-helper, install ]
+    - !reference [ .rust-cache-helper, before ]
   script:
     - cargo fmt --check
     - cargo build --release --all-features
     - cargo test --release --lib --all-features
-    - !reference [.rust-cache-helper, after]
+    - !reference [ .rust-cache-helper, after ]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   interruptible: true
