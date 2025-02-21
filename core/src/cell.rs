@@ -15,7 +15,6 @@ pub use parser::*;
 pub use raw::*;
 use sha2::Sha256;
 pub use slice::*;
-pub use state_init::*;
 pub use util::*;
 
 use crate::cell::cell_type::CellType;
@@ -34,8 +33,10 @@ mod parser;
 mod raw;
 mod raw_boc_from_boc;
 mod slice;
-mod state_init;
+#[cfg(test)]
+mod test_boc;
 mod util;
+
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 
@@ -89,7 +90,7 @@ impl Cell {
     }
 
     pub fn parser(&self) -> CellParser {
-        CellParser::new(self.bit_len, &self.data, &self.references)
+        CellParser::new(self)
     }
 
     #[allow(clippy::let_and_return)]
@@ -148,7 +149,7 @@ impl Cell {
     }
 
     pub fn get_hash(&self, level: u8) -> TonHash {
-        self.hashes[level.min(3) as usize]
+        self.hashes[level.min(3) as usize].clone()
     }
 
     pub fn is_exotic(&self) -> bool {

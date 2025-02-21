@@ -77,3 +77,9 @@
 ### v0.23.2
 * Impl #be-1988: impl tlb-types and support anycast in tonaddress
 * Implement load/store tonhash
+### v0.24.1
+* Impl #BE-1854: Factory cache disabled by default
+* Impl #BE-2034: Support tlb StateInit 
+* Impl #BE-2032: Support tl-b Message
+* Impl #BE-1989: Support tl-b TonAddress
+* Impl #BE-2088: Wallet v5 message  building

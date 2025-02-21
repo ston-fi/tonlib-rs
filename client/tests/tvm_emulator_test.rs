@@ -16,8 +16,9 @@ use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
 use tonlib_client::types::TvmStackEntry;
-use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
+use tonlib_core::cell::{CellBuilder, CellSlice};
 use tonlib_core::message::{JettonTransferMessage, TonMessage};
+use tonlib_core::tlb_types::traits::TLBObject;
 use tonlib_core::TonAddress;
 
 lazy_static! {
@@ -102,10 +103,7 @@ lazy_static! {
     .unwrap();
     pub static ref EMPTY: Vec<u8> = hex::decode("",).ok().unwrap();
     pub static ref TEST_CONTRACT_DATA: Vec<u8> =
-        BagOfCells::from_root(CellBuilder::new().build().ok().unwrap())
-            .serialize(false)
-            .ok()
-            .unwrap();
+        CellBuilder::new().build().unwrap().to_boc(false).unwrap();
     pub static ref EMPTY_STACK: Vec<TvmStackEntry> = vec![];
 }
 

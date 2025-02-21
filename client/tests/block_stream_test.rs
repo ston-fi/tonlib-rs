@@ -33,10 +33,11 @@ pub async fn block_listener_works() {
 #[tokio::test]
 pub async fn block_listener_get_block_header() {
     common::init_logging();
-    let client = common::new_testnet_client().await;
+    let client = common::new_mainnet_client().await;
     let seqno = assert_ok!(client.get_masterchain_info().await).1.last;
     let headers = assert_ok!(client.get_block_header(&seqno).await);
-    log::info!("{:?}", headers);
+    assert_eq!(headers.id, seqno);
+    log::debug!("{:?}", headers);
 }
 
 #[tokio::test]

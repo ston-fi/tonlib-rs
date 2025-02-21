@@ -67,7 +67,7 @@ impl TonMessage for OwnerInfoMessage {
         builder.store_address(&self.owner)?;
         builder.store_reference(&self.data)?;
         builder.store_u64(64, self.revoked_at)?;
-        builder.store_maybe_cell_ref(&self.content)?;
+        builder.store_ref_cell_optional(self.content.as_ref())?;
         Ok(builder.build()?)
     }
 
@@ -114,7 +114,6 @@ impl HasOpcode for OwnerInfoMessage {
 
 #[cfg(test)]
 mod tests {
-
     use std::sync::Arc;
 
     use num_bigint::BigUint;

@@ -87,29 +87,19 @@ fn load_config(env_var: &str, default_config: &'static str) -> String {
     if let Ok(custom_path) = env::var(env_var) {
         let config_path = Path::new(&custom_path);
         match fs::canonicalize(config_path) {
-            Ok(absolute_path) => {
-                log::info!(
-                    "Using custom config for {} from: {:?}",
-                    env_var,
-                    absolute_path
-                );
-                read_config_file(&absolute_path)
+            Ok(abs_path) => {
+                log::info!("{env_var} is overwritten using {abs_path:?}");
+                read_config_file(&abs_path)
             }
             Err(err) => {
                 log::error!(
-                    "Failed to resolve path for {:?} {:?}: {}",
-                    env_var,
-                    config_path,
-                    err
+                    "Failed to overwrite {env_var} using {config_path:?} ({err}). Using default."
                 );
                 default_config.to_string()
             }
         }
     } else {
-        log::info!(
-            "Using default config for {} embedded at compile time",
-            env_var
-        );
+        log::info!("Using {env_var} embedded at compile time");
         default_config.to_string()
     }
 }

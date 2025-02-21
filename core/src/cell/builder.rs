@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::Add;
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite, BitWriter, Numeric};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
 
@@ -51,52 +51,58 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
+    fn store_number<N: Numeric>(
+        &mut self,
+        bit_len: usize,
+        val: N,
+    ) -> Result<&mut Self, TonCellError> {
         self.bit_writer
             .write(bit_len as u32, val)
             .map_cell_builder_error()?;
         self.bits_to_write += bit_len;
         Ok(self)
+    }
+
+    pub fn store_number_optional<N: Numeric>(
+        &mut self,
+        bit_len: usize,
+        maybe_val: Option<N>,
+    ) -> Result<&mut Self, TonCellError> {
+        if let Some(val) = maybe_val {
+            self.store_bit(true)?;
+            self.store_number(bit_len, val)?;
+        } else {
+            self.store_bit(false)?;
+        }
+        Ok(self)
+    }
+
+    pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val as u8)
+    }
+
+    pub fn store_u16(&mut self, bit_len: usize, val: u16) -> Result<&mut Self, TonCellError> {
+        self.store_number(bit_len, val)
     }
 
     pub fn store_u32(&mut self, bit_len: usize, val: u32) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i32(&mut self, bit_len: usize, val: i32) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_u32(bit_len, val as u32)
     }
 
     pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_i64(&mut self, bit_len: usize, val: i64) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
+        self.store_number(bit_len, val as u64)
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
@@ -153,7 +159,7 @@ impl CellBuilder {
     }
 
     pub fn store_byte(&mut self, val: u8) -> Result<&mut Self, TonCellError> {
-        self.store_u8(8, val)
+        self.store_number(8, val)
     }
 
     pub fn store_slice(&mut self, slice: &[u8]) -> Result<&mut Self, TonCellError> {
@@ -200,11 +206,7 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        if val == &TonAddress::NULL {
-            self.store_u8(2, 0)?;
-        } else {
-            self.store_raw_address(val)?;
-        }
+        val.to_tlb_msg_addr().write_to(self)?;
         Ok(self)
     }
 
@@ -212,12 +214,8 @@ impl CellBuilder {
     ///
     /// The reference is passed as `ArcCell` so it might be references from other cells.
     pub fn store_reference(&mut self, cell: &ArcCell) -> Result<&mut Self, TonCellError> {
-        let ref_count = self.references.len() + 1;
-        if ref_count > 4 {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Cell must contain at most 4 references, got {}",
-                ref_count
-            )));
+        if self.references.len() == 4 {
+            return Err(TonCellError::cell_builder_error("Cell already has 4 refs"));
         }
         self.references.push(cell.clone());
         Ok(self)
@@ -230,11 +228,11 @@ impl CellBuilder {
         Ok(self)
     }
 
-    /// Adds a reference to a newly constructed `Cell`.
+    /// Adds a newly constructed `Cell` as a reference.
     ///
     /// The cell is wrapped it the `Arc`.
     pub fn store_child(&mut self, cell: Cell) -> Result<&mut Self, TonCellError> {
-        self.store_reference(&Arc::new(cell))
+        self.store_reference(&cell.to_arc())
     }
 
     pub fn store_remaining_bits(
@@ -292,27 +290,14 @@ impl CellBuilder {
     }
 
     pub fn store_tlb<T: TLBObject>(&mut self, obj: &T) -> Result<&mut Self, TonCellError> {
-        obj.write(self)?;
-        Ok(self)
-    }
-
-    pub fn store_tlb_optional<T: TLBObject>(
-        &mut self,
-        maybe_obj: Option<&T>,
-    ) -> Result<&mut Self, TonCellError> {
-        if let Some(obj) = maybe_obj {
-            self.store_bit(true)?;
-            self.store_tlb(obj)?;
-        } else {
-            self.store_bit(false)?;
-        }
+        obj.write_to(self)?;
         Ok(self)
     }
 
     // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
-    pub fn store_maybe_cell_ref(
+    pub fn store_ref_cell_optional(
         &mut self,
-        maybe_cell: &Option<ArcCell>,
+        maybe_cell: Option<&ArcCell>,
     ) -> Result<&mut Self, TonCellError> {
         if let Some(cell) = maybe_cell {
             self.store_bit(true)?;
@@ -320,7 +305,6 @@ impl CellBuilder {
         } else {
             self.store_bit(false)?;
         }
-
         Ok(self)
     }
 
@@ -333,6 +317,11 @@ impl CellBuilder {
     where
         BigUint: From<K>,
     {
+        if data.is_empty() {
+            return Err(TonCellError::CellBuilderError(
+                "can't save empty dict as dict_data".to_string(),
+            ));
+        }
         let dict_builder = DictBuilder::new(key_len_bits, value_writer, data)?;
         let dict_cell = dict_builder.build()?;
         self.store_cell(&dict_cell)
@@ -735,6 +724,18 @@ mod tests {
     }
 
     #[test]
+    fn test_store_dict_data_empty() -> Result<(), TonCellError> {
+        let mut builder = CellBuilder::new();
+        let data: HashMap<BigUint, BigUint> = HashMap::new();
+        let value_writer = |writer: &mut CellBuilder, value: BigUint| {
+            writer.store_uint(8, &value)?;
+            Ok(())
+        };
+        assert!(builder.store_dict_data(8, value_writer, data).is_err());
+        Ok(())
+    }
+
+    #[test]
     fn test_store_tonhash() -> Result<(), TonCellError> {
         let mut writer = CellBuilder::new();
         let ton_hash =
@@ -746,6 +747,24 @@ mod tests {
         let parsed = parser.load_tonhash()?;
         assert_eq!(ton_hash, parsed);
         parser.ensure_empty()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_load_signed_unaligned() -> Result<(), TonCellError> {
+        let mut builder = CellBuilder::new();
+        builder.store_bit(false)?;
+        builder.store_i8(8, -4)?;
+        builder.store_i32(32, -5)?;
+        builder.store_i64(64, -6)?;
+        builder.store_u32(9, 256)?;
+        let cell = builder.build()?;
+        let mut parser = cell.parser();
+        assert!(!parser.load_bit()?);
+        assert_eq!(parser.load_i8(8)?, -4);
+        assert_eq!(parser.load_i32(32)?, -5);
+        assert_eq!(parser.load_i64(64)?, -6);
+        assert_eq!(parser.load_u32(9)?, 256);
         Ok(())
     }
 }

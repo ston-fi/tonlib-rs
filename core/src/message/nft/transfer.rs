@@ -41,7 +41,7 @@ impl NftTransferMessage {
         NftTransferMessage {
             query_id: 0,
             new_owner: new_owner.clone(),
-            response_destination: TonAddress::null(),
+            response_destination: TonAddress::NULL,
             custom_payload: None,
             forward_ton_amount: ZERO_COINS.clone(),
             forward_payload: EMPTY_ARC_CELL.clone(),
@@ -72,7 +72,7 @@ impl TonMessage for NftTransferMessage {
 
         builder.store_address(&self.new_owner)?;
         builder.store_address(&self.response_destination)?;
-        builder.store_maybe_cell_ref(&self.custom_payload)?;
+        builder.store_ref_cell_optional(self.custom_payload.as_ref())?;
         builder.store_coins(&self.forward_ton_amount)?;
         builder
             .store_either_cell_or_cell_ref(&self.forward_payload, self.forward_payload_layout)?;
@@ -158,10 +158,10 @@ mod tests {
     }
     #[test]
     fn test_ft_transfer_parser() -> Result<(), TonMessageError> {
-        let boc = BagOfCells::parse_hex(NFT_TRANSFER_MSG).unwrap();
-        let cell = boc.single_root().unwrap();
+        let boc = BagOfCells::parse_hex(NFT_TRANSFER_MSG)?;
+        let cell = boc.single_root()?;
 
-        let result_nft_transfer_msg = NftTransferMessage::parse(cell)?;
+        let result_nft_transfer_msg = NftTransferMessage::parse(&cell)?;
 
         let forward_ton_amount = BigUint::from(10000000u64);
         let expected_nft_transfer_msg = NftTransferMessage {
@@ -185,27 +185,19 @@ mod tests {
     }
 
     #[test]
-    fn test_nft_transfer_builder() -> Result<(), TonMessageError> {
-        let jetton_transfer_msg = NftTransferMessage::new(
-            &TonAddress::from_hex_str(
-                "0:71055783d6928e8c007f22f1d799a3b4dbd9034e9d5975364f707b9efe839510",
-            )
-            .unwrap(),
-        )
+    fn test_nft_transfer_builder() -> anyhow::Result<()> {
+        let jetton_transfer_msg = NftTransferMessage::new(&TonAddress::from_hex_str(
+            "0:71055783d6928e8c007f22f1d799a3b4dbd9034e9d5975364f707b9efe839510",
+        )?)
         .with_query_id(0)
-        .with_response_destination(
-            &TonAddress::from_hex_str(
-                "0:286d2c92da998c4fcf82d274257cfa3d0a52bd412ce83dee64a404a7ceaabf31",
-            )
-            .unwrap(),
-        )
+        .with_response_destination(&TonAddress::from_hex_str(
+            "0:286d2c92da998c4fcf82d274257cfa3d0a52bd412ce83dee64a404a7ceaabf31",
+        )?)
         .with_forward_payload(BigUint::from(10000000u64), NFT_TRANSFER_PAYLOAD.clone())
         .build();
 
-        let result_boc_serialized = BagOfCells::from_root(jetton_transfer_msg.unwrap())
-            .serialize(false)
-            .unwrap();
-        let expected_boc_serialized = hex::decode(NFT_TRANSFER_MSG).unwrap();
+        let result_boc_serialized = BagOfCells::from_root(jetton_transfer_msg?).serialize(false)?;
+        let expected_boc_serialized = hex::decode(NFT_TRANSFER_MSG)?;
 
         assert_eq!(expected_boc_serialized, result_boc_serialized);
         Ok(())

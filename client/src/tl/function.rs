@@ -44,8 +44,8 @@ impl<'de> Deserialize<'de> for TonLibraryId {
     }
 }
 
-impl From<TonHash> for TonLibraryId {
-    fn from(value: TonHash) -> Self {
+impl From<&TonHash> for TonLibraryId {
+    fn from(value: &TonHash) -> Self {
         TonLibraryId { id: value.to_vec() }
     }
 }

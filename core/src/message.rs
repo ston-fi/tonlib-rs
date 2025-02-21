@@ -45,7 +45,6 @@ pub trait HasOpcode: TonMessage {
         }
     }
 
-    fn opcode() -> u32;
     fn with_query_id(&mut self, query_id: u64) -> &mut Self {
         self.set_query_id(query_id);
         self
@@ -53,6 +52,8 @@ pub trait HasOpcode: TonMessage {
     fn set_query_id(&mut self, query_id: u64);
 
     fn query_id(&self) -> u64;
+
+    fn opcode() -> u32;
 }
 
 impl TonMessage for Cell {

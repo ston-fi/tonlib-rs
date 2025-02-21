@@ -29,7 +29,7 @@ impl JettonBurnMessage {
         JettonBurnMessage {
             query_id: 0,
             amount: amount.clone(),
-            response_destination: TonAddress::null(),
+            response_destination: TonAddress::NULL,
             custom_payload: None,
         }
     }
@@ -52,7 +52,7 @@ impl TonMessage for JettonBurnMessage {
         builder.store_u64(64, self.query_id)?;
         builder.store_coins(&self.amount)?;
         builder.store_address(&self.response_destination)?;
-        builder.store_maybe_cell_ref(&self.custom_payload)?;
+        builder.store_ref_cell_optional(self.custom_payload.as_ref())?;
 
         Ok(builder.build()?)
     }
@@ -109,10 +109,10 @@ mod tests {
     #[test]
     fn test_jetton_burn_parser() -> Result<(), TonMessageError> {
         let boc_with_indicator =
-            BagOfCells::parse_hex(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG).unwrap();
-        let cell_with_indicator = boc_with_indicator.single_root().unwrap();
+            BagOfCells::parse_hex(JETTON_BURN_WITH_CUSTOM_PAYLOAD_INDICATOR_MSG)?;
+        let cell_with_indicator = boc_with_indicator.single_root()?;
         let result_jetton_transfer_msg_with_indicator: JettonBurnMessage =
-            JettonBurnMessage::parse(cell_with_indicator)?;
+            JettonBurnMessage::parse(&cell_with_indicator)?;
 
         let expected_jetton_transfer_msg = JettonBurnMessage {
             query_id: 667217747695,
@@ -129,10 +129,10 @@ mod tests {
             result_jetton_transfer_msg_with_indicator
         );
 
-        let boc = BagOfCells::parse_hex(NOT_BURN).unwrap();
-        let cell = boc.single_root().unwrap();
+        let boc = BagOfCells::parse_hex(NOT_BURN)?;
+        let cell = boc.single_root()?;
 
-        let result_jetton_transfer_msg = JettonBurnMessage::parse(cell)?;
+        let result_jetton_transfer_msg = JettonBurnMessage::parse(&cell)?;
 
         let expected_jetton_transfer_msg = JettonBurnMessage {
             query_id: 1,

@@ -17,6 +17,9 @@ pub enum TonMessageError {
 
     #[error("Invalid message ({0})")]
     InvalidMessage(InvalidMessage),
+
+    #[error("Internal error ({0})")]
+    InternalError(String),
 }
 
 #[derive(Clone, PartialEq)]

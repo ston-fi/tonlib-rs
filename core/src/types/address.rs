@@ -5,16 +5,18 @@ use std::str::FromStr;
 use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use crc::Crc;
-use lazy_static::lazy_static;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
-use crate::cell::CellBuilder;
+use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
+use crate::tlb_types::block::msg_address::{
+    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressInt,
+};
+use crate::tlb_types::block::state_init::StateInit;
+use crate::tlb_types::traits::TLBObject;
 
-lazy_static! {
-    pub static ref CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
-}
+const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct TonAddress {
@@ -28,15 +30,20 @@ impl TonAddress {
         hash_part: ZERO_HASH,
     };
 
-    pub fn new(workchain: i32, hash_part: &TonHash) -> TonAddress {
+    pub const fn new(workchain: i32, hash_part: TonHash) -> TonAddress {
         TonAddress {
             workchain,
-            hash_part: *hash_part,
+            hash_part,
         }
     }
 
-    pub fn null() -> TonAddress {
-        TonAddress::NULL.clone()
+    pub fn derive(
+        workchain: i32,
+        code: ArcCell,
+        data: ArcCell,
+    ) -> Result<TonAddress, TonCellError> {
+        let state_init = StateInit::new(code, data);
+        Ok(TonAddress::new(workchain, state_init.cell_hash()?))
     }
 
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
@@ -82,7 +89,7 @@ impl TonAddress {
             }
         };
 
-        let addr = TonAddress::new(wc, &hash_part);
+        let addr = TonAddress::new(wc, hash_part);
         Ok(addr)
     }
 
@@ -177,7 +184,7 @@ impl TonAddress {
         bytes: &[u8; 36],
         src: &str,
     ) -> Result<(TonAddress, bool, bool), TonAddressParseError> {
-        let (non_production, non_bounceable) = match bytes[0] {
+        let (testnet, non_bounceable) = match bytes[0] {
             0x11 => (false, false),
             0x51 => (false, true),
             0x91 => (true, false),
@@ -203,7 +210,42 @@ impl TonAddress {
             workchain,
             hash_part,
         };
-        Ok((addr, non_bounceable, non_production))
+        Ok((addr, non_bounceable, testnet))
+    }
+
+    pub fn from_tlb_data(
+        workchain: i32,
+        mut address: Vec<u8>,
+        address_bit_len: u16,
+        maybe_anycast: Option<&Anycast>,
+    ) -> Result<TonAddress, TonAddressParseError> {
+        let anycast = match maybe_anycast {
+            Some(anycast) => anycast,
+            None => {
+                let hash = TonHash::try_from(address.as_slice())?;
+                return Ok(TonAddress::new(workchain, hash));
+            }
+        };
+
+        if address_bit_len < anycast.depth.into() {
+            let err_msg = format!(
+                "rewrite_pfx has {} bits, but address has only {address_bit_len} bits",
+                anycast.depth
+            );
+            let ext_addr_str = format!("address: {:?}, anycast: {:?}", address, anycast);
+            return Err(TonAddressParseError::new(ext_addr_str, err_msg));
+        }
+
+        let new_prefix = anycast.rewrite_pfx.as_slice();
+
+        let bits = anycast.depth as usize;
+        if !rewrite_bits(new_prefix, 0, address.as_mut_slice(), 0, bits) {
+            let err_msg = format!("Failed to rewrite address prefix with new_prefix={new_prefix:?}, address={address:?}, bits={bits}");
+            let ext_addr_str = format!("address: {:?}, anycast: {:?}", address, anycast);
+            return Err(TonAddressParseError::new(ext_addr_str, err_msg));
+        }
+
+        Ok(TonAddress::new(workchain, TonHash::try_from(address)?))
     }
 
     pub fn to_hex(&self) -> String {
@@ -214,9 +256,9 @@ impl TonAddress {
         self.to_base64_url_flags(false, false)
     }
 
-    pub fn to_base64_url_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+    pub fn to_base64_url_flags(&self, non_bounceable: bool, testnet: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
-        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        self.to_base64_src(&mut buf, non_bounceable, testnet);
         URL_SAFE_NO_PAD.encode(buf)
     }
 
@@ -224,14 +266,14 @@ impl TonAddress {
         self.to_base64_std_flags(false, false)
     }
 
-    pub fn to_base64_std_flags(&self, non_bounceable: bool, non_production: bool) -> String {
+    pub fn to_base64_std_flags(&self, non_bounceable: bool, testnet: bool) -> String {
         let mut buf: [u8; 36] = [0; 36];
-        self.to_base64_src(&mut buf, non_bounceable, non_production);
+        self.to_base64_src(&mut buf, non_bounceable, testnet);
         STANDARD_NO_PAD.encode(buf)
     }
 
-    fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, non_production: bool) {
-        let tag: u8 = match (non_production, non_bounceable) {
+    fn to_base64_src(&self, bytes: &mut [u8; 36], non_bounceable: bool, testnet: bool) {
+        let tag: u8 = match (testnet, non_bounceable) {
             (false, false) => 0x11,
             (false, true) => 0x51,
             (true, false) => 0x91,
@@ -243,6 +285,17 @@ impl TonAddress {
         let crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
         bytes[34] = ((crc >> 8) & 0xff) as u8;
         bytes[35] = (crc & 0xff) as u8;
+    }
+
+    pub fn to_tlb_msg_addr(&self) -> MsgAddress {
+        if self == &TonAddress::NULL {
+            return MsgAddress::NONE;
+        }
+        MsgAddress::IntStd(MsgAddrIntStd {
+            anycast: None,
+            workchain: self.workchain,
+            address: self.hash_part.to_vec(),
+        })
     }
 }
 
@@ -304,6 +357,54 @@ impl TryFrom<String> for TonAddress {
     }
 }
 
+impl TryFrom<MsgAddress> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddress::None(_) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+                format!("{ext:?}"),
+                "Can't load TonAddress from MsgAddressExt",
+            )),
+            MsgAddress::IntStd(addr) => TonAddress::try_from(addr),
+            MsgAddress::IntVar(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
+impl TryFrom<MsgAddressInt> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddressInt) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddressInt::Std(addr) => TonAddress::try_from(addr),
+            MsgAddressInt::Var(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
+impl TryFrom<MsgAddrIntStd> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntStd) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(value.workchain, value.address, 256, value.anycast.as_ref())
+    }
+}
+
+impl TryFrom<MsgAddrIntVar> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntVar) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(
+            value.workchain,
+            value.address,
+            value.address_bit_len,
+            value.anycast.as_ref(),
+        )
+    }
+}
+
 impl Serialize for TonAddress {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -342,20 +443,23 @@ impl<'de> Deserialize<'de> for TonAddress {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    use std::sync::Arc;
 
+    use num_bigint::BigUint;
+    use num_traits::Zero;
     use serde_json::Value;
 
     use super::TonAddressParseError;
+    use crate::cell::{BagOfCells, Cell, CellBuilder};
+    use crate::tlb_types::block::msg_address::{MsgAddrIntStd, MsgAddress};
+    use crate::tlb_types::traits::TLBObject;
     use crate::{TonAddress, TonHash};
 
     #[test]
-    fn format_works() -> Result<(), TonAddressParseError> {
-        let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")
-                .unwrap()
-                .as_slice()
-                .try_into()?;
-        let addr = TonAddress::new(0, &bytes);
+    fn format_works() -> anyhow::Result<()> {
+        let bytes =
+            TonHash::from_hex("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?;
+        let addr = TonAddress::new(0, bytes);
         assert_eq!(
             addr.to_hex(),
             "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
@@ -373,11 +477,9 @@ mod tests {
 
     #[test]
     fn parse_format_works() -> anyhow::Result<()> {
-        let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
-                .as_slice()
-                .try_into()?;
-        let addr = TonAddress::new(0, &bytes);
+        let bytes =
+            TonHash::from_hex("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?;
+        let addr = TonAddress::new(0, bytes);
         assert_eq!(
             TonAddress::from_hex_str(
                 "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
@@ -397,11 +499,9 @@ mod tests {
 
     #[test]
     fn parse_works() -> anyhow::Result<()> {
-        let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
-                .as_slice()
-                .try_into()?;
-        let addr = TonAddress::new(0, &bytes);
+        let bytes =
+            TonHash::from_hex("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?;
+        let addr = TonAddress::new(0, bytes);
         assert_eq!(
             "0:e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76"
                 .parse::<TonAddress>()?,
@@ -419,12 +519,40 @@ mod tests {
     }
 
     #[test]
+    fn test_derive() -> anyhow::Result<()> {
+        let user_addr = TonAddress::from_str("UQAO9JsDEbOjnb8AZRyxNHiODjVeAvgR2n03T0utYgkpx-K0")?;
+        let pool_addr = TonAddress::from_str("EQDMk-2P8ziShAYGcnYq-z_U33zA_Ynt88iav4PwkSGRru2B")?;
+        let code_cell = BagOfCells::parse_hex("b5ee9c7201010201002d00010eff0088d0ed1ed801084202e70a306c00272796243f569ce0c928ea4cfc9f1b65c5b0066e382159f5e80df5")?.single_root()?;
+        let data_cell = CellBuilder::new()
+            .store_address(&user_addr)?
+            .store_address(&pool_addr)?
+            .store_coins(&BigUint::zero())?
+            .store_coins(&BigUint::zero())?
+            .build()?;
+        let derived_addr = TonAddress::derive(0, code_cell, Arc::new(data_cell))?;
+
+        let expected_addr =
+            TonAddress::from_str("EQBWxdw3leOoaHqcK3ATf0T7ae5M8XS6jiP_Din4mh7o7gj2")?;
+        assert_eq!(derived_addr, expected_addr);
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive_stonfi_pool() -> anyhow::Result<()> {
+        let code_cell = Cell::from_boc_hex("b5ee9c7201010101002300084202a9338ecd624ca15d37e4a8d9bf677ddc9b84f0e98f05f2fb84c7afe332a281b4")?;
+        let data_cell = Cell::from_boc_hex("b5ee9c720101040100b900010d000000000000050102c9801459f7c0a12bb4ac4b78a788c425ee4d52f8b6041dda17b77b09fc5a03e894d6900287cd9fbe2ea663415da0aa6bbdf0cb136abe9c4f45214dd259354b80da8c265a006aebb27f5d0f1daf43e200f52408f3eb9ff5610f5b43284224644e7c6a590d14400203084202c00836440d084e44fb94316132ac5a21417ef4f429ee09b5560b5678b334c3e8084202c95a2ed22ab516f77f9d4898dc4578e72f18a2448e8f6832334b0b4bf501bc79")?;
+        let address = TonAddress::derive(0, code_cell.to_arc(), data_cell.to_arc())?;
+        let exp_addr = TonAddress::from_str("EQAdltEfzXG_xteLFaKFGd-HPVKrEJqv_FdC7z2roOddRNdM")?;
+        assert_eq!(address, exp_addr);
+        // assert!(false);
+        Ok(())
+    }
+
+    #[test]
     fn try_from_works() -> anyhow::Result<()> {
-        let bytes: TonHash =
-            hex::decode("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?
-                .as_slice()
-                .try_into()?;
-        let addr = TonAddress::new(0, &bytes);
+        let bytes =
+            TonHash::from_hex("e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76")?;
+        let addr = TonAddress::new(0, bytes);
         let res: TonAddress = "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR"
             .to_string()
             .try_into()?;
@@ -507,6 +635,21 @@ mod tests {
 
         let cmp_result = address0 < address1;
         assert!(cmp_result);
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_msg_addr_std() -> anyhow::Result<()> {
+        let address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+        let msg_addr = address.to_tlb_msg_addr();
+        let expected = MsgAddress::IntStd(MsgAddrIntStd {
+            anycast: None,
+            workchain: 0,
+            address: hex::decode(
+                "e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76",
+            )?,
+        });
+        assert_eq!(msg_addr, expected);
         Ok(())
     }
 }

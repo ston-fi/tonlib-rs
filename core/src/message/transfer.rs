@@ -72,9 +72,9 @@ impl TonMessage for TransferMessage {
                 builder.store_u32(32, m.created_at)?; // created_at
             }
         }
-        builder.store_maybe_cell_ref(&self.state_init)?;
+        builder.store_ref_cell_optional(self.state_init.as_ref())?;
 
-        builder.store_maybe_cell_ref(&self.data)?;
+        builder.store_ref_cell_optional(self.data.as_ref())?;
 
         Ok(builder.build()?)
     }

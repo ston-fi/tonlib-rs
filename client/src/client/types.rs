@@ -23,7 +23,7 @@ pub struct TxId {
 impl TxId {
     pub fn new(workchain: i32, tx_id: &BlocksShortTxId) -> Result<TxId, TonClientError> {
         let hash_part = TonHash::try_from(tx_id.account.as_slice())?;
-        let addr = TonAddress::new(workchain, &hash_part);
+        let addr = TonAddress::new(workchain, hash_part);
         let id = InternalTransactionId {
             lt: tx_id.lt,
             hash: tx_id.hash.clone(),

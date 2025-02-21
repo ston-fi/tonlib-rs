@@ -92,11 +92,11 @@ impl TonContractState {
         )?;
 
         let code = BagOfCells::parse(&self.account_state.code)
-            .and_then(|mut boc| boc.into_single_root())
+            .and_then(|boc| boc.single_root())
             .map_cell_error(method_str.clone(), &self.address)?;
 
         let data = BagOfCells::parse(&self.account_state.data)
-            .and_then(|mut boc| boc.into_single_root())
+            .and_then(|boc| boc.single_root())
             .map_cell_error(method_str, &self.address)?;
 
         let libs = self

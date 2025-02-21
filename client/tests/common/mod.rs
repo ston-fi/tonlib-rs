@@ -7,6 +7,7 @@ use log4rs::Config;
 use tokio_test::assert_ok;
 use tonlib_client::client::{ConnectionCheck, TonClient, TonConnectionParams};
 use tonlib_client::config::{MAINNET_CONFIG, TESTNET_CONFIG};
+use tonlib_client::contract::TonContractFactory;
 
 #[allow(dead_code)]
 static LOG: Once = Once::new();
@@ -32,73 +33,57 @@ pub fn init_logging() {
 }
 
 #[allow(dead_code)]
-pub async fn new_testnet_client() -> TonClient {
-    let params = TonConnectionParams {
-        config: TESTNET_CONFIG.to_string(),
-        ..Default::default()
-    };
-    assert_ok!(
-        TonClient::builder()
-            .with_connection_params(&params)
-            .with_pool_size(2)
-            .with_logging_callback()
-            .with_keystore_dir("./var/ton/testnet".to_string())
-            .build()
-            .await
-    )
-}
-
-#[allow(dead_code)]
-pub async fn new_archive_testnet_client() -> TonClient {
-    let params = TonConnectionParams {
-        config: TESTNET_CONFIG.to_string(),
-        ..Default::default()
-    };
-    assert_ok!(
-        TonClient::builder()
-            .with_connection_params(&params)
-            .with_pool_size(2)
-            .with_logging_callback()
-            .with_keystore_dir("./var/ton/testnet".to_string())
-            .with_connection_check(ConnectionCheck::Archive)
-            .build()
-            .await
-    )
-}
-
-#[allow(dead_code)]
 pub async fn new_mainnet_client() -> TonClient {
-    let params = TonConnectionParams {
-        config: MAINNET_CONFIG.to_string(),
-        ..Default::default()
-    };
-    assert_ok!(
-        TonClient::builder()
-            .with_connection_params(&params)
-            .with_pool_size(2)
-            .with_logging_callback()
-            .with_keystore_dir("./var/ton".to_string())
-            .with_connection_check(ConnectionCheck::Health)
-            .build()
-            .await
-    )
+    assert_ok!(new_ton_client(false, false).await)
 }
 
 #[allow(dead_code)]
-pub async fn new_archive_mainnet_client() -> TonClient {
-    let params = TonConnectionParams {
-        config: MAINNET_CONFIG.to_string(),
+pub async fn new_mainnet_client_archive() -> TonClient {
+    assert_ok!(new_ton_client(false, true).await)
+}
+
+#[allow(dead_code)]
+pub async fn new_testnet_client() -> TonClient {
+    assert_ok!(new_ton_client(true, false).await)
+}
+
+#[allow(dead_code)]
+pub async fn new_testnet_client_archive() -> TonClient {
+    assert_ok!(new_ton_client(true, true).await)
+}
+
+#[allow(dead_code)]
+pub async fn new_contract_factory(
+    testnet: bool,
+    archive: bool,
+) -> anyhow::Result<TonContractFactory> {
+    let ton_cli = new_ton_client(testnet, archive).await?;
+    Ok(TonContractFactory::builder(&ton_cli).build().await?)
+}
+
+#[allow(dead_code)]
+pub async fn new_ton_client(testnet: bool, archive: bool) -> anyhow::Result<TonClient> {
+    init_logging();
+    let (ton_config, keystore) = match testnet {
+        true => (TESTNET_CONFIG.to_string(), "./var/ton/testnet"),
+        false => (MAINNET_CONFIG.to_string(), "./var/ton"),
+    };
+
+    let conn_params = TonConnectionParams {
+        config: ton_config,
         ..Default::default()
     };
 
-    assert_ok!(
-        TonClient::builder()
-            .with_connection_params(&params)
-            .with_pool_size(2)
-            .with_logging_callback()
-            .with_keystore_dir("./var/ton".to_string())
-            .with_connection_check(ConnectionCheck::Archive)
-            .build()
-            .await
-    )
+    let mut builder = TonClient::builder();
+    builder
+        .with_connection_params(&conn_params)
+        .with_pool_size(2)
+        .with_logging_callback()
+        .with_keystore_dir(keystore.to_string());
+
+    match archive {
+        true => builder.with_connection_check(ConnectionCheck::Archive),
+        false => builder.with_connection_check(ConnectionCheck::Health),
+    };
+    Ok(builder.build().await?)
 }
