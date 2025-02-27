@@ -85,3 +85,4 @@
 * Impl #BE-2088: Wallet v5 message  building
 ### v0.24.2
 * Bump tonlib-sys to 2025.2.2
+
