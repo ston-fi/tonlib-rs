@@ -83,3 +83,6 @@
 * Impl #BE-2032: Support tl-b Message
 * Impl #BE-1989: Support tl-b TonAddress
 * Impl #BE-2088: Wallet v5 message  building
+### v0.24.2
+* Bump tonlib-sys to 2025.2.2
+
