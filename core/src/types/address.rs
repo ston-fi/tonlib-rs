@@ -46,6 +46,38 @@ impl TonAddress {
         Ok(TonAddress::new(workchain, state_init.cell_hash()?))
     }
 
+    pub fn from_tlb(addr: MsgAddress) -> Result<TonAddress, TonAddressParseError> {
+        match addr {
+            MsgAddress::None(_) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+                format!("{ext:?}"),
+                "Can't load TonAddress from MsgAddressExt",
+            )),
+            MsgAddress::IntStd(addr) => TonAddress::from_tlb_int_std(addr),
+            MsgAddress::IntVar(addr) => TonAddress::from_tlb_int_var(addr),
+        }
+    }
+
+    pub fn from_tlb_int(addr: MsgAddressInt) -> Result<TonAddress, TonAddressParseError> {
+        match addr {
+            MsgAddressInt::Std(addr) => TonAddress::from_tlb_int_std(addr),
+            MsgAddressInt::Var(addr) => TonAddress::from_tlb_int_var(addr),
+        }
+    }
+
+    pub fn from_tlb_int_std(addr: MsgAddrIntStd) -> Result<TonAddress, TonAddressParseError> {
+        TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
+    }
+
+    pub fn from_tlb_int_var(addr: MsgAddrIntVar) -> Result<TonAddress, TonAddressParseError> {
+        TonAddress::from_tlb_data(
+            addr.workchain,
+            addr.address,
+            addr.address_bit_len,
+            addr.anycast.as_ref(),
+        )
+    }
+
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
         let parts: Vec<&str> = s.split(':').collect();
 
@@ -287,7 +319,7 @@ impl TonAddress {
         bytes[35] = (crc & 0xff) as u8;
     }
 
-    pub fn to_tlb_msg_addr(&self) -> MsgAddress {
+    pub fn to_tlb(&self) -> MsgAddress {
         if self == &TonAddress::NULL {
             return MsgAddress::NONE;
         }
@@ -354,54 +386,6 @@ impl TryFrom<String> for TonAddress {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(value.as_str())
-    }
-}
-
-impl TryFrom<MsgAddress> for TonAddress {
-    type Error = TonAddressParseError;
-
-    fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
-        match value {
-            MsgAddress::None(_) => Ok(TonAddress::NULL),
-            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
-                format!("{ext:?}"),
-                "Can't load TonAddress from MsgAddressExt",
-            )),
-            MsgAddress::IntStd(addr) => TonAddress::try_from(addr),
-            MsgAddress::IntVar(addr) => TonAddress::try_from(addr),
-        }
-    }
-}
-
-impl TryFrom<MsgAddressInt> for TonAddress {
-    type Error = TonAddressParseError;
-
-    fn try_from(value: MsgAddressInt) -> Result<Self, Self::Error> {
-        match value {
-            MsgAddressInt::Std(addr) => TonAddress::try_from(addr),
-            MsgAddressInt::Var(addr) => TonAddress::try_from(addr),
-        }
-    }
-}
-
-impl TryFrom<MsgAddrIntStd> for TonAddress {
-    type Error = TonAddressParseError;
-
-    fn try_from(value: MsgAddrIntStd) -> Result<Self, Self::Error> {
-        TonAddress::from_tlb_data(value.workchain, value.address, 256, value.anycast.as_ref())
-    }
-}
-
-impl TryFrom<MsgAddrIntVar> for TonAddress {
-    type Error = TonAddressParseError;
-
-    fn try_from(value: MsgAddrIntVar) -> Result<Self, Self::Error> {
-        TonAddress::from_tlb_data(
-            value.workchain,
-            value.address,
-            value.address_bit_len,
-            value.anycast.as_ref(),
-        )
     }
 }
 
@@ -641,7 +625,7 @@ mod tests {
     #[test]
     fn test_to_msg_addr_std() -> anyhow::Result<()> {
         let address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
-        let msg_addr = address.to_tlb_msg_addr();
+        let msg_addr = address.to_tlb();
         let expected = MsgAddress::IntStd(MsgAddrIntStd {
             anycast: None,
             workchain: 0,
