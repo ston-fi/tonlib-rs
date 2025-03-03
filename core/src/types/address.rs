@@ -10,9 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
 use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
-use crate::tlb_types::block::msg_address::{
-    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressInt,
-};
+use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddress};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
 
@@ -46,36 +44,22 @@ impl TonAddress {
         Ok(TonAddress::new(workchain, state_init.cell_hash()?))
     }
 
-    pub fn from_tlb(addr: MsgAddress) -> Result<TonAddress, TonAddressParseError> {
-        match addr {
+    pub fn from_msg_address<T: Into<MsgAddress>>(
+        addr: T,
+    ) -> Result<TonAddress, TonAddressParseError> {
+        match addr.into() {
             MsgAddress::None(_) => Ok(TonAddress::NULL),
             MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
                 format!("{ext:?}"),
                 "Can't load TonAddress from MsgAddressExt",
             )),
-            MsgAddress::IntStd(addr) => TonAddress::from_tlb_int_std(addr),
-            MsgAddress::IntVar(addr) => TonAddress::from_tlb_int_var(addr),
+            MsgAddress::IntStd(addr) => {
+                TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
+            }
+            MsgAddress::IntVar(addr) => {
+                TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
+            }
         }
-    }
-
-    pub fn from_tlb_int(addr: MsgAddressInt) -> Result<TonAddress, TonAddressParseError> {
-        match addr {
-            MsgAddressInt::Std(addr) => TonAddress::from_tlb_int_std(addr),
-            MsgAddressInt::Var(addr) => TonAddress::from_tlb_int_var(addr),
-        }
-    }
-
-    pub fn from_tlb_int_std(addr: MsgAddrIntStd) -> Result<TonAddress, TonAddressParseError> {
-        TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
-    }
-
-    pub fn from_tlb_int_var(addr: MsgAddrIntVar) -> Result<TonAddress, TonAddressParseError> {
-        TonAddress::from_tlb_data(
-            addr.workchain,
-            addr.address,
-            addr.address_bit_len,
-            addr.anycast.as_ref(),
-        )
     }
 
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
@@ -319,7 +303,7 @@ impl TonAddress {
         bytes[35] = (crc & 0xff) as u8;
     }
 
-    pub fn to_tlb(&self) -> MsgAddress {
+    pub fn to_msg_address(&self) -> MsgAddress {
         if self == &TonAddress::NULL {
             return MsgAddress::NONE;
         }
@@ -625,7 +609,7 @@ mod tests {
     #[test]
     fn test_to_msg_addr_std() -> anyhow::Result<()> {
         let address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
-        let msg_addr = address.to_tlb();
+        let msg_addr = address.to_msg_address();
         let expected = MsgAddress::IntStd(MsgAddrIntStd {
             anycast: None,
             workchain: 0,

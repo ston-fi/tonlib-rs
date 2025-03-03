@@ -207,11 +207,11 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        val.to_tlb().write_to(self)?;
+        val.to_msg_address().write_to(self)?;
         Ok(self)
     }
 
-    pub fn store_tlb_address(&mut self, val: &MsgAddress) -> Result<&mut Self, TonCellError> {
+    pub fn store_msg_address(&mut self, val: &MsgAddress) -> Result<&mut Self, TonCellError> {
         val.write_to(self)?;
         Ok(self)
     }

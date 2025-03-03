@@ -50,6 +50,39 @@ impl MsgAddress {
     pub const NONE: MsgAddress = MsgAddress::None(MsgAddrNone {});
 }
 
+impl From<MsgAddrNone> for MsgAddress {
+    fn from(value: MsgAddrNone) -> Self {
+        MsgAddress::None(value)
+    }
+}
+
+impl From<MsgAddrExt> for MsgAddress {
+    fn from(value: MsgAddrExt) -> Self {
+        MsgAddress::Ext(value)
+    }
+}
+
+impl From<MsgAddressInt> for MsgAddress {
+    fn from(value: MsgAddressInt) -> Self {
+        match value {
+            MsgAddressInt::Std(addr) => MsgAddress::IntStd(addr),
+            MsgAddressInt::Var(addr) => MsgAddress::IntVar(addr),
+        }
+    }
+}
+
+impl From<MsgAddrIntStd> for MsgAddress {
+    fn from(value: MsgAddrIntStd) -> Self {
+        MsgAddress::IntStd(value)
+    }
+}
+
+impl From<MsgAddrIntVar> for MsgAddress {
+    fn from(value: MsgAddrIntVar) -> Self {
+        MsgAddress::IntVar(value)
+    }
+}
+
 impl TLBObject for MsgAddress {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tag = parser.load_u8(2)?;

@@ -88,8 +88,8 @@ impl TonWallet {
         add_state_init: bool,
     ) -> Result<Cell, TonMessageError> {
         let msg_info = CommonMsgInfo::ExtIn(ExtInMsgInfo {
-            src: TonAddress::NULL.to_tlb(),
-            dest: self.address.to_tlb(),
+            src: TonAddress::NULL.to_msg_address(),
+            dest: self.address.to_msg_address(),
             import_fee: Grams::new(ZERO_COINS.clone()),
         });
 
