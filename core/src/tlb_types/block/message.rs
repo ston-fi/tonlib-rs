@@ -231,9 +231,9 @@ mod tests {
             TonAddress::from_str("Ef8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAU")?;
         let expected_dest =
             TonAddress::from_str("Ef8zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM0vF")?;
-        assert_eq!(TonAddress::try_from(info.src)?, expected_src);
+        assert_eq!(TonAddress::from_msg_address(info.src)?, expected_src);
         assert_eq!(
-            TonAddress::try_from(info.dest)?.to_string(),
+            TonAddress::from_msg_address(info.dest)?.to_string(),
             expected_dest.to_string()
         );
         assert_eq!(info.value, CurrencyCollection::new(3242439121u32.into()));
@@ -253,7 +253,7 @@ mod tests {
         let ext_in_msg_info = ExtInMsgInfo::from_boc_hex("b5ee9c7201010101002500004588010319f77e4d761f956e78f9c9fd45f1e914b7ffab9b5c1ea514858979c1560dee10")?;
         let expected_dst =
             TonAddress::from_str("EQCBjPu_JrsPyrc8fOT-ovj0ilv_1c2uD1KKQsS84KsG90PM")?;
-        let dst = TonAddress::try_from(ext_in_msg_info.dest.clone())?;
+        let dst = TonAddress::from_msg_address(ext_in_msg_info.dest.clone())?;
         assert_eq!(dst.to_string(), expected_dst.to_string());
         assert_eq!(ext_in_msg_info.import_fee.clone(), Grams::new(0u32.into()));
 
