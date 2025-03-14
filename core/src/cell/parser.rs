@@ -208,9 +208,14 @@ impl<'a> CellParser<'a> {
         cell
     }
 
+    pub fn load_msg_address(&mut self) -> Result<MsgAddress, TonCellError> {
+        MsgAddress::read(self)
+    }
+
     pub fn load_address(&mut self) -> Result<TonAddress, TonCellError> {
         let msg_addr = MsgAddress::read(self)?;
-        TonAddress::try_from(msg_addr).map_err(|e| TonCellError::InvalidCellData(e.to_string()))
+        TonAddress::from_msg_address(msg_addr)
+            .map_err(|e| TonCellError::InvalidCellData(e.to_string()))
     }
 
     pub fn load_unary_length(&mut self) -> Result<usize, TonCellError> {

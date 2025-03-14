@@ -9,6 +9,7 @@ use num_traits::{One, Zero};
 use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
+use crate::tlb_types::block::msg_address::MsgAddress;
 use crate::tlb_types::traits::TLBObject;
 use crate::{TonAddress, TonHash};
 
@@ -206,7 +207,12 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        val.to_tlb_msg_addr().write_to(self)?;
+        val.to_msg_address().write_to(self)?;
+        Ok(self)
+    }
+
+    pub fn store_msg_address(&mut self, val: &MsgAddress) -> Result<&mut Self, TonCellError> {
+        val.write_to(self)?;
         Ok(self)
     }
 

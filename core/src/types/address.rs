@@ -46,6 +46,24 @@ impl TonAddress {
         Ok(TonAddress::new(workchain, state_init.cell_hash()?))
     }
 
+    pub fn from_msg_address<T: Into<MsgAddress>>(
+        addr: T,
+    ) -> Result<TonAddress, TonAddressParseError> {
+        match addr.into() {
+            MsgAddress::None(_) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+                format!("{ext:?}"),
+                "Can't load TonAddress from MsgAddressExt",
+            )),
+            MsgAddress::IntStd(addr) => {
+                TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
+            }
+            MsgAddress::IntVar(addr) => {
+                TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
+            }
+        }
+    }
+
     pub fn from_hex_str(s: &str) -> Result<TonAddress, TonAddressParseError> {
         let parts: Vec<&str> = s.split(':').collect();
 
@@ -287,7 +305,7 @@ impl TonAddress {
         bytes[35] = (crc & 0xff) as u8;
     }
 
-    pub fn to_tlb_msg_addr(&self) -> MsgAddress {
+    pub fn to_msg_address(&self) -> MsgAddress {
         if self == &TonAddress::NULL {
             return MsgAddress::NONE;
         }
@@ -641,7 +659,7 @@ mod tests {
     #[test]
     fn test_to_msg_addr_std() -> anyhow::Result<()> {
         let address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
-        let msg_addr = address.to_tlb_msg_addr();
+        let msg_addr = address.to_msg_address();
         let expected = MsgAddress::IntStd(MsgAddrIntStd {
             anycast: None,
             workchain: 0,
