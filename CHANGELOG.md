@@ -85,3 +85,8 @@
 * Impl #BE-2088: Wallet v5 message  building
 ### v0.24.2
 * Bump tonlib-sys to 2025.2.2
+### v0.24.3
+* Impl #ni: tonaddres::from_msg_address
+* Impl #ni: add parse/store tlb_address, update tonaddress <-> msgaddress converters
+* Release v0.24.2
+* Bump tonlib-sys to 2025.2.2
