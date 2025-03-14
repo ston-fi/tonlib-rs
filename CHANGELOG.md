@@ -88,4 +88,3 @@
 ### v0.24.3
 * Impl #ni: tonaddress::from_msg_address
 * Impl #ni: add parse/store tlb_address, update tonaddress <-> msgaddress converters
-* Bump tonlib-sys to 2025.2.2
