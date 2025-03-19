@@ -6,6 +6,10 @@ use crate::cell::{ArcCell, Cell, CellBuilder, EitherCellLayout, EMPTY_ARC_CELL};
 use crate::message::{HasOpcode, TonMessage, TonMessageError, WithForwardPayload, ZERO_COINS};
 use crate::TonAddress;
 
+/// Will be deprecated since = "0.25.0",
+/// Use core/src/tlb-types/message/jetton/transfer::JettonTransferMessage instead
+///
+///
 /// Creates a body for jetton transfer according to TL-B schema:
 ///
 /// ```raw
@@ -14,6 +18,7 @@ use crate::TonAddress;
 ///                  forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
 ///                  = InternalMsgBody;
 /// ```
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct JettonTransferMessage {
     /// arbitrary request number.
