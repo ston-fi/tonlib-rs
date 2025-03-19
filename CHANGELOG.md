@@ -88,3 +88,7 @@
 ### v0.24.3
 * Impl #ni: tonaddress::from_msg_address
 * Impl #ni: add parse/store tlb_address, update tonaddress <-> msgaddress converters
+### v0.24.4
+* Implement #be-2222: implement tlb object for jettontransfermessage
+* Implement #be-2232: fix partialeq for eitherref
+* Ni: fix cell_builder bit_len

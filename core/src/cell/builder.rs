@@ -389,7 +389,7 @@ impl CellBuilder {
 
             Cell::new(
                 vec.clone(),
-                bit_len,
+                self.bits_to_write,
                 self.references.clone(),
                 self.is_cell_exotic,
             )

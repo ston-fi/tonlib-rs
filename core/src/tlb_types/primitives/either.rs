@@ -17,11 +17,22 @@ pub struct EitherRef<T> {
     pub layout: EitherRefLayout,
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub enum EitherRefLayout {
     ToCell,
     ToRef,
     Native,
+}
+
+// `Native` converts into `ToCell` and `ToRef` while writing
+// so it's equal to all variants
+impl PartialEq<EitherRefLayout> for EitherRefLayout {
+    fn eq(&self, other: &EitherRefLayout) -> bool {
+        match (self, other) {
+            (EitherRefLayout::Native, _) | (_, EitherRefLayout::Native) => true,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 
 impl<L: TLBObject, R: TLBObject> TLBObject for Either<L, R> {
