@@ -9,13 +9,12 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
-use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddress};
+use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
+use crate::tlb_types::block::msg_address::{
+    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressInt,
+};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
-use crate::{
-    cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError},
-    tlb_types::block::msg_address::{MsgAddrIntVar, MsgAddressInt},
-};
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
@@ -368,6 +367,14 @@ impl FromStr for TonAddress {
     }
 }
 
+impl TryFrom<String> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(value.as_str())
+    }
+}
+
 impl TryFrom<MsgAddress> for TonAddress {
     type Error = TonAddressParseError;
 
@@ -413,14 +420,6 @@ impl TryFrom<MsgAddrIntVar> for TonAddress {
             value.address_bit_len,
             value.anycast.as_ref(),
         )
-    }
-}
-
-impl TryFrom<String> for TonAddress {
-    type Error = TonAddressParseError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::from_str(value.as_str())
     }
 }
 
