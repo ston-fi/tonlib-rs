@@ -9,10 +9,13 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
-use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
 use crate::tlb_types::block::msg_address::{Anycast, MsgAddrIntStd, MsgAddress};
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
+use crate::{
+    cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError},
+    tlb_types::block::msg_address::{MsgAddrIntVar, MsgAddressInt},
+};
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
@@ -362,6 +365,54 @@ impl FromStr for TonAddress {
         } else {
             TonAddress::from_hex_str(s)
         }
+    }
+}
+
+impl TryFrom<MsgAddress> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddress::None(_) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+                format!("{ext:?}"),
+                "Can't load TonAddress from MsgAddressExt",
+            )),
+            MsgAddress::IntStd(addr) => TonAddress::try_from(addr),
+            MsgAddress::IntVar(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
+impl TryFrom<MsgAddressInt> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddressInt) -> Result<Self, Self::Error> {
+        match value {
+            MsgAddressInt::Std(addr) => TonAddress::try_from(addr),
+            MsgAddressInt::Var(addr) => TonAddress::try_from(addr),
+        }
+    }
+}
+
+impl TryFrom<MsgAddrIntStd> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntStd) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(value.workchain, value.address, 256, value.anycast.as_ref())
+    }
+}
+
+impl TryFrom<MsgAddrIntVar> for TonAddress {
+    type Error = TonAddressParseError;
+
+    fn try_from(value: MsgAddrIntVar) -> Result<Self, Self::Error> {
+        TonAddress::from_tlb_data(
+            value.workchain,
+            value.address,
+            value.address_bit_len,
+            value.anycast.as_ref(),
+        )
     }
 }
 
