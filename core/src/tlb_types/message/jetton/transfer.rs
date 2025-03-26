@@ -6,7 +6,6 @@ use crate::tlb_types::block::msg_address::MsgAddress;
 use crate::tlb_types::primitives::either::{EitherRef, EitherRefLayout};
 use crate::tlb_types::primitives::reference::Ref;
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
-use crate::TonAddress;
 
 /// Creates a body for jetton transfer according to TL-B schema:
 ///
@@ -38,8 +37,8 @@ impl JettonTransferMessage {
     pub fn new(
         query_id: u64,
         amount: &BigUint,
-        destination: TonAddress,
-        response_destination: TonAddress,
+        destination: MsgAddress,
+        response_destination: MsgAddress,
         custom_payload: Option<ArcCell>,
         forward_ton_amount: &BigUint,
         forward_payload: &ArcCell,
@@ -49,8 +48,8 @@ impl JettonTransferMessage {
         JettonTransferMessage {
             query_id,
             amount: amount.clone(),
-            destination: destination.to_msg_address(),
-            response_destination: response_destination.to_msg_address(),
+            destination,
+            response_destination,
             custom_payload,
             forward_ton_amount: forward_ton_amount.clone(),
             forward_payload: EitherRef {
@@ -66,8 +65,10 @@ impl TLBObject for JettonTransferMessage {
         const PREFIX: TLBPrefix = TLBPrefix::new(32, JETTON_TRANSFER as u64);
         &PREFIX
     }
+
     fn read(parser: &mut crate::cell::CellParser) -> Result<Self, crate::cell::TonCellError> {
         Self::verify_prefix(parser)?;
+
         let query_id = parser.load_u64(64)?;
         let amount = parser.load_coins()?;
         let destination = TLBObject::read(parser)?;
@@ -96,9 +97,9 @@ impl TLBObject for JettonTransferMessage {
         dst: &mut crate::cell::CellBuilder,
     ) -> Result<(), crate::cell::TonCellError> {
         Self::write_prefix(dst)?;
+
         dst.store_u64(64, self.query_id)?;
         dst.store_coins(&self.amount)?;
-
         self.destination.write_to(dst)?;
         self.response_destination.write_to(dst)?;
         self.custom_payload.write_to(dst)?;
@@ -119,7 +120,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use super::JettonTransferMessage;
-    use crate::cell::{BagOfCells, Cell, CellBuilder};
+    use crate::cell::Cell;
     use crate::message::TonMessageError;
     use crate::tlb_types::primitives::either::{EitherRef, EitherRefLayout};
     use crate::tlb_types::traits::TLBObject;
@@ -154,10 +155,7 @@ mod tests {
 
     #[test]
     fn test_jetton_transfer_parser() -> Result<(), TonMessageError> {
-        let boc = BagOfCells::parse_hex(JETTON_TRANSFER_MSG)?;
-        let cell = boc.single_root()?;
-
-        let result_jetton_transfer_msg = JettonTransferMessage::read(&mut cell.parser())?;
+        let result_jetton_transfer_msg = JettonTransferMessage::from_boc_hex(JETTON_TRANSFER_MSG)?;
 
         let transfer_message_cell = Arc::new(Cell::new(
             hex::decode(TRANSFER_PAYLOAD).unwrap(),
@@ -192,21 +190,10 @@ mod tests {
     #[test]
     fn test_jetton_transfer_builder() -> anyhow::Result<()> {
         let jetton_transfer_msg = EXPECTED_JETTON_TRANSFER_MSG.clone();
+        let result_cell = jetton_transfer_msg.to_cell()?;
+        let result_boc_serialized = result_cell.to_boc(false)?;
 
-        let mut cell_builder = CellBuilder::new();
-        jetton_transfer_msg.write_to(&mut cell_builder)?;
-        let result_cell = cell_builder.build()?;
-
-        let result_boc_serialized = BagOfCells::from_root(result_cell.clone()).serialize(false)?;
         let expected_boc_serialized = hex::decode(JETTON_TRANSFER_MSG)?;
-
-        let expected = BagOfCells::parse(hex::decode(JETTON_TRANSFER_MSG).unwrap().as_slice())
-            .unwrap()
-            .single_root()?;
-
-        println!("EXPECTED {expected:?}");
-
-        println!("RESULT {result_cell:?}");
 
         assert_eq!(expected_boc_serialized, result_boc_serialized);
         Ok(())
