@@ -53,8 +53,8 @@ impl TLBObject for ArcCell {
 
 impl TLBObject for TonHash {
     fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        let byes = parser.load_bytes(TON_HASH_LEN)?;
-        Ok(TonHash::try_from(byes)?)
+        let bytes = parser.load_bytes(TON_HASH_LEN)?;
+        Ok(TonHash::try_from(bytes)?)
     }
 
     fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
