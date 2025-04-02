@@ -1,13 +1,19 @@
+use serde_json::value;
+
 use crate::cell::{CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L100
 #[derive(Debug, Clone, PartialEq)]
 pub enum MsgAddress {
+    Int(MsgAddressInt),
+    Ext(MsgAddressExt),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MsgAddressExt {
     None(MsgAddrNone),
-    Ext(MsgAddrExt),
-    IntStd(MsgAddrIntStd),
-    IntVar(MsgAddrIntVar),
+    Extern(MsgAddrExt),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -47,39 +53,36 @@ pub struct Anycast {
 }
 
 impl MsgAddress {
-    pub const NONE: MsgAddress = MsgAddress::None(MsgAddrNone {});
+    pub const NONE: MsgAddress = MsgAddress::Ext(MsgAddressExt::None(MsgAddrNone {}));
 }
 
 impl From<MsgAddrNone> for MsgAddress {
     fn from(value: MsgAddrNone) -> Self {
-        MsgAddress::None(value)
+        MsgAddress::Ext(MsgAddressExt::None(value))
     }
 }
 
 impl From<MsgAddrExt> for MsgAddress {
     fn from(value: MsgAddrExt) -> Self {
-        MsgAddress::Ext(value)
+        MsgAddress::Ext(MsgAddressExt::Extern(value))
     }
 }
 
 impl From<MsgAddressInt> for MsgAddress {
     fn from(value: MsgAddressInt) -> Self {
-        match value {
-            MsgAddressInt::Std(addr) => MsgAddress::IntStd(addr),
-            MsgAddressInt::Var(addr) => MsgAddress::IntVar(addr),
-        }
+        MsgAddress::Int(value)
     }
 }
 
 impl From<MsgAddrIntStd> for MsgAddress {
     fn from(value: MsgAddrIntStd) -> Self {
-        MsgAddress::IntStd(value)
+        MsgAddress::Int(MsgAddressInt::Std(value))
     }
 }
 
 impl From<MsgAddrIntVar> for MsgAddress {
     fn from(value: MsgAddrIntVar) -> Self {
-        MsgAddress::IntVar(value)
+        MsgAddress::Int(MsgAddressInt::Var(value))
     }
 }
 
@@ -88,10 +91,18 @@ impl TLBObject for MsgAddress {
         let tag = parser.load_u8(2)?;
         parser.seek(-2)?;
         match tag {
-            0b00 => Ok(MsgAddress::None(TLBObject::read(parser)?)),
-            0b01 => Ok(MsgAddress::Ext(TLBObject::read(parser)?)),
-            0b10 => Ok(MsgAddress::IntStd(TLBObject::read(parser)?)),
-            0b11 => Ok(MsgAddress::IntVar(TLBObject::read(parser)?)),
+            0b00 => Ok(MsgAddress::Ext(MsgAddressExt::None(TLBObject::read(
+                parser,
+            )?))),
+            0b01 => Ok(MsgAddress::Ext(MsgAddressExt::Extern(TLBObject::read(
+                parser,
+            )?))),
+            0b10 => Ok(MsgAddress::Int(MsgAddressInt::Std(TLBObject::read(
+                parser,
+            )?))),
+            0b11 => Ok(MsgAddress::Int(MsgAddressInt::Var(TLBObject::read(
+                parser,
+            )?))),
             _ => Err(TonCellError::CellParserError(format!(
                 "MsgAddress: unexpected tag {tag}"
             ))),
@@ -100,10 +111,10 @@ impl TLBObject for MsgAddress {
 
     fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
-            MsgAddress::None(addr) => addr.write_to(builder)?,
-            MsgAddress::Ext(addr) => addr.write_to(builder)?,
-            MsgAddress::IntStd(addr) => addr.write_to(builder)?,
-            MsgAddress::IntVar(addr) => addr.write_to(builder)?,
+            MsgAddress::Int(MsgAddressInt::Std(addr)) => addr.write_to(builder)?,
+            MsgAddress::Int(MsgAddressInt::Var(addr)) => addr.write_to(builder)?,
+            MsgAddress::Ext(MsgAddressExt::None(addr)) => addr.write_to(builder)?,
+            MsgAddress::Ext(MsgAddressExt::Extern(addr)) => addr.write_to(builder)?,
         };
         Ok(())
     }
@@ -275,12 +286,18 @@ mod tests {
                 123, 51, 95, 20, 153, 234, 122, 207, 23, 115, 175, 20, 206, 237,
             ],
         };
-        assert_eq!(parsed, MsgAddress::IntStd(expected.clone()));
+        assert_eq!(
+            parsed,
+            MsgAddress::Int(MsgAddressInt::Std(expected.clone()))
+        );
 
         let serial_cell = parsed.to_cell()?;
         let mut serial_parser = serial_cell.parser();
         let parsed_back = assert_ok!(MsgAddress::read(&mut serial_parser));
-        assert_eq!(parsed_back, MsgAddress::IntStd(expected.clone()));
+        assert_eq!(
+            parsed_back,
+            MsgAddress::Int(MsgAddressInt::Std(expected.clone()))
+        );
         Ok(())
     }
 
@@ -299,7 +316,10 @@ mod tests {
             workchain: -1,
             address: vec![0; 32],
         };
-        assert_eq!(parsed, MsgAddress::IntStd(expected));
+        assert_eq!(
+            parsed,
+            MsgAddress::Int(MsgAddressInt::Std(expected.clone()))
+        );
 
         // don't support same layout, so check deserialized data again
         let serial_cell = parsed.to_cell()?;
