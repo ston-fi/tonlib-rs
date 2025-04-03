@@ -150,10 +150,10 @@ impl CellBuilder {
             )));
         }
         if sign == Sign::Minus {
-            self.store_byte(1)?;
+            self.store_bit(true)?;
             self.store_uint(bit_len, &extend_and_invert_bits(bit_len, &mag)?)?;
         } else {
-            self.store_byte(0)?;
+            self.store_bit(false)?;
             self.store_uint(bit_len, &mag)?;
         };
         Ok(self)
@@ -434,10 +434,11 @@ impl Default for CellBuilder {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::ops::ShrAssign;
     use std::str::FromStr;
 
     use num_bigint::{BigInt, BigUint, Sign};
-    use num_traits::Zero;
+    use num_traits::{Num, Zero};
 
     use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
@@ -578,19 +579,23 @@ mod tests {
         writer.store_int(33, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        written.shr_assign(8 - cell.bit_len % 8); // should shift bigint here as cell builder writes unalinged bits
+
         assert_eq!(written, value);
 
         // 256 bits (+ sign)
-        let value = BigInt::from_str(
-            "97887266651548624282413032824435501549503168134499591480902563623927645013201",
+        let value = BigInt::from_str_radix(
+            "123456789ABCDEFAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55",
+            16,
         )
         .unwrap();
         let mut writer = CellBuilder::new();
         writer.store_int(257, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        written.shr_assign(8 - cell.bit_len % 8);
         assert_eq!(written, value);
 
         let value = BigInt::from_str("-5").unwrap();
@@ -598,9 +603,20 @@ mod tests {
         writer.store_int(5, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data[1..]);
-        let expected = BigInt::from_bytes_be(Sign::Plus, &[0xB0u8]);
-        assert_eq!(written, expected);
+        assert_eq!(5, cell.bit_len);
+        assert_eq!(0b1101_1000, cell.data[0]);
+
+        let value = BigInt::from_str("-5").unwrap();
+        let mut writer = CellBuilder::new();
+        writer.store_int(7, &value)?;
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        assert_eq!(7, cell.bit_len);
+        assert_eq!(0b1111_0110, cell.data[0]);
+
+        assert!(CellBuilder::new()
+            .store_int(32, &BigInt::from(2401234567u32))
+            .is_err());
         Ok(())
     }
 
