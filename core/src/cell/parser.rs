@@ -4,7 +4,7 @@ use std::io::{Cursor, SeekFrom};
 use std::sync::Arc;
 
 use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::{BigInt, BigUint};
 use num_traits::identities::Zero;
 
 use super::dict::{DictParser, KeyReader, SnakeFormatDict, ValReader};
@@ -125,22 +125,13 @@ impl<'a> CellParser<'a> {
 
     pub fn load_int(&mut self, bit_len: usize) -> Result<BigInt, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
-        let num_words = (bit_len + 31) / 32;
-        let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
-        let mut words: Vec<u32> = vec![0_u32; num_words];
-        let high_word = self.load_u32(high_word_bits)?;
-        let sign = if (high_word & (1 << 31)) == 0 {
-            Sign::Plus
-        } else {
-            Sign::Minus
-        };
-        words[num_words - 1] = high_word;
-        for i in (0..num_words - 1).rev() {
-            let word = self.load_u32(32)?;
-            words[i] = word;
+        let bytes = self.load_bits(bit_len)?;
+        let res = BigInt::from_signed_bytes_be(&bytes);
+        let extra_bits = bit_len % 8;
+        if extra_bits != 0 {
+            return Ok(res >> (8 - extra_bits));
         }
-        let big_uint = BigInt::new(sign, words);
-        Ok(big_uint)
+        Ok(res)
     }
 
     pub fn load_byte(&mut self) -> Result<u8, TonCellError> {
@@ -478,8 +469,60 @@ mod tests {
     fn test_load_int() {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_int(10).unwrap(), BigInt::from(0b1010101001));
+        assert_eq!(parser.load_int(10).unwrap(), BigInt::from(-343));
         assert!(parser.load_int(5).is_err());
+
+        let cell = Cell::new([0b0010_1000].to_vec(), 5, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(5).unwrap(), BigInt::from(5));
+
+        let cell = Cell::new([0b0000_1010].to_vec(), 7, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(7).unwrap(), BigInt::from(5));
+
+        let cell = Cell::new([0b1111_0110].to_vec(), 7, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(7).unwrap(), BigInt::from(-5));
+
+        let cell = Cell::new([0b1101_1000].to_vec(), 5, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(5).unwrap(), BigInt::from(-5));
+
+        let cell = Cell::new([0b11101111].to_vec(), 8, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(8).unwrap(), BigInt::from(-17));
+    }
+
+    #[test]
+    fn test_store_load_int() -> anyhow::Result<()> {
+        let cell = CellBuilder::new()
+            .store_int(15, &BigInt::from(0))?
+            .store_int(15, &BigInt::from(15))?
+            .store_int(123, &BigInt::from(-16))?
+            .store_int(123, &BigInt::from(75))?
+            .store_int(15, &BigInt::from(-93))?
+            .store_int(32, &BigInt::from(83))?
+            .store_int(64, &BigInt::from(-183))?
+            .store_int(32, &BigInt::from(1401234567u32))?
+            .store_int(64, &BigInt::from(-1200617341))?
+            .build()?;
+
+        println!("{cell:?}");
+
+        let mut parser = cell.parser();
+
+        assert_eq!(parser.load_int(15)?, BigInt::ZERO);
+        assert_eq!(parser.load_int(15)?, BigInt::from(15));
+        assert_eq!(parser.load_int(123)?, BigInt::from(-16));
+        assert_eq!(parser.load_int(123)?, BigInt::from(75));
+        assert_eq!(parser.load_int(15)?, BigInt::from(-93));
+        assert_eq!(parser.load_int(32)?, BigInt::from(83));
+        assert_eq!(parser.load_int(64)?, BigInt::from(-183));
+        assert_eq!(parser.load_int(32)?, BigInt::from(1401234567u32));
+        assert_eq!(parser.load_int(64)?, BigInt::from(-1200617341));
+
+        assert!(parser.ensure_empty().is_ok());
+        Ok(())
     }
 
     #[test]
