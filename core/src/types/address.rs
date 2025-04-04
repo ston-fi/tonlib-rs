@@ -11,7 +11,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::{TonAddressParseError, TonHash, ZERO_HASH};
 use crate::cell::{rewrite_bits, ArcCell, CellBuilder, TonCellError};
 use crate::tlb_types::block::msg_address::{
-    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressInt,
+    Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressExt, MsgAddressInt,
 };
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::traits::TLBObject;
@@ -50,15 +50,15 @@ impl TonAddress {
         addr: T,
     ) -> Result<TonAddress, TonAddressParseError> {
         match addr.into() {
-            MsgAddress::None(_) => Ok(TonAddress::NULL),
-            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+            MsgAddress::Ext(MsgAddressExt::None(_)) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(MsgAddressExt::Extern(ext)) => Err(TonAddressParseError::new(
                 format!("{ext:?}"),
-                "Can't load TonAddress from MsgAddressExt",
+                "Can't load TonAddress from MsgAddrExt",
             )),
-            MsgAddress::IntStd(addr) => {
+            MsgAddress::Int(MsgAddressInt::Std(addr)) => {
                 TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
             }
-            MsgAddress::IntVar(addr) => {
+            MsgAddress::Int(MsgAddressInt::Var(addr)) => {
                 TonAddress::from_tlb_data(addr.workchain, addr.address, 256, addr.anycast.as_ref())
             }
         }
@@ -309,7 +309,15 @@ impl TonAddress {
         if self == &TonAddress::NULL {
             return MsgAddress::NONE;
         }
-        MsgAddress::IntStd(MsgAddrIntStd {
+        MsgAddress::Int(MsgAddressInt::Std(MsgAddrIntStd {
+            anycast: None,
+            workchain: self.workchain,
+            address: self.hash_part.to_vec(),
+        }))
+    }
+
+    pub fn to_msg_address_int(&self) -> MsgAddressInt {
+        MsgAddressInt::Std(MsgAddrIntStd {
             anycast: None,
             workchain: self.workchain,
             address: self.hash_part.to_vec(),
@@ -380,13 +388,13 @@ impl TryFrom<MsgAddress> for TonAddress {
 
     fn try_from(value: MsgAddress) -> Result<Self, Self::Error> {
         match value {
-            MsgAddress::None(_) => Ok(TonAddress::NULL),
-            MsgAddress::Ext(ext) => Err(TonAddressParseError::new(
+            MsgAddress::Ext(MsgAddressExt::None(_)) => Ok(TonAddress::NULL),
+            MsgAddress::Ext(MsgAddressExt::Extern(ext)) => Err(TonAddressParseError::new(
                 format!("{ext:?}"),
-                "Can't load TonAddress from MsgAddressExt",
+                "Can't load TonAddress from MsgAddrExt",
             )),
-            MsgAddress::IntStd(addr) => TonAddress::try_from(addr),
-            MsgAddress::IntVar(addr) => TonAddress::try_from(addr),
+            MsgAddress::Int(MsgAddressInt::Std(addr)) => TonAddress::try_from(addr),
+            MsgAddress::Int(MsgAddressInt::Var(addr)) => TonAddress::try_from(addr),
         }
     }
 }
@@ -469,7 +477,7 @@ mod tests {
 
     use super::TonAddressParseError;
     use crate::cell::{BagOfCells, Cell, CellBuilder};
-    use crate::tlb_types::block::msg_address::{MsgAddrIntStd, MsgAddress};
+    use crate::tlb_types::block::msg_address::{MsgAddrIntStd, MsgAddress, MsgAddressInt};
     use crate::tlb_types::traits::TLBObject;
     use crate::{TonAddress, TonHash};
 
@@ -660,13 +668,13 @@ mod tests {
     fn test_to_msg_addr_std() -> anyhow::Result<()> {
         let address = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
         let msg_addr = address.to_msg_address();
-        let expected = MsgAddress::IntStd(MsgAddrIntStd {
+        let expected = MsgAddress::Int(MsgAddressInt::Std(MsgAddrIntStd {
             anycast: None,
             workchain: 0,
             address: hex::decode(
                 "e4d954ef9f4e1250a26b5bbad76a1cdd17cfd08babad6f4c23e372270aef6f76",
             )?,
-        });
+        }));
         assert_eq!(msg_addr, expected);
         Ok(())
     }
