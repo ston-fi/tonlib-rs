@@ -315,6 +315,14 @@ impl TonAddress {
             address: self.hash_part.to_vec(),
         }))
     }
+
+    pub fn to_msg_address_int(&self) -> MsgAddressInt {
+        MsgAddressInt::Std(MsgAddrIntStd {
+            anycast: None,
+            workchain: self.workchain,
+            address: self.hash_part.to_vec(),
+        })
+    }
 }
 
 impl PartialOrd for TonAddress {

@@ -1,5 +1,3 @@
-use serde_json::value;
-
 use crate::cell::{CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
 
@@ -186,6 +184,28 @@ impl TLBObject for MsgAddrExt {
     fn prefix() -> &'static TLBPrefix {
         const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b01);
         &PREFIX
+    }
+}
+
+impl TLBObject for MsgAddressExt {
+    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        let tag = parser.load_u8(2)?;
+        parser.seek(-2)?;
+        match tag {
+            0b00 => Ok(MsgAddressExt::None(TLBObject::read(parser)?)),
+            0b01 => Ok(MsgAddressExt::Extern(TLBObject::read(parser)?)),
+            _ => Err(TonCellError::CellParserError(format!(
+                "MsgAddressExt: unexpected tag {tag}"
+            ))),
+        }
+    }
+
+    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        match self {
+            MsgAddressExt::None(addr) => addr.write_to(builder)?,
+            MsgAddressExt::Extern(addr) => addr.write_to(builder)?,
+        };
+        Ok(())
     }
 }
 

@@ -5,6 +5,8 @@ use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::primitives::either::EitherRef;
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
 
+use super::msg_address::MsgAddressExt;
+
 // https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/block/block.tlb#L157
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
@@ -37,15 +39,15 @@ pub struct IntMsgInfo {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExtInMsgInfo {
-    pub src: MsgAddress,
-    pub dest: MsgAddress,
+    pub src: MsgAddressExt,
+    pub dest: MsgAddressInt,
     pub import_fee: Grams,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExtOutMsgInfo {
     pub src: MsgAddress,
-    pub dest: MsgAddress,
+    pub dest: MsgAddressExt,
     pub created_lt: u64,
     pub created_at: u32,
 }
