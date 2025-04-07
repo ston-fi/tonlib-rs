@@ -119,9 +119,7 @@ impl TonContractState {
                 let code = state.code.as_slice();
                 let data = state.data.as_slice();
                 let mut emulator = TvmEmulator::new(code, data)?;
-                emulator
-                    .with_c7(&c7)?
-                    .with_libraries(libs.dict_boc.as_slice())?;
+                emulator.with_c7(&c7)?.with_libraries(libs.0.as_slice())?;
                 let run_result = emulator.run_get_method(&static_method_id, static_stack);
                 run_result
             })

@@ -5,7 +5,6 @@ use std::time::Duration;
 pub use blockchain_library_provider::*;
 pub use builder::*;
 pub use cache::*;
-pub use library_helper::*;
 pub use library_provider::*;
 use tokio::sync::OnceCell;
 use tonlib_core::TonAddress;
@@ -17,8 +16,8 @@ use crate::tl::{ConfigInfo, InternalTransactionId, RawFullAccountState};
 mod blockchain_library_provider;
 mod builder;
 mod cache;
-mod library_helper;
 mod library_provider;
+
 #[derive(Clone)]
 pub struct TonContractFactory {
     inner: Arc<Inner>,

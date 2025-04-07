@@ -9,6 +9,7 @@ repository.workspace = true
 resolver = "2"
 
 [dependencies]
+async-trait.workspace = true
 base64.workspace = true
 bitstream-io.workspace = true
 crc.workspace = true
