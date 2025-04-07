@@ -1,11 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use tonlib_core::cell::dict::predefined_writers::val_writer_ref_cell;
-use tonlib_core::cell::{ArcCell, BagOfCells, CellBuilder};
-use tonlib_core::TonHash;
-
-use super::ContractLibraryDict;
-use crate::contract::TonLibraryError;
+use super::{ContractLibraryDict, TonLibraryError};
+use crate::cell::dict::predefined_writers::val_writer_ref_cell;
+use crate::cell::{ArcCell, BagOfCells, CellBuilder};
+use crate::TonHash;
 
 pub struct LibraryHelper;
 
@@ -14,19 +12,15 @@ impl LibraryHelper {
         lib_hashmap: HashMap<TonHash, ArcCell>,
     ) -> Result<ContractLibraryDict, TonLibraryError> {
         if lib_hashmap.is_empty() {
-            return Ok(ContractLibraryDict {
-                dict_boc: Vec::new(),
-                keys: Vec::new(),
-            });
+            return Ok(ContractLibraryDict::new(vec![]));
         }
 
-        let keys = lib_hashmap.keys().cloned().collect();
         let lib_cell = CellBuilder::new()
             .store_dict_data(256, val_writer_ref_cell, lib_hashmap)?
             .build()?;
 
         let dict_boc = BagOfCells::from_root(lib_cell).serialize(false)?;
-        let dict = ContractLibraryDict { dict_boc, keys };
+        let dict = ContractLibraryDict::new(dict_boc);
         Ok(dict)
     }
 
@@ -66,10 +60,10 @@ mod tests {
     use std::collections::HashSet;
 
     use tokio_test::assert_ok;
-    use tonlib_core::cell::BagOfCells;
-    use tonlib_core::TonHash;
 
-    use crate::contract::LibraryHelper;
+    use crate::cell::library_helper::LibraryHelper;
+    use crate::cell::BagOfCells;
+    use crate::TonHash;
 
     #[test]
     fn test_get_lib_hashes_by_code() -> anyhow::Result<()> {

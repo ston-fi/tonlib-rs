@@ -40,7 +40,6 @@ async fn test_get_no_lib() -> anyhow::Result<()> {
     let libs = library_loader
         .get_libs(&[CellBuilder::new().build()?.to_arc()], None)
         .await?;
-    assert_eq!(libs.keys, Vec::new());
-    assert_eq!(libs.dict_boc.len(), 0);
+    assert_eq!(libs.0.len(), 0);
     Ok(())
 }

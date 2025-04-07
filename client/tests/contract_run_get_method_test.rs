@@ -264,7 +264,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
             let code = code.clone();
             let data = data.clone();
             let c7 = c7.clone();
-            let libs = libs.dict_boc.clone();
+            let libs = libs.0.clone();
 
             #[allow(clippy::let_and_return)]
             let ovetall_t = Instant::now();
