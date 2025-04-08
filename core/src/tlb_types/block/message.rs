@@ -1,11 +1,10 @@
+use super::msg_address::MsgAddressExt;
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
 use crate::tlb_types::block::msg_address::MsgAddressInt;
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::primitives::either::EitherRef;
 use crate::tlb_types::traits::{TLBObject, TLBPrefix};
-
-use super::msg_address::MsgAddressExt;
 
 // https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/block/block.tlb#L157
 #[derive(Debug, Clone, PartialEq)]

@@ -108,10 +108,11 @@ impl<T: TLBObject> TLBObject for EitherRef<T> {
 
 #[cfg(test)]
 mod tests {
+    use num_bigint::BigUint;
     use tokio_test::assert_ok;
 
     use super::*;
-    use crate::cell::CellBuilder;
+    use crate::cell::{ArcCell, CellBuilder};
     use crate::tlb_types::primitives::test_types::{TestType1, TestType2};
 
     #[test]
@@ -175,6 +176,86 @@ mod tests {
         assert!(!parser.load_bit()?);
         assert_ok!(parser.load_bits(32)); // skipping
         assert!(parser.load_bit()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_either_recursive() -> anyhow::Result<()> {
+        #[derive(Debug, PartialEq, Clone)]
+        enum List {
+            Empty,
+            Some(Item),
+        }
+
+        impl TLBObject for List {
+            fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+                let r = parser.remaining_bits();
+                println!("{r}");
+                if parser.remaining_bits() == 0 {
+                    Ok(Self::Empty)
+                } else {
+                    Ok(Self::Some(Item::read(parser)?))
+                }
+            }
+
+            fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+                match self {
+                    List::Empty => {}
+                    List::Some(swap_metadata_list_some) => swap_metadata_list_some.write_to(dst)?,
+                }
+                Ok(())
+            }
+        }
+
+        #[derive(Debug, PartialEq, Clone)]
+        struct Item {
+            next: EitherRef<ArcCell>,
+            number1: BigUint,
+            number2: BigUint,
+            number3: BigUint,
+        }
+
+        impl TLBObject for Item {
+            fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+                Ok(Self {
+                    number1: parser.load_uint(256)?,
+                    number2: parser.load_uint(256)?,
+                    number3: parser.load_uint(256)?,
+                    next: TLBObject::read(parser)?,
+                })
+            }
+
+            fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+                dst.store_uint(256, &self.number1)?;
+                dst.store_uint(256, &self.number2)?;
+                dst.store_uint(256, &self.number3)?;
+                self.next.write_to(dst)?;
+                Ok(())
+            }
+        }
+
+        let new_list = List::Some(Item {
+            next: EitherRef {
+                value: List::Some(Item {
+                    next: EitherRef {
+                        value: List::Empty.to_cell()?.to_arc(),
+                        layout: EitherRefLayout::Native,
+                    },
+                    number1: BigUint::from(1u32),
+                    number2: BigUint::from(2u32),
+                    number3: BigUint::from(3u32),
+                })
+                .to_cell()?
+                .to_arc(),
+                layout: EitherRefLayout::Native,
+            },
+            number1: BigUint::from(1u32),
+            number2: BigUint::from(2u32),
+            number3: BigUint::from(3u32),
+        });
+
+        let result = new_list.to_cell()?;
+        println!("{result:?}");
         Ok(())
     }
 }
