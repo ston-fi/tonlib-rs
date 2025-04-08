@@ -1,8 +1,8 @@
 mod helper;
 pub use helper::*;
 
-mod library_provider;
-pub use library_provider::*;
+mod contract_library_dict;
+pub use contract_library_dict::*;
 
 mod error;
 pub use error::*;

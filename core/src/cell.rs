@@ -29,7 +29,7 @@ mod cell_type;
 pub mod dict;
 mod error;
 mod level_mask;
-pub mod library_helper;
+
 mod parser;
 mod raw;
 mod raw_boc_from_boc;
