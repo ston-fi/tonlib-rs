@@ -13,7 +13,7 @@ use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::tlb_types::block::msg_address::MsgAddress;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TON_HASH_LEN;
 use crate::{TonAddress, TonHash};
 
@@ -279,7 +279,7 @@ impl<'a> CellParser<'a> {
             .map_cell_parser_error()
     }
 
-    fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
+    pub fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
 
         self.data_bit_reader
@@ -347,7 +347,7 @@ impl<'a> CellParser<'a> {
         }
     }
 
-    pub fn load_tlb<T: TLBObject>(&mut self) -> Result<T, TonCellError> {
+    pub fn load_tlb<T: TLB>(&mut self) -> Result<T, TonCellError> {
         T::read(self)
     }
 

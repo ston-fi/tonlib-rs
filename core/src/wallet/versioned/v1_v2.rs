@@ -1,5 +1,5 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TonHash;
 use crate::wallet::versioned::utils::write_up_to_4_msgs;
 
@@ -29,23 +29,23 @@ impl WalletDataV1V2 {
     }
 }
 
-impl TLBObject for WalletDataV1V2 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for WalletDataV1V2 {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(Self {
             seqno: parser.load_u32(32)?,
             public_key: parser.load_tonhash()?,
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_u32(32, self.seqno)?;
         dst.store_tonhash(&self.public_key)?;
         Ok(())
     }
 }
 
-impl TLBObject for WalletExtMsgBodyV2 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for WalletExtMsgBodyV2 {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let _signature = parser.load_bytes(64)?;
         let msg_seqno = parser.load_u32(32)?;
         let valid_until = parser.load_u32(32)?;
@@ -64,7 +64,7 @@ impl TLBObject for WalletExtMsgBodyV2 {
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_u32(32, self.msg_seqno)?;
         dst.store_u32(32, self.valid_until)?;
         write_up_to_4_msgs(dst, &self.msgs, &self.msgs_modes)?;

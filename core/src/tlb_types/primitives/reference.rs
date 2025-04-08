@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::cell::{CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Ref<T>(pub T);
@@ -25,12 +25,12 @@ impl<T> DerefMut for Ref<T> {
     }
 }
 
-impl<T: TLBObject> TLBObject for Ref<T> {
-    fn read(parser: &mut CellParser) -> Result<Ref<T>, TonCellError> {
+impl<T: TLB> TLB for Ref<T> {
+    fn read_definition(parser: &mut CellParser) -> Result<Ref<T>, TonCellError> {
         Ok(Ref(T::from_cell(parser.next_reference()?.as_ref())?))
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_child(self.0.to_cell()?)?;
         Ok(())
     }
@@ -41,12 +41,14 @@ mod test {
     use crate::cell::CellBuilder;
     use crate::tlb_types::primitives::reference::Ref;
     use crate::tlb_types::primitives::test_types::TestType1;
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
 
     #[test]
     fn test_ref() -> anyhow::Result<()> {
         let obj = Ref::new(TestType1 { value: 1 });
-        let cell = CellBuilder::new().store_tlb(&obj)?.build()?;
+        let mut builder = CellBuilder::new();
+        obj.write(&mut builder)?;
+        let cell = builder.build()?;
         assert_eq!(cell.references().len(), 1);
         let parsed_back = Ref::<TestType1>::from_cell(&cell)?;
         assert_eq!(obj, parsed_back);

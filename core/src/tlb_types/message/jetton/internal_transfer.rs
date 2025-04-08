@@ -4,7 +4,7 @@ use crate::cell::ArcCell;
 use crate::message::JETTON_INTERNAL_TRANSFER;
 use crate::tlb_types::block::msg_address::MsgAddress;
 use crate::tlb_types::primitives::either::EitherRef;
-use crate::tlb_types::traits::{TLBObject, TLBPrefix};
+use crate::tlb_types::tlb::{TLBPrefix, TLB};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct JettonInternalTransferMessage {
@@ -16,21 +16,18 @@ pub struct JettonInternalTransferMessage {
     pub either_forward_payload: EitherRef<ArcCell>,
 }
 
-impl TLBObject for JettonInternalTransferMessage {
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(32, JETTON_INTERNAL_TRANSFER as u64);
-        &PREFIX
-    }
+impl TLB for JettonInternalTransferMessage {
+    const PREFIX: TLBPrefix = TLBPrefix::new(32, JETTON_INTERNAL_TRANSFER as u64);
 
-    fn read(parser: &mut crate::cell::CellParser) -> Result<Self, crate::cell::TonCellError> {
-        Self::verify_prefix(parser)?;
-
+    fn read_definition(
+        parser: &mut crate::cell::CellParser,
+    ) -> Result<Self, crate::cell::TonCellError> {
         let query_id = parser.load_u64(64)?;
         let jetton_amount = parser.load_coins()?;
         let from_address = parser.load_msg_address()?;
         let response_address = parser.load_msg_address()?;
         let fwd_amount = parser.load_coins()?;
-        let either_forward_payload = TLBObject::read(parser)?;
+        let either_forward_payload = TLB::read(parser)?;
 
         parser.ensure_empty()?;
 
@@ -46,18 +43,16 @@ impl TLBObject for JettonInternalTransferMessage {
         Ok(result)
     }
 
-    fn write_to(
+    fn write_definition(
         &self,
         dst: &mut crate::cell::CellBuilder,
     ) -> Result<(), crate::cell::TonCellError> {
-        Self::write_prefix(dst)?;
-
         dst.store_u64(64, self.query_id)?;
         dst.store_coins(&self.amount)?;
-        self.from_address.write_to(dst)?;
-        self.response_address.write_to(dst)?;
+        self.from_address.write(dst)?;
+        self.response_address.write(dst)?;
         dst.store_coins(&self.fwd_amount)?;
-        self.either_forward_payload.write_to(dst)?;
+        self.either_forward_payload.write(dst)?;
 
         dst.build()?;
         Ok(())
@@ -76,7 +71,7 @@ mod tests {
     use crate::cell::Cell;
     use crate::message::TonMessageError;
     use crate::tlb_types::primitives::either::{EitherRef, EitherRefLayout};
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
 
     const JETTON_INTERNAL_TRANSFER_MSG : &str="b5ee9c720101020100aa0001af178d45190000005209ddeb9e440ee9390801e6ef228644c75beba08c8b8e2adf62f1e760e84861b5c33027f0433e19085713003cdde450c898eb7d74119171c55bec5e3cec1d090c36b86604fe0867c3210ae2501dcd65030100992593856180022a16a3164c4d5aa3133f3110ff10496e00ca8ac8abeffc5027e024d33480c3ea916f9f4a23003cdde450c898eb7d74119171c55bec5e3cec1d090c36b86604fe0867c3210ae250";

@@ -10,7 +10,7 @@ use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
 use crate::tlb_types::block::msg_address::MsgAddress;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::{TonAddress, TonHash};
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
@@ -52,7 +52,7 @@ impl CellBuilder {
         Ok(self)
     }
 
-    fn store_number<N: Numeric>(
+    pub fn store_number<N: Numeric>(
         &mut self,
         bit_len: usize,
         val: N,
@@ -207,12 +207,12 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        val.to_msg_address().write_to(self)?;
+        val.to_msg_address().write(self)?;
         Ok(self)
     }
 
     pub fn store_msg_address(&mut self, val: &MsgAddress) -> Result<&mut Self, TonCellError> {
-        val.write_to(self)?;
+        val.write(self)?;
         Ok(self)
     }
 
@@ -292,11 +292,6 @@ impl CellBuilder {
             }
         }
 
-        Ok(self)
-    }
-
-    pub fn store_tlb<T: TLBObject>(&mut self, obj: &T) -> Result<&mut Self, TonCellError> {
-        obj.write_to(self)?;
         Ok(self)
     }
 

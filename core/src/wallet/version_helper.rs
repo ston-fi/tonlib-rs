@@ -1,5 +1,5 @@
 use crate::cell::{ArcCell, Cell, CellBuilder, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::wallet::mnemonic::KeyPair;
 use crate::wallet::versioned::highload_v2::WalletDataHighloadV2R2;
 use crate::wallet::versioned::v1_v2::{WalletDataV1V2, WalletExtMsgBodyV2};
