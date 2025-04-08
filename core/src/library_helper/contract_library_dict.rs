@@ -21,7 +21,7 @@ mod tests {
     use base64::prelude::BASE64_STANDARD;
     use base64::Engine;
 
-    use crate::cell::library_helper::ContractLibraryDict;
+    use crate::library_helper::ContractLibraryDict;
     use crate::TonHash;
 
     #[test]

@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use thiserror::Error;
-use tonlib_core::cell::library_helper::TonLibraryError;
 use tonlib_core::cell::TonCellError;
+use tonlib_core::library_helper::TonLibraryError;
 use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
