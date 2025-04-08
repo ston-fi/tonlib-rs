@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::cell::{CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 // https://github.com/ton-blockchain/ton/blob/2a68c8610bf28b43b2019a479a70d0606c2a0aa1/crypto/block/block.tlb#L11
 #[derive(Clone, Debug, PartialEq)]
@@ -35,23 +35,23 @@ impl PartialEq<EitherRefLayout> for EitherRefLayout {
     }
 }
 
-impl<L: TLBObject, R: TLBObject> TLBObject for Either<L, R> {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl<L: TLB, R: TLB> TLB for Either<L, R> {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         match parser.load_bit()? {
             false => Ok(Either::Left(L::read(parser)?)),
             true => Ok(Either::Right(R::read(parser)?)),
         }
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
             Either::Left(left) => {
                 dst.store_bit(false)?;
-                left.write_to(dst)?;
+                left.write(dst)?;
             }
             Either::Right(right) => {
                 dst.store_bit(true)?;
-                right.write_to(dst)?;
+                right.write(dst)?;
             }
         };
         Ok(())
@@ -67,24 +67,24 @@ impl<T> EitherRef<T> {
     }
 }
 
-impl<T: TLBObject> TLBObject for EitherRef<T> {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl<T: TLB> TLB for EitherRef<T> {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         match parser.load_bit()? {
             false => Ok(EitherRef {
-                value: TLBObject::read(parser)?,
+                value: TLB::read(parser)?,
                 layout: EitherRefLayout::ToCell,
             }),
             true => {
                 let child = parser.next_reference()?;
                 Ok(EitherRef {
-                    value: TLBObject::from_cell(child.deref())?,
+                    value: TLB::from_cell(child.deref())?,
                     layout: EitherRefLayout::ToRef,
                 })
             }
         }
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         let cell = self.value.to_cell()?;
         let serial_layout = match self.layout {
             EitherRefLayout::ToCell => EitherRefLayout::ToCell,
@@ -132,11 +132,11 @@ mod tests {
             layout: EitherRefLayout::Native,
         };
 
-        let cell = CellBuilder::new()
-            .store_tlb(&obj1)?
-            .store_tlb(&obj2)?
-            .store_tlb(&obj3)?
-            .build()?;
+        let mut builder = CellBuilder::new();
+        obj1.write(&mut builder)?;
+        obj2.write(&mut builder)?;
+        obj3.write(&mut builder)?;
+        let cell = builder.build()?;
         let mut parser = cell.parser();
         let parsed_obj1: EitherRef<TestType1> = parser.load_tlb()?;
         let parsed_obj2: EitherRef<TestType2> = parser.load_tlb()?;
@@ -161,10 +161,10 @@ mod tests {
     fn test_either() -> anyhow::Result<()> {
         let obj1: Either<TestType1, TestType2> = Either::Left(TestType1 { value: 1 });
         let obj2: Either<TestType1, TestType2> = Either::Right(TestType2 { value: 2 });
-        let cell = CellBuilder::new()
-            .store_tlb(&obj1)?
-            .store_tlb(&obj2)?
-            .build()?;
+        let mut builder = CellBuilder::new();
+        obj1.write(&mut builder)?;
+        obj2.write(&mut builder)?;
+        let cell = builder.build()?;
         let mut parser = cell.parser();
         let parsed_obj1 = parser.load_tlb()?;
         let parsed_obj2 = parser.load_tlb()?;
@@ -187,8 +187,8 @@ mod tests {
             Some(Item),
         }
 
-        impl TLBObject for List {
-            fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        impl TLB for List {
+            fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
                 let r = parser.remaining_bits();
                 println!("{r}");
                 if parser.remaining_bits() == 0 {
@@ -198,10 +198,10 @@ mod tests {
                 }
             }
 
-            fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+            fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
                 match self {
                     List::Empty => {}
-                    List::Some(swap_metadata_list_some) => swap_metadata_list_some.write_to(dst)?,
+                    List::Some(swap_metadata_list_some) => swap_metadata_list_some.write(dst)?,
                 }
                 Ok(())
             }
@@ -215,21 +215,21 @@ mod tests {
             number3: BigUint,
         }
 
-        impl TLBObject for Item {
-            fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        impl TLB for Item {
+            fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
                 Ok(Self {
                     number1: parser.load_uint(256)?,
                     number2: parser.load_uint(256)?,
                     number3: parser.load_uint(256)?,
-                    next: TLBObject::read(parser)?,
+                    next: TLB::read(parser)?,
                 })
             }
 
-            fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+            fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
                 dst.store_uint(256, &self.number1)?;
                 dst.store_uint(256, &self.number2)?;
                 dst.store_uint(256, &self.number3)?;
-                self.next.write_to(dst)?;
+                self.next.write(dst)?;
                 Ok(())
             }
         }

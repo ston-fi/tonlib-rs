@@ -18,7 +18,7 @@ use tonlib_client::meta::MetaDataContent;
 use tonlib_client::types::TvmStackEntry;
 use tonlib_core::cell::{CellBuilder, CellSlice};
 use tonlib_core::message::{JettonTransferMessage, TonMessage};
-use tonlib_core::tlb_types::traits::TLBObject;
+use tonlib_core::tlb_types::tlb::TLB;
 use tonlib_core::TonAddress;
 
 lazy_static! {

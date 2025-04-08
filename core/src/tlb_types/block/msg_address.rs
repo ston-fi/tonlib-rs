@@ -1,5 +1,5 @@
 use crate::cell::{CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::{TLBObject, TLBPrefix};
+use crate::tlb_types::tlb::{TLBPrefix, TLB};
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L100
 #[derive(Debug, Clone, PartialEq)]
@@ -84,82 +84,70 @@ impl From<MsgAddrIntVar> for MsgAddress {
     }
 }
 
-impl TLBObject for MsgAddress {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for MsgAddress {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tag = parser.load_u8(2)?;
         parser.seek(-2)?;
         match tag {
-            0b00 => Ok(MsgAddress::Ext(MsgAddressExt::None(TLBObject::read(
-                parser,
-            )?))),
-            0b01 => Ok(MsgAddress::Ext(MsgAddressExt::Extern(TLBObject::read(
-                parser,
-            )?))),
-            0b10 => Ok(MsgAddress::Int(MsgAddressInt::Std(TLBObject::read(
-                parser,
-            )?))),
-            0b11 => Ok(MsgAddress::Int(MsgAddressInt::Var(TLBObject::read(
-                parser,
-            )?))),
+            0b00 => Ok(MsgAddress::Ext(MsgAddressExt::None(TLB::read(parser)?))),
+            0b01 => Ok(MsgAddress::Ext(MsgAddressExt::Extern(TLB::read(parser)?))),
+            0b10 => Ok(MsgAddress::Int(MsgAddressInt::Std(TLB::read(parser)?))),
+            0b11 => Ok(MsgAddress::Int(MsgAddressInt::Var(TLB::read(parser)?))),
             _ => Err(TonCellError::CellParserError(format!(
                 "MsgAddress: unexpected tag {tag}"
             ))),
         }
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
-            MsgAddress::Int(MsgAddressInt::Std(addr)) => addr.write_to(builder)?,
-            MsgAddress::Int(MsgAddressInt::Var(addr)) => addr.write_to(builder)?,
-            MsgAddress::Ext(MsgAddressExt::None(addr)) => addr.write_to(builder)?,
-            MsgAddress::Ext(MsgAddressExt::Extern(addr)) => addr.write_to(builder)?,
+            MsgAddress::Int(MsgAddressInt::Std(addr)) => addr.write(builder)?,
+            MsgAddress::Int(MsgAddressInt::Var(addr)) => addr.write(builder)?,
+            MsgAddress::Ext(MsgAddressExt::None(addr)) => addr.write(builder)?,
+            MsgAddress::Ext(MsgAddressExt::Extern(addr)) => addr.write(builder)?,
         };
         Ok(())
     }
 }
 
-impl TLBObject for MsgAddressInt {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for MsgAddressInt {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tag = parser.load_u8(2)?;
         parser.seek(-2)?;
         match tag {
-            0b10 => Ok(MsgAddressInt::Std(TLBObject::read(parser)?)),
-            0b11 => Ok(MsgAddressInt::Var(TLBObject::read(parser)?)),
+            0b10 => Ok(MsgAddressInt::Std(TLB::read(parser)?)),
+            0b11 => Ok(MsgAddressInt::Var(TLB::read(parser)?)),
             _ => Err(TonCellError::CellParserError(format!(
                 "MsgAddress: unexpected tag {tag}"
             ))),
         }
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
-            MsgAddressInt::Std(addr) => addr.write_to(builder)?,
-            MsgAddressInt::Var(addr) => addr.write_to(builder)?,
+            MsgAddressInt::Std(addr) => addr.write(builder)?,
+            MsgAddressInt::Var(addr) => addr.write(builder)?,
         };
         Ok(())
     }
 }
 
-impl TLBObject for MsgAddrNone {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for MsgAddrNone {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b00);
+
+    fn read_definition(_: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(MsgAddrNone {})
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
+    fn write_definition(&self, _: &mut CellBuilder) -> Result<(), TonCellError> {
         Ok(())
-    }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b00);
-        &PREFIX
     }
 }
 
-impl TLBObject for MsgAddrExt {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for MsgAddrExt {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b01);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let bit_len = parser.load_u16(9)?;
         Ok(MsgAddrExt {
             address_bit_len: bit_len,
@@ -167,8 +155,7 @@ impl TLBObject for MsgAddrExt {
         })
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         if self.address_bit_len > 512 {
             let err_str = format!(
                 "MsgAddressExt len_bits is {}, max=512 (9 bits)",
@@ -180,63 +167,54 @@ impl TLBObject for MsgAddrExt {
         builder.store_bits(self.address_bit_len as usize, &self.address)?;
         Ok(())
     }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b01);
-        &PREFIX
-    }
 }
 
-impl TLBObject for MsgAddressExt {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for MsgAddressExt {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tag = parser.load_u8(2)?;
         parser.seek(-2)?;
         match tag {
-            0b00 => Ok(MsgAddressExt::None(TLBObject::read(parser)?)),
-            0b01 => Ok(MsgAddressExt::Extern(TLBObject::read(parser)?)),
+            0b00 => Ok(MsgAddressExt::None(TLB::read(parser)?)),
+            0b01 => Ok(MsgAddressExt::Extern(TLB::read(parser)?)),
             _ => Err(TonCellError::CellParserError(format!(
                 "MsgAddressExt: unexpected tag {tag}"
             ))),
         }
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
-            MsgAddressExt::None(addr) => addr.write_to(builder)?,
-            MsgAddressExt::Extern(addr) => addr.write_to(builder)?,
+            MsgAddressExt::None(addr) => addr.write(builder)?,
+            MsgAddressExt::Extern(addr) => addr.write(builder)?,
         };
         Ok(())
     }
 }
 
-impl TLBObject for MsgAddrIntStd {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for MsgAddrIntStd {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(MsgAddrIntStd {
-            anycast: TLBObject::read(parser)?,
+            anycast: TLB::read(parser)?,
             workchain: parser.load_i8(8)? as i32,
             address: parser.load_bits(256)?,
         })
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
-        self.anycast.write_to(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.anycast.write(builder)?;
         builder.store_i8(8, self.workchain as i8)?;
         builder.store_bits(256, &self.address)?;
         Ok(())
     }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
-        &PREFIX
-    }
 }
 
-impl TLBObject for MsgAddrIntVar {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
-        let anycast = TLBObject::read(parser)?;
+impl TLB for MsgAddrIntVar {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        let anycast = TLB::read(parser)?;
         let address_bit_len = parser.load_u16(9)?;
         let workchain = parser.load_i32(32)?;
         let address = parser.load_bits(address_bit_len as usize)?;
@@ -248,30 +226,24 @@ impl TLBObject for MsgAddrIntVar {
         })
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
-        self.anycast.write_to(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.anycast.write(builder)?;
         builder.store_u16(9, self.address_bit_len)?;
         builder.store_i32(32, self.workchain)?;
         builder.store_bits(self.address_bit_len as usize, &self.address)?;
         Ok(())
     }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
-        &PREFIX
-    }
 }
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L104
-impl TLBObject for Anycast {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for Anycast {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let depth = parser.load_u8(5)?;
         let rewrite_pfx = parser.load_bits(depth as usize)?;
         Ok(Anycast { depth, rewrite_pfx })
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         builder
             .store_u8(5, self.depth)?
             .store_bits(self.depth as usize, &self.rewrite_pfx)?;
@@ -285,7 +257,7 @@ mod tests {
 
     use super::*;
     use crate::cell::BagOfCells;
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
 
     #[test]
     fn test_read_write_msg_address() -> anyhow::Result<()> {

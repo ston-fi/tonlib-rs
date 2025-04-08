@@ -1,7 +1,7 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::block::out_action::{OutAction, OutActionSendMsg, OutList};
 use crate::tlb_types::primitives::reference::Ref;
-use crate::tlb_types::traits::{TLBObject, TLBPrefix};
+use crate::tlb_types::tlb::{TLBPrefix, TLB};
 use crate::types::TonHash;
 use crate::wallet::versioned::utils::validate_msgs_count;
 
@@ -41,30 +41,30 @@ impl WalletDataV5 {
     }
 }
 
-impl TLBObject for WalletDataV5 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for WalletDataV5 {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(Self {
             signature_allowed: parser.load_bit()?,
             seqno: parser.load_u32(32)?,
             wallet_id: parser.load_i32(32)?,
             public_key: parser.load_tonhash()?,
-            extensions: TLBObject::read(parser)?,
+            extensions: TLB::read(parser)?,
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_bit(self.signature_allowed)?;
         dst.store_u32(32, self.seqno)?;
         dst.store_i32(32, self.wallet_id)?;
         dst.store_tonhash(&self.public_key)?;
-        self.extensions.write_to(dst)?;
+        self.extensions.write(dst)?;
         Ok(())
     }
 }
 
-impl TLBObject for WalletExtMsgBodyV5 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for WalletExtMsgBodyV5 {
+    const PREFIX: TLBPrefix = TLBPrefix::new(32, 0x7369676e);
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let wallet_id = parser.load_i32(32)?;
         let valid_until = parser.load_u32(32)?;
         let msg_seqno = parser.load_u32(32)?;
@@ -79,19 +79,13 @@ impl TLBObject for WalletExtMsgBodyV5 {
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(dst)?;
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_i32(32, self.wallet_id)?;
         dst.store_u32(32, self.valid_until)?;
         dst.store_u32(32, self.msg_seqno)?;
         let inner_req = build_inner_request(&self.msgs, &self.msgs_modes)?;
-        inner_req.write_to(dst)?;
+        inner_req.write(dst)?;
         Ok(())
-    }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(32, 0x7369676e);
-        &PREFIX
     }
 }
 
@@ -102,9 +96,9 @@ pub(super) struct InnerRequest {
                                        // other_actions: Option<()> unsupported
 }
 
-impl TLBObject for InnerRequest {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        let out_actions = TLBObject::read(parser)?;
+impl TLB for InnerRequest {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        let out_actions = TLB::read(parser)?;
         if parser.load_bit()? {
             return Err(TonCellError::InternalError(
                 "other_actions parsing is unsupported".to_string(),
@@ -113,8 +107,8 @@ impl TLBObject for InnerRequest {
         Ok(Self { out_actions })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
-        self.out_actions.write_to(dst)?;
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.out_actions.write(dst)?;
         dst.store_bit(false)?; // other_actions are not supported
         Ok(())
     }
@@ -135,7 +129,7 @@ fn parse_inner_request(request: InnerRequest) -> Result<(Vec<ArcCell>, Vec<u8>),
             let err_str = format!("Unsupported OutAction: {action:?}");
             return Err(TonCellError::InvalidCellData(err_str));
         }
-        out_list = TLBObject::from_cell(&action.prev.0)?;
+        out_list = TLB::from_cell(&action.prev.0)?;
     }
 
     Ok((msgs, msgs_modes))
@@ -165,7 +159,7 @@ fn build_inner_request(msgs: &[ArcCell], msgs_modes: &[u8]) -> Result<InnerReque
 mod test {
     use super::*;
     use crate::cell::Cell;
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::wallet::versioned::{DEFAULT_WALLET_ID_V5R1, DEFAULT_WALLET_ID_V5R1_TESTNET};
 
     #[test]

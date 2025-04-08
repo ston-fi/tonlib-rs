@@ -14,7 +14,7 @@ use crate::tlb_types::block::msg_address::{
     Anycast, MsgAddrIntStd, MsgAddrIntVar, MsgAddress, MsgAddressExt, MsgAddressInt,
 };
 use crate::tlb_types::block::state_init::StateInit;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
@@ -478,7 +478,7 @@ mod tests {
     use super::TonAddressParseError;
     use crate::cell::{BagOfCells, Cell, CellBuilder};
     use crate::tlb_types::block::msg_address::{MsgAddrIntStd, MsgAddress, MsgAddressInt};
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::{TonAddress, TonHash};
 
     #[test]
@@ -676,6 +676,17 @@ mod tests {
             )?,
         }));
         assert_eq!(msg_addr, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_null_serialization() -> anyhow::Result<()> {
+        let null_addr = TonAddress::NULL;
+        let mut builder = CellBuilder::default();
+        builder.store_address(&null_addr)?;
+        let cell = builder.build()?;
+        assert_eq!(cell.data(), &[0]);
+        assert_eq!(cell.bit_len(), 2);
         Ok(())
     }
 }

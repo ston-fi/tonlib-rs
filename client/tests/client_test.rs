@@ -21,7 +21,7 @@ use tonlib_client::tl::{
 };
 use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
 use tonlib_core::cell::{ArcCell, BagOfCells, CellBuilder};
-use tonlib_core::tlb_types::traits::TLBObject;
+use tonlib_core::tlb_types::tlb::TLB;
 use tonlib_core::{TonAddress, TonHash, TonTxId};
 
 mod common;

@@ -1,7 +1,7 @@
 use super::{JettonInternalTransferMessage, JettonTransferMessage};
 use crate::cell::TonCellError;
 use crate::message::{JETTON_INTERNAL_TRANSFER, JETTON_TRANSFER};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum JettonWalletMessage {
@@ -9,19 +9,21 @@ pub enum JettonWalletMessage {
     JettonInternalTransfer(JettonInternalTransferMessage),
 }
 
-impl TLBObject for JettonWalletMessage {
-    fn read(parser: &mut crate::cell::CellParser) -> Result<Self, crate::cell::TonCellError> {
+impl TLB for JettonWalletMessage {
+    fn read_definition(
+        parser: &mut crate::cell::CellParser,
+    ) -> Result<Self, crate::cell::TonCellError> {
         let opcode = parser.load_u32(32)?;
         // mv parser back
         parser.seek(-32)?;
 
         match opcode {
             JETTON_TRANSFER => {
-                let jetton_transfer = TLBObject::read(parser)?;
+                let jetton_transfer = TLB::read(parser)?;
                 Ok(JettonWalletMessage::JettonTransfer(jetton_transfer))
             }
             JETTON_INTERNAL_TRANSFER => {
-                let jetton_internal_transfer = TLBObject::read(parser)?;
+                let jetton_internal_transfer = TLB::read(parser)?;
                 Ok(JettonWalletMessage::JettonInternalTransfer(
                     jetton_internal_transfer,
                 ))
@@ -32,14 +34,14 @@ impl TLBObject for JettonWalletMessage {
         }
     }
 
-    fn write_to(
+    fn write_definition(
         &self,
         dst: &mut crate::cell::CellBuilder,
     ) -> Result<(), crate::cell::TonCellError> {
         match self {
-            Self::JettonTransfer(jetton_transfer) => jetton_transfer.write_to(dst)?,
+            Self::JettonTransfer(jetton_transfer) => jetton_transfer.write(dst)?,
             Self::JettonInternalTransfer(jetton_internal_transfer) => {
-                jetton_internal_transfer.write_to(dst)?
+                jetton_internal_transfer.write(dst)?
             }
         }
 
@@ -60,7 +62,7 @@ mod tests {
     use crate::message::TonMessageError;
     use crate::tlb_types::message::jetton::{JettonInternalTransferMessage, JettonWalletMessage};
     use crate::tlb_types::primitives::either::{EitherRef, EitherRefLayout};
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
 
     const JETTON_TRANSFER_MSG : &str="b5ee9c720101020100a800016d0f8a7ea5001f5512dab844d643b9aca00800ef3b9902a271b2a01c8938a523cfe24e71847aaeb6a620001ed44a77ac0e709c1033428f030100d7259385618009dd924373a9aad41b28cec02da9384d67363af2034fc2a7ccc067e28d4110de86e66deb002365dfa32dfd419308ebdf35e0f6ba7c42534bbb5dab5e89e28ea3e0455cc2d2f00257a672371a90e149b7d25864dbfd44827cc1e8a30df1b1e0c4338502ade2ad96";
