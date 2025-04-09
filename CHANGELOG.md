@@ -92,3 +92,5 @@
 * Implement #be-2222: implement tlb object for jettontransfermessage
 * Implement #be-2232: fix partialeq for eitherref
 * Ni: fix cell_builder bit_len
+### v0.24.2
+* Disabled no-avx feature for macos
