@@ -26,7 +26,7 @@ sudo apt install build-essential cmake libsodium-dev libsecp256k1-dev lz4 liblz4
 
 For macOS:
 ```shell
-brew install readline secp256k1 ccache pkgconfig cmake libsodium
+brew install readline secp256k1 ccache pkgconfig cmake libsodium lz4 automake autoconf libtool
 ```
 
 
