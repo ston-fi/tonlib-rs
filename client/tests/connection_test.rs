@@ -1,10 +1,11 @@
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio_test::assert_ok;
 use tonlib_client::client::{
-    MultiConnectionCallback, TonClientError, TonClientInterface, TonConnection,
+    ConnectionCheck, MultiConnectionCallback, TonClientError, TonClientInterface, TonConnection,
     TonConnectionCallback, DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK,
     NOOP_CONNECTION_CALLBACK,
 };
@@ -17,19 +18,20 @@ use tonlib_core::TonAddress;
 mod common;
 
 #[tokio::test]
-async fn test_connection_init() {
+async fn test_connection_init() -> anyhow::Result<()> {
     common::init_logging();
-    let conn = assert_ok!(TonConnection::new(
-        LOGGING_CONNECTION_CALLBACK.clone(),
-        &DEFAULT_CONNECTION_PARAMS,
-    ));
-    let r = conn
-        .init(&MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
-        .await;
-    log::info!("{:?}", r);
-    assert_ok!(r);
+    let conn = assert_ok!(
+        TonConnection::new(
+            ConnectionCheck::None,
+            &DEFAULT_CONNECTION_PARAMS,
+            LOGGING_CONNECTION_CALLBACK.clone(),
+            None
+        )
+        .await
+    );
     let lvl = assert_ok!(conn.get_log_verbosity_level().await);
     log::info!("Log verbosity level: {}", lvl);
+    Ok(())
 }
 
 struct TestConnectionCallback {
@@ -76,7 +78,7 @@ impl TonConnectionCallback for TestConnectionCallback {
 }
 
 #[tokio::test]
-async fn test_connection_callback() {
+async fn test_connection_callback() -> anyhow::Result<()> {
     common::init_logging();
     let test_callback = Arc::new(TestConnectionCallback::new());
     let multi_callback = Arc::new(MultiConnectionCallback::new(vec![
@@ -84,15 +86,13 @@ async fn test_connection_callback() {
         test_callback.clone(),
         LOGGING_CONNECTION_CALLBACK.clone(),
     ]));
-    let conn = assert_ok!(TonConnection::new(
+    let conn = TonConnection::new(
+        ConnectionCheck::None,
+        &DEFAULT_CONNECTION_PARAMS,
         multi_callback,
-        &DEFAULT_CONNECTION_PARAMS
-    ));
-    let r = conn
-        .init(&MAINNET_CONFIG, None, false, false, KeyStoreType::InMemory)
-        .await;
-    log::info!("{:?}", r);
-    assert_ok!(r);
+        None,
+    )
+    .await?;
     let lvl = assert_ok!(conn.get_log_verbosity_level().await);
     log::info!("Log verbosity level: {}", lvl);
     assert_eq!(2, test_callback.num_invoke.load(Ordering::SeqCst));
@@ -101,18 +101,19 @@ async fn test_connection_callback() {
         0,
         test_callback.num_result_parse_error.load(Ordering::SeqCst)
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_connection_sync() {
+async fn test_connection_sync() -> anyhow::Result<()> {
     common::init_logging();
-    let conn = assert_ok!(
-        TonConnection::connect(
-            &DEFAULT_CONNECTION_PARAMS,
-            LOGGING_CONNECTION_CALLBACK.clone(),
-        )
-        .await
-    );
+    let conn = TonConnection::new(
+        ConnectionCheck::None,
+        &DEFAULT_CONNECTION_PARAMS,
+        LOGGING_CONNECTION_CALLBACK.clone(),
+        None,
+    )
+    .await?;
     let mut receiver = conn.subscribe();
     let flag = Arc::new(AtomicBool::new(false));
     let flag_copy = flag.clone();
@@ -127,12 +128,8 @@ async fn test_connection_sync() {
             }
         }
     });
-    let r = conn
-        .get_account_state(&assert_ok!(TonAddress::from_base64_url(
-            "EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR",
-        )))
-        .await;
-    log::info!("{:?}", r);
-    assert_ok!(r);
+    let addr = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
+    let _state = conn.get_account_state(&addr).await?;
     assert!(flag.load(Ordering::Acquire));
+    Ok(())
 }

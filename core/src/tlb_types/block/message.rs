@@ -1,4 +1,4 @@
-use super::msg_address::MsgAddressExt;
+use super::msg_address::{MsgAddress, MsgAddressExt};
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
 use crate::tlb_types::block::msg_address::MsgAddressInt;
@@ -27,8 +27,8 @@ pub struct IntMsgInfo {
     pub ihr_disabled: bool,
     pub bounce: bool,
     pub bounced: bool,
-    pub src: MsgAddressInt,
-    pub dest: MsgAddressInt,
+    pub src: MsgAddress, // it's MsgAddressInt in schema, but in fact it also can be MsgAddressNone
+    pub dest: MsgAddress, // the same
     pub value: CurrencyCollection,
     pub ihr_fee: Grams,
     pub fwd_fee: Grams,
