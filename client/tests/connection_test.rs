@@ -9,10 +9,7 @@ use tonlib_client::client::{
     TonConnectionCallback, DEFAULT_CONNECTION_PARAMS, LOGGING_CONNECTION_CALLBACK,
     NOOP_CONNECTION_CALLBACK,
 };
-use tonlib_client::config::MAINNET_CONFIG;
-use tonlib_client::tl::{
-    KeyStoreType, SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState,
-};
+use tonlib_client::tl::{SyncState, TonFunction, TonNotification, TonResult, UpdateSyncState};
 use tonlib_core::TonAddress;
 
 mod common;

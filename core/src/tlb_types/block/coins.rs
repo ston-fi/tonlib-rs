@@ -65,7 +65,7 @@ impl TLB for Grams {
             dst.store_u64(4, bit_len)?;
             return Ok(());
         }
-        let byte_len = (bit_len + 7) / 8;
+        let byte_len = bit_len.div_ceil(8);
         dst.store_u64(4, byte_len)?;
         dst.store_uint(byte_len as usize * 8, &self.amount)?;
         Ok(())

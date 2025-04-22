@@ -10,7 +10,7 @@ pub trait BitReadExt {
 
 impl<R: io::Read, E: Endianness> BitReadExt for BitReader<R, E> {
     fn read_bits(&mut self, num_bits: usize, slice: &mut [u8]) -> Result<(), TonCellError> {
-        let total_bytes = (num_bits + 7) / 8;
+        let total_bytes = num_bits.div_ceil(8);
         if total_bytes > slice.len() {
             let msg = format!(
                 "Attempt to read {} bits into buffer {} bytes",

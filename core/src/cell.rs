@@ -403,7 +403,7 @@ fn get_bits_descriptor(bit_len: usize) -> Result<u8, TonCellError> {
             "Cell data length should not contain more than 1023 bits".to_string(),
         ))
     } else {
-        let d2 = (bit_len / 8 + (bit_len + 7) / 8) as u8;
+        let d2 = (bit_len / 8 + bit_len.div_ceil(8)) as u8;
         Ok(d2)
     }
 }
