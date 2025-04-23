@@ -52,24 +52,19 @@ struct Inner {
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
     semaphore: Option<Semaphore>,
-    #[allow(unused)]
-    ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
+    _external_data_provider: Option<Arc<dyn ExtDataProvider>>,
 }
 
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl TonConnection {
-    pub fn tag(&self) -> &str {
-        self.inner.tl_client.get_tag()
-    }
-
     pub async fn new(
-        conn_check: ConnectionCheck,
+        connection_check: ConnectionCheck,
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
         ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
     ) -> Result<TonConnection, TonClientError> {
-        match conn_check {
+        match connection_check {
             ConnectionCheck::None => {
                 make_initialized_conn(params, callback, ext_data_provider).await
             }
@@ -149,7 +144,7 @@ impl TonConnection {
 fn make_uninit_conn(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
+    external_data_provider: Option<Arc<dyn ExtDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     let conn_id = CONNECTION_COUNTER.fetch_add(1, Ordering::Relaxed);
     let tag = format!("ton-conn-{conn_id}");
@@ -170,7 +165,7 @@ fn make_uninit_conn(
         notification_sender: sender,
         callback,
         semaphore,
-        ext_data_provider,
+        _external_data_provider: external_data_provider,
     };
     let inner_arc = Arc::new(inner);
     let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
