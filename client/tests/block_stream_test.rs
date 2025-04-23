@@ -1,7 +1,7 @@
 use tokio_test::assert_ok;
 use tonlib_client::client::{
-    BlockStream, TonBlockFunctions, TonClientInterface, TonConnection, TonConnectionParams,
-    LOGGING_CONNECTION_CALLBACK,
+    BlockStream, ConnectionCheck, TonBlockFunctions, TonClientInterface, TonConnection,
+    TonConnectionParams, LOGGING_CONNECTION_CALLBACK,
 };
 use tonlib_client::tl::InternalTransactionId;
 
@@ -42,11 +42,16 @@ pub async fn block_listener_get_block_header() {
 
 #[tokio::test]
 #[ignore]
-async fn test_connection_hang() {
+async fn test_connection_hang() -> anyhow::Result<()> {
     common::init_logging();
     let params = TonConnectionParams::default();
-    let client =
-        assert_ok!(TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await);
+    let client = TonConnection::new(
+        ConnectionCheck::None,
+        &params,
+        LOGGING_CONNECTION_CALLBACK.clone(),
+        None,
+    )
+    .await?;
     let seqno = assert_ok!(client.get_masterchain_info().await).1.last.seqno;
     let mut block_stream = BlockStream::new(&client, seqno);
     let mut current = seqno;
@@ -86,15 +91,21 @@ async fn test_connection_hang() {
             }
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
 #[ignore]
-async fn test_connection_hang_tx() {
+async fn test_connection_hang_tx() -> anyhow::Result<()> {
     common::init_logging();
     let params = TonConnectionParams::default();
-    let client =
-        assert_ok!(TonConnection::connect(&params, LOGGING_CONNECTION_CALLBACK.clone()).await);
+    let client = TonConnection::new(
+        ConnectionCheck::None,
+        &params,
+        LOGGING_CONNECTION_CALLBACK.clone(),
+        None,
+    )
+    .await?;
     let addr = assert_ok!("EQCqNjAPkigLdS5gxHiHitWuzF3ZN-gX7MlX4Qfy2cGS3FWx".parse());
     let tx_id = InternalTransactionId {
         lt: 45790671000001,
@@ -107,4 +118,5 @@ async fn test_connection_hang_tx() {
             .get_raw_account_state_by_transaction(&addr, &tx_id)
             .await
     );
+    Ok(())
 }

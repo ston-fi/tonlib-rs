@@ -189,7 +189,7 @@ impl CellBuilder {
         if val.is_zero() {
             self.store_u8(4, 0)
         } else {
-            let num_bytes = (val.bits() as usize + 7) / 8;
+            let num_bytes = (val.bits() as usize).div_ceil(8);
             self.store_u8(4, num_bytes as u8)?;
             self.store_uint(num_bytes * 8, val)
         }
@@ -405,7 +405,7 @@ fn extend_and_invert_bits(bits_cnt: usize, src: &BigUint) -> Result<BigUint, Ton
     }
 
     let src_bytes = src.to_bytes_be();
-    let inverted_bytes_cnt = (bits_cnt + 7) / 8;
+    let inverted_bytes_cnt = bits_cnt.div_ceil(8);
     let mut inverted = vec![0xffu8; inverted_bytes_cnt];
     // can be optimized
     for (pos, byte) in src_bytes.iter().rev().enumerate() {
@@ -707,7 +707,7 @@ mod tests {
             let cell = writer.build()?;
 
             println!("{:?}", cell);
-            let taeget_bytelen = (bitlen + 7) / 8;
+            let taeget_bytelen = bitlen.div_ceil(8);
             assert_eq!(cell.data.len(), taeget_bytelen);
 
             assert_eq!(cell.bit_len, bitlen);

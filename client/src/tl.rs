@@ -30,13 +30,10 @@ pub struct TlTonClient {
 }
 
 impl TlTonClient {
-    pub fn new(tag: &str) -> TlTonClient {
+    pub fn new(tag: String) -> TlTonClient {
         let client: TlTonClient = unsafe {
             let ptr = tonlib_client_json_create();
-            TlTonClient {
-                ptr,
-                tag: tag.into(),
-            }
+            TlTonClient { ptr, tag }
         };
         client
     }
@@ -130,7 +127,7 @@ mod tests {
 
     #[test]
     fn it_executes_functions() -> anyhow::Result<()> {
-        let client = TlTonClient::new("test");
+        let client = TlTonClient::new("test".to_string());
         let get_logging = TonFunction::GetLogVerbosityLevel {};
         let _ = client.execute(&get_logging)?;
         Ok(())

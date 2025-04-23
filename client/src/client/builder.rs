@@ -84,7 +84,7 @@ impl TonClientBuilder {
         TonClient::new(
             self.pool_size,
             &self.connection_params,
-            &self.retry_strategy,
+            self.retry_strategy.clone(),
             self.callback.clone(),
             self.connection_check.clone(),
         )
