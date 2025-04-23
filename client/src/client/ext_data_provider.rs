@@ -1,1 +1,1 @@
-pub trait ExtDataProvider: Send + Sync {}
+pub trait ExternalDataProvider: Send + Sync {}

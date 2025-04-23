@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, Mutex, Semaphore, SemaphorePermit};
 
-use crate::client::ext_data_provider::ExtDataProvider;
+use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
     TonNotificationReceiver,
@@ -52,7 +52,7 @@ struct Inner {
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
     semaphore: Option<Semaphore>,
-    _external_data_provider: Option<Arc<dyn ExtDataProvider>>,
+    _external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 }
 
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -62,40 +62,39 @@ impl TonConnection {
         connection_check: ConnectionCheck,
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
-        ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
+        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonConnection, TonClientError> {
         match connection_check {
-            ConnectionCheck::None => {
-                make_initialized_conn(params, callback, ext_data_provider).await
+            ConnectionCheck::None => new_connection(params, callback, external_data_provider).await,
+            ConnectionCheck::Health => {
+                new_connection_healthy(params, callback, external_data_provider).await
             }
-            ConnectionCheck::Health => make_healthy_conn(params, callback, ext_data_provider).await,
             ConnectionCheck::Archive => {
-                make_archive_conn(params, callback, ext_data_provider).await
+                new_connection_archive(params, callback, external_data_provider).await
             }
         }
     }
 
-    async fn init(
-        &self,
-        config: &str,
-        blockchain_name: Option<&str>,
-        use_callbacks_for_network: bool,
-        ignore_cache: bool,
-        keystore_type: KeyStoreType,
-    ) -> Result<OptionsInfo, TonClientError> {
+    async fn init(&self, params: &TonConnectionParams) -> Result<OptionsInfo, TonClientError> {
+        let keystore_type = match &params.keystore_dir {
+            Some(keystore) => KeyStoreType::Directory {
+                directory: keystore.clone(),
+            },
+            _ => KeyStoreType::InMemory,
+        };
+
         let func = TonFunction::Init {
             options: Options {
                 config: Config {
-                    config: String::from(config),
-                    blockchain_name: blockchain_name.map(String::from),
-                    use_callbacks_for_network,
-                    ignore_cache,
+                    config: params.config.clone(),
+                    blockchain_name: params.blockchain_name.clone(),
+                    use_callbacks_for_network: params.use_callbacks_for_network,
+                    ignore_cache: params.ignore_cache,
                 },
                 keystore_type,
             },
         };
-        let result = self.invoke(&func).await?;
-        match result {
+        match self.invoke(&func).await? {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::OptionsInfo,
@@ -130,21 +129,22 @@ impl TonConnection {
     }
 
     async fn limit_rate(&self) -> Result<Option<SemaphorePermit>, TonClientError> {
-        if let Some(semaphore) = &self.inner.semaphore {
-            let permit = semaphore
-                .acquire()
-                .await
-                .map_err(|_| TonClientError::InternalError("AcquireError".to_string()))?;
-            return Ok(Some(permit));
+        match &self.inner.semaphore {
+            Some(semaphore) => {
+                let permit = semaphore.acquire().await.map_err(|_| {
+                    TonClientError::InternalError("Failed to acquire semaphore permit".to_string())
+                })?;
+                Ok(Some(permit))
+            }
+            None => Ok(None),
         }
-        Ok(None)
     }
 }
 
-fn make_uninit_conn(
+async fn new_connection(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    external_data_provider: Option<Arc<dyn ExtDataProvider>>,
+    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     let conn_id = CONNECTION_COUNTER.fetch_add(1, Ordering::Relaxed);
     let tag = format!("ton-conn-{conn_id}");
@@ -172,64 +172,21 @@ fn make_uninit_conn(
     let thread_builder = thread::Builder::new().name(tag.clone());
     let callback = inner_arc.callback.clone();
     let _join_handle = thread_builder.spawn(|| run_loop(tag, inner_weak, callback))?;
-    Ok(TonConnection { inner: inner_arc })
-}
 
-async fn make_initialized_conn(
-    params: &TonConnectionParams,
-    callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
-) -> Result<TonConnection, TonClientError> {
-    let conn = make_uninit_conn(params, callback, ext_data_provider)?;
-    let keystore_type = if let Some(directory) = params.keystore_dir.clone() {
-        KeyStoreType::Directory { directory }
-    } else {
-        KeyStoreType::InMemory
-    };
+    let conn = TonConnection { inner: inner_arc };
+    let _info = conn.init(params).await?;
 
-    let _ = conn
-        .init(
-            params.config.as_str(),
-            params.blockchain_name.as_deref(),
-            params.use_callbacks_for_network,
-            params.ignore_cache,
-            keystore_type,
-        )
-        .await?;
     Ok(conn)
 }
 
-async fn make_archive_conn(
+async fn new_connection_healthy(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
+    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     // connect to other node until it will be able to fetch the very first block
     loop {
-        let conn =
-            make_initialized_conn(params, callback.clone(), ext_data_provider.clone()).await?;
-        let info = BlockId {
-            workchain: -1,
-            shard: i64::MIN,
-            seqno: 1,
-        };
-        conn.sync().await?;
-        if conn.lookup_block(1, &info, 0, 0).await.is_ok() {
-            return Ok(conn);
-        }
-        log::info!("Dropping connection to non-archive node, try new one");
-    }
-}
-
-async fn make_healthy_conn(
-    params: &TonConnectionParams,
-    callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExtDataProvider>>,
-) -> Result<TonConnection, TonClientError> {
-    // connect to other node until it will be able to fetch the very first block
-    loop {
-        let conn =
-            make_initialized_conn(params, callback.clone(), ext_data_provider.clone()).await?;
+        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
         let info_result = conn.get_masterchain_info().await;
         match info_result {
             Ok((_, info)) => {
@@ -244,6 +201,27 @@ async fn make_healthy_conn(
                 log::info!("Dropping connection to unhealthy node: {:?}", err);
             }
         }
+    }
+}
+
+async fn new_connection_archive(
+    params: &TonConnectionParams,
+    callback: Arc<dyn TonConnectionCallback>,
+    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
+) -> Result<TonConnection, TonClientError> {
+    // connect to other node until it will be able to fetch the very first block
+    loop {
+        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
+        let info = BlockId {
+            workchain: -1,
+            shard: i64::MIN,
+            seqno: 1,
+        };
+        conn.sync().await?;
+        if conn.lookup_block(1, &info, 0, 0).await.is_ok() {
+            return Ok(conn);
+        }
+        log::info!("Dropping connection to non-archive node, trying new one");
     }
 }
 

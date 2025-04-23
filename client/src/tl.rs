@@ -26,7 +26,7 @@ base64_serde_type!(Base64Standard, STANDARD);
 
 pub struct TlTonClient {
     ptr: *mut ::std::os::raw::c_void,
-    pub tag: String,
+    tag: String,
 }
 
 impl TlTonClient {
