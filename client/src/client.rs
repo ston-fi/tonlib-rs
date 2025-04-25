@@ -30,6 +30,7 @@ pub mod ext_data_provider;
 #[cfg(feature = "liteapi")]
 mod recent_init_block;
 
+#[derive(Clone)]
 pub struct TonClient {
     inner: Arc<Inner>,
 }
@@ -143,14 +144,6 @@ impl TonClientInterface for TonClient {
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
         self.retrying_invoke(function).await
-    }
-}
-
-impl Clone for TonClient {
-    fn clone(&self) -> Self {
-        TonClient {
-            inner: self.inner.clone(),
-        }
     }
 }
 

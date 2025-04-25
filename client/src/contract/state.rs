@@ -261,15 +261,6 @@ impl TonContractInterface for TonContractState {
         Ok(self.account_state.clone())
     }
 
-    async fn get_account_state_by_transaction(
-        &self,
-        tx_id: &InternalTransactionId,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        self.factory
-            .get_account_state_by_transaction(self.address(), tx_id)
-            .await
-    }
-
     async fn run_get_method<M, S>(
         &self,
         method: M,
