@@ -9,7 +9,7 @@ use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::c7_register::TvmEmulatorC7;
 use crate::emulator::tvm_emulator::TvmEmulator;
-use crate::tl::{InternalTransactionId, RawFullAccountState};
+use crate::tl::RawFullAccountState;
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Clone)]

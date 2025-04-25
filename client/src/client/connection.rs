@@ -52,7 +52,7 @@ struct Inner {
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
     semaphore: Option<Semaphore>,
-    _external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
+    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 }
 
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -165,7 +165,7 @@ async fn new_connection(
         notification_sender: sender,
         callback,
         semaphore,
-        _external_data_provider: external_data_provider,
+        external_data_provider,
     };
     let inner_arc = Arc::new(inner);
     let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
@@ -235,8 +235,23 @@ impl TonClientInterface for TonConnection {
         &self,
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
+        // TODO 2025.04.25 Sild it doesn't work because permit is dropped right after the call,
+        // But it requires more investigation to understand if fix won't break anything else
         self.limit_rate().await?; // take the semaphore to limit number of simultaneous invokes being processed
-        let cnt = self.inner.counter.fetch_add(1, Ordering::SeqCst);
+
+        let cnt = self.inner.counter.fetch_add(1, Ordering::Relaxed);
+
+        if let Some(external_provider) = &self.inner.external_data_provider {
+            if let Some(result) = external_provider.handle(function) {
+                match result {
+                    Ok(response) => return Ok((self.clone(), response)),
+                    Err(err) => {
+                        log::warn!("External data provider failed to handle function: {function:?} with err: {err:?}");
+                    }
+                }
+            }
+        }
+
         let extra = cnt.to_string();
         let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();
         let data = RequestData {

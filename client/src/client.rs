@@ -15,6 +15,7 @@ use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 pub use types::*;
 
+use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::tl::*;
 
 mod block_functions;
@@ -48,6 +49,7 @@ impl TonClient {
         retry_strategy: RetryStrategy,
         callback: Arc<dyn TonConnectionCallback>,
         connection_check: ConnectionCheck,
+        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonClient, TonClientError> {
         let patched_params = if params.update_init_block {
             patch_init_block(params).await?
@@ -70,7 +72,7 @@ impl TonClient {
                 connection_check.clone(),
                 &conn_params,
                 callback.clone(),
-                None,
+                external_data_provider.clone(),
             )
             .await?;
 
