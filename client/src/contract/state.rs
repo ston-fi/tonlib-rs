@@ -9,7 +9,7 @@ use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::c7_register::TvmEmulatorC7;
 use crate::emulator::tvm_emulator::TvmEmulator;
-use crate::tl::{InternalTransactionId, RawFullAccountState};
+use crate::tl::RawFullAccountState;
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Clone)]
@@ -259,15 +259,6 @@ impl TonContractInterface for TonContractState {
 
     async fn get_account_state(&self) -> Result<Arc<RawFullAccountState>, TonContractError> {
         Ok(self.account_state.clone())
-    }
-
-    async fn get_account_state_by_transaction(
-        &self,
-        tx_id: &InternalTransactionId,
-    ) -> Result<RawFullAccountState, TonContractError> {
-        self.factory
-            .get_account_state_by_transaction(self.address(), tx_id)
-            .await
     }
 
     async fn run_get_method<M, S>(
