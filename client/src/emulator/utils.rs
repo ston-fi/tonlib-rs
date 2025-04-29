@@ -1,5 +1,4 @@
-use num_bigint::Sign;
-use tonlib_core::cell::{BagOfCells, Cell, CellBuilder, EMPTY_ARC_CELL, EMPTY_CELL};
+use tonlib_core::cell::{BagOfCells, Cell, CellBuilder, EMPTY_CELL};
 
 use crate::emulator::error::TvmEmulatorError;
 use crate::types::TvmStackEntry;
@@ -7,16 +6,7 @@ use crate::types::TvmStackEntry;
 #[allow(clippy::let_and_return)]
 pub(super) fn build_stack_boc(stack: &[TvmStackEntry]) -> Result<Vec<u8>, TvmEmulatorError> {
     let root_cell = if stack.is_empty() {
-        // empty stack should contain header cell with 24 bit number containing number of elements (0)
-        // and reference to empty cell
-        // Cell{ data: [000000], bit_len: 24, references: [
-        //     Cell{ data: [], bit_len: 0, references: [
-        //     ] }
-        // ] }
-        let root_cell = CellBuilder::new()
-            .store_u64(24, 0)?
-            .store_reference(&EMPTY_ARC_CELL.clone())?
-            .build()?;
+        let root_cell = CellBuilder::new().store_u64(24, 0)?.build()?;
         root_cell
     } else {
         let empty_cell = EMPTY_CELL.clone();
@@ -55,14 +45,7 @@ fn store_stack_entry(
             Ok(())
         }
         TvmStackEntry::Int257(val) => {
-            let (sign, mag) = val.clone().into_parts();
-            builder.store_byte(2)?;
-            if sign == Sign::Minus {
-                builder.store_byte(1)?;
-            } else {
-                builder.store_byte(0)?;
-            };
-            builder.store_uint(256, &mag)?;
+            builder.store_u16(15, 0x0100)?.store_int(257, val)?;
             Ok(())
         }
         TvmStackEntry::Cell(cell) => {
