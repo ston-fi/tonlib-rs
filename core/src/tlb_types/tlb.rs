@@ -85,20 +85,20 @@ pub trait TLB: Sized + Clone + Debug {
             Err(TonCellError::TLBWrongPrefix {
                 exp: Self::PREFIX.value,
                 given,
-                bits_exp: Self::PREFIX.bits_len,
+                bits_exp: Self::PREFIX.bit_len,
                 bits_left,
             })
         };
 
-        if parser.remaining_bits() < Self::PREFIX.bits_len {
+        if parser.remaining_bits() < Self::PREFIX.bit_len {
             return prefix_error(0, parser.remaining_bits());
         }
 
         // we handle cell_underflow above - all other errors can be rethrown
-        let actual_val: u64 = parser.load_number(Self::PREFIX.bits_len)?;
+        let actual_val: u64 = parser.load_number(Self::PREFIX.bit_len)?;
 
         if actual_val != Self::PREFIX.value {
-            parser.seek(-(Self::PREFIX.bits_len as i64))?; // revert reader position
+            parser.seek(-(Self::PREFIX.bit_len as i64))?; // revert reader position
             return prefix_error(actual_val, parser.remaining_bits());
         }
         Ok(())
@@ -106,7 +106,7 @@ pub trait TLB: Sized + Clone + Debug {
 
     fn write_prefix(builder: &mut CellBuilder) -> Result<(), TonCellError> {
         if Self::PREFIX != TLBPrefix::NULL {
-            builder.store_number(Self::PREFIX.bits_len, Self::PREFIX.value)?;
+            builder.store_number(Self::PREFIX.bit_len, &Self::PREFIX.value)?;
         }
         Ok(())
     }
@@ -114,13 +114,13 @@ pub trait TLB: Sized + Clone + Debug {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TLBPrefix {
-    pub bits_len: usize,
+    pub bit_len: usize,
     pub value: u64,
 }
 
 impl TLBPrefix {
     pub const NULL: TLBPrefix = TLBPrefix::new(0, 0);
-    pub const fn new(bits_len: usize, value: u64) -> Self {
-        TLBPrefix { bits_len, value }
+    pub const fn new(bit_len: usize, value: u64) -> Self {
+        TLBPrefix { bit_len, value }
     }
 }

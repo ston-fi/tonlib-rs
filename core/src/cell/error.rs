@@ -54,6 +54,9 @@ pub enum TonCellError {
     },
     #[error("TonHash parse error ({0})")]
     TonHashParseError(#[from] TonHashParseError),
+
+    #[error("{0}")]
+    IO(#[from] std::io::Error),
 }
 
 pub trait MapTonCellError<R, E>

@@ -155,7 +155,7 @@ impl RawBagOfCells {
         let mut writer = BitWriter::endian(Vec::with_capacity(total_size as usize), BigEndian);
 
         writer
-            .write(32, GENERIC_BOC_MAGIC)
+            .write_var(32, GENERIC_BOC_MAGIC)
             .map_boc_serialization_error()?;
 
         //write flags byte
@@ -166,28 +166,28 @@ impl RawBagOfCells {
         writer
             .write_bit(has_cache_bits)
             .map_boc_serialization_error()?;
-        writer.write(2, flags).map_boc_serialization_error()?;
+        writer.write_var(2, flags).map_boc_serialization_error()?;
         writer
-            .write(3, num_ref_bytes)
+            .write_var(3, num_ref_bytes)
             .map_boc_serialization_error()?;
         writer
-            .write(8, num_offset_bytes)
+            .write_var(8, num_offset_bytes)
             .map_boc_serialization_error()?;
         writer
-            .write(8 * num_ref_bytes, self.cells.len() as u32)
+            .write_var(8 * num_ref_bytes, self.cells.len() as u32)
             .map_boc_serialization_error()?;
         writer
-            .write(8 * num_ref_bytes, root_count as u32)
+            .write_var(8 * num_ref_bytes, root_count as u32)
             .map_boc_serialization_error()?;
         writer
-            .write(8 * num_ref_bytes, 0)
+            .write_var(8 * num_ref_bytes, 0)
             .map_boc_serialization_error()?; // Complete BOCs only
         writer
-            .write(8 * num_offset_bytes, full_size)
+            .write_var(8 * num_offset_bytes, full_size)
             .map_boc_serialization_error()?;
         for &root in &self.roots {
             writer
-                .write(8 * num_ref_bytes, root as u32)
+                .write_var(8 * num_ref_bytes, root as u32)
                 .map_boc_serialization_error()?;
         }
 
@@ -286,22 +286,22 @@ fn write_raw_cell(
     // data_len_bytes <= 128 by spec, but d2 must be u8 by spec as well
     let d2 = (data_len_bytes * 2 - if full_bytes { 0 } else { 1 }) as u8; //subtract 1 if the last byte is not full
 
-    writer.write(8, d1).map_boc_serialization_error()?;
-    writer.write(8, d2).map_boc_serialization_error()?;
+    writer.write_var(8, d1).map_boc_serialization_error()?;
+    writer.write_var(8, d2).map_boc_serialization_error()?;
     if !full_bytes {
         writer
             .write_bytes(&data[..data_len_bytes - 1])
             .map_boc_serialization_error()?;
         let last_byte = data[data_len_bytes - 1];
         let l = last_byte | 1 << (8 - padding_bits - 1);
-        writer.write(8, l).map_boc_serialization_error()?;
+        writer.write_var(8, l).map_boc_serialization_error()?;
     } else {
         writer.write_bytes(data).map_boc_serialization_error()?;
     }
 
     for r in cell.references.as_slice() {
         writer
-            .write(8 * ref_size_bytes, *r as u32)
+            .write_var(8 * ref_size_bytes, *r as u32)
             .map_boc_serialization_error()?;
     }
 

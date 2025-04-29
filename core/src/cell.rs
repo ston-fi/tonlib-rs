@@ -15,6 +15,7 @@ pub use parser::*;
 pub use raw::*;
 use sha2::Sha256;
 pub use slice::*;
+pub use ton_cell_num::*;
 pub use util::*;
 
 use crate::cell::cell_type::CellType;
@@ -24,11 +25,11 @@ use crate::TonHash;
 
 mod bag_of_cells;
 mod builder;
-
 mod cell_type;
 pub mod dict;
 mod error;
 mod level_mask;
+mod ton_cell_num;
 
 mod parser;
 mod raw;
@@ -282,8 +283,8 @@ fn get_repr_for_data(
     let d2 = get_bits_descriptor(original_data_bit_len)?;
 
     // Write descriptors
-    writer.write(8, d1).map_cell_parser_error()?;
-    writer.write(8, d2).map_cell_parser_error()?;
+    writer.write_var(8, d1).map_cell_parser_error()?;
+    writer.write_var(8, d2).map_cell_parser_error()?;
     // Write main data
     write_data(&mut writer, data, data_bit_len).map_cell_parser_error()?;
     // Write ref data
@@ -421,7 +422,7 @@ fn write_data(
         writer.write_bytes(&data[..data_len - 1])?;
         let last_byte = data[data_len - 1];
         let l = last_byte | 1 << (8 - rest_bits - 1);
-        writer.write(8, l)?;
+        writer.write_var(8, l)?;
     } else {
         writer.write_bytes(data)?;
     }
@@ -445,8 +446,12 @@ fn write_ref_depths(
             reference.get_depth(level)
         };
 
-        writer.write(8, child_depth / 256).map_cell_parser_error()?;
-        writer.write(8, child_depth % 256).map_cell_parser_error()?;
+        writer
+            .write_var(8, child_depth / 256)
+            .map_cell_parser_error()?;
+        writer
+            .write_var(8, child_depth % 256)
+            .map_cell_parser_error()?;
     }
 
     Ok(())
