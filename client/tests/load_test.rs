@@ -83,6 +83,6 @@ async fn smc_methods_runner(client: TonClient) {
 }
 
 fn get_random(max: usize) -> usize {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(0..max)
+    let mut rng = rand::rng();
+    rng.random_range(0..max)
 }
