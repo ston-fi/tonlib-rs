@@ -122,8 +122,8 @@ impl TonClient {
     #[allow(clippy::let_and_return)]
     fn random_item(&self) -> &TonConnection {
         let pos = {
-            let mut rng = rand::thread_rng();
-            rng.gen_range(0..self.inner.connections.len())
+            let mut rng = rand::rng();
+            rng.random_range(0..self.inner.connections.len())
         };
         &self.inner.connections[pos]
     }
