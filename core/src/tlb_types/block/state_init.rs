@@ -1,6 +1,6 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::primitives::reference::Ref;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/block/block.tlb#L281
 #[derive(Debug, Clone, PartialEq)]
@@ -31,35 +31,35 @@ impl StateInit {
     }
 }
 
-impl TLBObject for StateInit {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for StateInit {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(StateInit {
             split_depth: parser.load_number_optional(5)?,
-            tick_tock: TLBObject::read(parser)?,
-            code: TLBObject::read(parser)?,
-            data: TLBObject::read(parser)?,
-            library: TLBObject::read(parser)?,
+            tick_tock: TLB::read(parser)?,
+            code: TLB::read(parser)?,
+            data: TLB::read(parser)?,
+            library: TLB::read(parser)?,
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_number_optional(5, self.split_depth)?;
-        self.tick_tock.write_to(dst)?;
-        self.code.write_to(dst)?;
-        self.data.write_to(dst)?;
-        self.library.write_to(dst)?;
+        self.tick_tock.write(dst)?;
+        self.code.write(dst)?;
+        self.data.write(dst)?;
+        self.library.write(dst)?;
         Ok(())
     }
 }
 
-impl TLBObject for TickTock {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for TickTock {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let tick = parser.load_bit()?;
         let tock = parser.load_bit()?;
         Ok(TickTock { tick, tock })
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         builder.store_bit(self.tick)?;
         builder.store_bit(self.tock)?;
         Ok(())
@@ -84,7 +84,9 @@ mod tests {
         assert!(state_init.code.is_some());
         assert!(state_init.data.is_some());
         assert_eq!(state_init.library, None);
-        let serial_cell = CellBuilder::new().store_tlb(&state_init)?.build()?;
+        let mut builder = CellBuilder::new();
+        state_init.write(&mut builder)?;
+        let serial_cell = builder.build()?;
         assert_eq!(source_cell.deref(), &serial_cell);
 
         let parsed_back = StateInit::from_cell(&serial_cell)?;

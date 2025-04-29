@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Weak};
 use std::thread;
-use std::thread::JoinHandle;
 use std::time::Instant;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, Mutex, Semaphore, SemaphorePermit};
 
+use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
     TonNotificationReceiver,
@@ -31,182 +32,69 @@ struct RequestData {
 type RequestMap = Mutex<HashMap<u32, RequestData>>;
 type TonNotificationSender = broadcast::Sender<Arc<TonNotification>>;
 
+#[derive(Clone)]
+pub struct TonConnection {
+    inner: Arc<Inner>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectionCheck {
+    None,
+    Health,  // ensure we connected to healthy node
+    Archive, // ensure we connected to archive node
+}
+
 struct Inner {
     tl_client: TlTonClient,
     counter: AtomicU32,
     request_map: RequestMap,
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
-    _notification_receiver: TonNotificationReceiver,
     semaphore: Option<Semaphore>,
-}
-
-pub struct TonConnection {
-    inner: Arc<Inner>,
+    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 }
 
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl TonConnection {
-    /// Creates a new uninitialized TonConnection.
-    ///
-    /// # Errors
-    ///
-    /// Returns error to capture any failure to create thread at system level
-    pub fn new(
-        callback: Arc<dyn TonConnectionCallback>,
+    pub async fn new(
+        connection_check: ConnectionCheck,
         params: &TonConnectionParams,
+        callback: Arc<dyn TonConnectionCallback>,
+        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonConnection, TonClientError> {
-        Self::new_joinable(callback, params).map(|r| r.0)
-    }
-
-    pub fn tag(&self) -> &str {
-        self.inner.tl_client.get_tag()
-    }
-
-    /// Creates a new uninitialized TonConnection together with its `JoinHandle`.
-    ///
-    /// # Errors
-    ///
-    /// Returns error to capture any failure to create thread at system level
-    pub(crate) fn new_joinable(
-        callback: Arc<dyn TonConnectionCallback>,
-        params: &TonConnectionParams,
-    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
-        let tag = format!(
-            "ton-conn-{}",
-            CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst)
-        );
-        let (sender, receiver) =
-            broadcast::channel::<Arc<TonNotification>>(params.notification_queue_length);
-        let concurrency_limit = params.concurrency_limit;
-        let semaphore = if concurrency_limit != 0 {
-            Some(Semaphore::new(params.concurrency_limit))
-        } else {
-            None
-        };
-
-        let request_map = Mutex::new(HashMap::new());
-        let inner = Inner {
-            tl_client: TlTonClient::new(tag.as_str()),
-            counter: AtomicU32::new(0),
-            request_map,
-            notification_sender: sender,
-            callback,
-            _notification_receiver: receiver,
-            semaphore,
-        };
-        let inner_arc = Arc::new(inner);
-        let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
-        let thread_builder = thread::Builder::new().name(tag.clone());
-        let callback = inner_arc.callback.clone();
-        let join_handle = thread_builder.spawn(|| run_loop(tag, inner_weak, callback))?;
-        let conn = TonConnection { inner: inner_arc };
-        Ok((conn, join_handle))
-    }
-
-    /// Creates a new initialized TonConnection
-    pub async fn connect(
-        params: &TonConnectionParams,
-        callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<TonConnection, TonClientError> {
-        Self::connect_joinable(params, callback).await.map(|r| r.0)
-    }
-
-    /// Creates a new initialized TonConnection
-    pub async fn connect_joinable(
-        params: &TonConnectionParams,
-        callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
-        let (conn, join_handle) = Self::new_joinable(callback, params)?;
-        let keystore_type = if let Some(directory) = &params.keystore_dir {
-            KeyStoreType::Directory {
-                directory: directory.clone(),
+        match connection_check {
+            ConnectionCheck::None => new_connection(params, callback, external_data_provider).await,
+            ConnectionCheck::Health => {
+                new_connection_healthy(params, callback, external_data_provider).await
             }
-        } else {
-            KeyStoreType::InMemory
-        };
-        let _ = conn
-            .init(
-                params.config.as_str(),
-                params.blockchain_name.as_deref(),
-                params.use_callbacks_for_network,
-                params.ignore_cache,
-                keystore_type,
-            )
-            .await?;
-        Ok((conn, join_handle))
-    }
-
-    pub(crate) async fn connect_archive(
-        params: &TonConnectionParams,
-        callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
-        // connect to other node until it will be able to fetch the very first block
-        loop {
-            let (conn, join_handle) = Self::connect_joinable(params, callback.clone()).await?;
-            let info = BlockId {
-                workchain: -1,
-                shard: i64::MIN,
-                seqno: 1,
-            };
-            conn.sync().await?;
-            let r = conn.lookup_block(1, &info, 0, 0).await;
-            if r.is_ok() {
-                break Ok((conn, join_handle));
-            } else {
-                log::info!("Dropping connection to non-archive node");
+            ConnectionCheck::Archive => {
+                new_connection_archive(params, callback, external_data_provider).await
             }
         }
     }
 
-    pub(crate) async fn connect_healthy(
-        params: &TonConnectionParams,
-        callback: Arc<dyn TonConnectionCallback>,
-    ) -> Result<(TonConnection, JoinHandle<()>), TonClientError> {
-        // connect to other node until it will be able to fetch the very first block
-        loop {
-            let (conn, join_handle) =
-                TonConnection::connect_joinable(params, callback.clone()).await?;
-            let info_result = conn.get_masterchain_info().await;
-            match info_result {
-                Ok((_, info)) => {
-                    let block_result = conn.get_block_header(&info.last).await;
-                    if let Err(err) = block_result {
-                        log::info!("Dropping connection to unhealthy node: {:?}", err);
-                    } else {
-                        break Ok((conn, join_handle));
-                    }
-                }
-                Err(err) => {
-                    log::info!("Dropping connection to unhealthy node: {:?}", err);
-                }
-            }
-        }
-    }
+    async fn init(&self, params: &TonConnectionParams) -> Result<OptionsInfo, TonClientError> {
+        let keystore_type = match &params.keystore_dir {
+            Some(keystore) => KeyStoreType::Directory {
+                directory: keystore.clone(),
+            },
+            _ => KeyStoreType::InMemory,
+        };
 
-    /// Attempts to initialize an existing TonConnection
-    pub async fn init(
-        &self,
-        config: &str,
-        blockchain_name: Option<&str>,
-        use_callbacks_for_network: bool,
-        ignore_cache: bool,
-        keystore_type: KeyStoreType,
-    ) -> Result<OptionsInfo, TonClientError> {
         let func = TonFunction::Init {
             options: Options {
                 config: Config {
-                    config: String::from(config),
-                    blockchain_name: blockchain_name.map(String::from),
-                    use_callbacks_for_network,
-                    ignore_cache,
+                    config: params.config.clone(),
+                    blockchain_name: params.blockchain_name.clone(),
+                    use_callbacks_for_network: params.use_callbacks_for_network,
+                    ignore_cache: params.ignore_cache,
                 },
                 keystore_type,
             },
         };
-        let result = self.invoke(&func).await?;
-        match result {
+        match self.invoke(&func).await? {
             TonResult::OptionsInfo(options_info) => Ok(options_info),
             r => Err(TonClientError::unexpected_ton_result(
                 TonResultDiscriminants::OptionsInfo,
@@ -241,16 +129,99 @@ impl TonConnection {
     }
 
     async fn limit_rate(&self) -> Result<Option<SemaphorePermit>, TonClientError> {
-        Ok(if let Some(semaphore) = &self.inner.semaphore {
-            Some(
-                semaphore
-                    .acquire()
-                    .await
-                    .map_err(|_| TonClientError::InternalError("AcquireError".to_string()))?,
-            )
-        } else {
-            None
-        })
+        match &self.inner.semaphore {
+            Some(semaphore) => {
+                let permit = semaphore.acquire().await.map_err(|_| {
+                    TonClientError::InternalError("Failed to acquire semaphore permit".to_string())
+                })?;
+                Ok(Some(permit))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+async fn new_connection(
+    params: &TonConnectionParams,
+    callback: Arc<dyn TonConnectionCallback>,
+    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
+) -> Result<TonConnection, TonClientError> {
+    let conn_id = CONNECTION_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let tag = format!("ton-conn-{conn_id}");
+
+    let (sender, _rcv) =
+        broadcast::channel::<Arc<TonNotification>>(params.notification_queue_length);
+
+    let semaphore = if params.concurrency_limit != 0 {
+        Some(Semaphore::new(params.concurrency_limit))
+    } else {
+        None
+    };
+
+    let inner = Inner {
+        tl_client: TlTonClient::new(tag.clone()),
+        counter: AtomicU32::new(0),
+        request_map: Mutex::new(HashMap::new()),
+        notification_sender: sender,
+        callback,
+        semaphore,
+        external_data_provider,
+    };
+    let inner_arc = Arc::new(inner);
+    let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
+    let thread_builder = thread::Builder::new().name(tag.clone());
+    let callback = inner_arc.callback.clone();
+    let _join_handle = thread_builder.spawn(|| run_loop(tag, inner_weak, callback))?;
+
+    let conn = TonConnection { inner: inner_arc };
+    let _info = conn.init(params).await?;
+
+    Ok(conn)
+}
+
+async fn new_connection_healthy(
+    params: &TonConnectionParams,
+    callback: Arc<dyn TonConnectionCallback>,
+    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
+) -> Result<TonConnection, TonClientError> {
+    // connect to other node until it will be able to fetch the very first block
+    loop {
+        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
+        let info_result = conn.get_masterchain_info().await;
+        match info_result {
+            Ok((_, info)) => {
+                let block_result = conn.get_block_header(&info.last).await;
+                if let Err(err) = block_result {
+                    log::info!("Dropping connection to unhealthy node: {:?}", err);
+                } else {
+                    break Ok(conn);
+                }
+            }
+            Err(err) => {
+                log::info!("Dropping connection to unhealthy node: {:?}", err);
+            }
+        }
+    }
+}
+
+async fn new_connection_archive(
+    params: &TonConnectionParams,
+    callback: Arc<dyn TonConnectionCallback>,
+    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
+) -> Result<TonConnection, TonClientError> {
+    // connect to other node until it will be able to fetch the very first block
+    loop {
+        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
+        let info = BlockId {
+            workchain: -1,
+            shard: i64::MIN,
+            seqno: 1,
+        };
+        conn.sync().await?;
+        if conn.lookup_block(1, &info, 0, 0).await.is_ok() {
+            return Ok(conn);
+        }
+        log::info!("Dropping connection to non-archive node, trying new one");
     }
 }
 
@@ -264,8 +235,23 @@ impl TonClientInterface for TonConnection {
         &self,
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
+        // TODO 2025.04.25 Sild it doesn't work because permit is dropped right after the call,
+        // But it requires more investigation to understand if fix won't break anything else
         self.limit_rate().await?; // take the semaphore to limit number of simultaneous invokes being processed
-        let cnt = self.inner.counter.fetch_add(1, Ordering::SeqCst);
+
+        let cnt = self.inner.counter.fetch_add(1, Ordering::Relaxed);
+
+        if let Some(external_provider) = &self.inner.external_data_provider {
+            if let Some(result) = external_provider.handle(function) {
+                match result {
+                    Ok(response) => return Ok((self.clone(), response)),
+                    Err(err) => {
+                        log::warn!("External data provider failed to handle function: {function:?} with err: {err:?}");
+                    }
+                }
+            }
+        }
+
         let extra = cnt.to_string();
         let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();
         let data = RequestData {
@@ -282,7 +268,7 @@ impl TonClientInterface for TonConnection {
         if let Err(e) = res {
             let data = self.inner.request_map.lock().await.remove(&cnt).unwrap();
             let tag = self.inner.tl_client.get_tag();
-            let duration = Instant::now().duration_since(data.send_time);
+            let duration = data.send_time.elapsed();
             let res = Err(TonClientError::TlError(e));
             self.inner
                 .callback
@@ -299,13 +285,6 @@ impl TonClientInterface for TonConnection {
             }
         };
         result.map(|r| (self.clone(), r))
-    }
-}
-
-impl Clone for TonConnection {
-    fn clone(&self) -> Self {
-        let inner = self.inner.clone();
-        TonConnection { inner }
     }
 }
 

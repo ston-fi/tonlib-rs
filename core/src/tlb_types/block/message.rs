@@ -1,9 +1,10 @@
+use super::msg_address::{MsgAddress, MsgAddressExt};
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
 use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
-use crate::tlb_types::block::msg_address::{MsgAddress, MsgAddressInt};
+use crate::tlb_types::block::msg_address::MsgAddressInt;
 use crate::tlb_types::block::state_init::StateInit;
 use crate::tlb_types::primitives::either::EitherRef;
-use crate::tlb_types::traits::{TLBObject, TLBPrefix};
+use crate::tlb_types::tlb::{TLBPrefix, TLB};
 
 // https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/block/block.tlb#L157
 #[derive(Debug, Clone, PartialEq)]
@@ -26,8 +27,8 @@ pub struct IntMsgInfo {
     pub ihr_disabled: bool,
     pub bounce: bool,
     pub bounced: bool,
-    pub src: MsgAddressInt,
-    pub dest: MsgAddressInt,
+    pub src: MsgAddress, // it's MsgAddressInt in schema, but in fact it also can be MsgAddressNone
+    pub dest: MsgAddress, // the same
     pub value: CurrencyCollection,
     pub ihr_fee: Grams,
     pub fwd_fee: Grams,
@@ -37,15 +38,15 @@ pub struct IntMsgInfo {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExtInMsgInfo {
-    pub src: MsgAddress,
-    pub dest: MsgAddress,
+    pub src: MsgAddressExt,
+    pub dest: MsgAddressInt,
     pub import_fee: Grams,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExtOutMsgInfo {
-    pub src: MsgAddress,
-    pub dest: MsgAddress,
+    pub src: MsgAddressInt,
+    pub dest: MsgAddressExt,
     pub created_lt: u64,
     pub created_at: u32,
 }
@@ -58,65 +59,65 @@ impl Message {
             body: EitherRef::new(body),
         }
     }
-
     pub fn with_state_init(&mut self, init: StateInit) -> &mut Self {
         self.init = Some(EitherRef::new(init));
         self
     }
 }
 
-impl TLBObject for Message {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for Message {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let value = Self {
-            info: TLBObject::read(parser)?,
-            init: TLBObject::read(parser)?,
-            body: TLBObject::read(parser)?,
+            info: TLB::read(parser)?,
+            init: TLB::read(parser)?,
+            body: TLB::read(parser)?,
         };
         Ok(value)
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        self.info.write_to(builder)?;
-        self.init.write_to(builder)?;
-        self.body.write_to(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.info.write(builder)?;
+        self.init.write(builder)?;
+        self.body.write(builder)?;
         Ok(())
     }
 }
 
-impl TLBObject for CommonMsgInfo {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for CommonMsgInfo {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let first_tag_bit = parser.load_bit()?;
         if !first_tag_bit {
             parser.seek(-1)?;
-            return Ok(Self::Int(TLBObject::read(parser)?));
+            return Ok(Self::Int(TLB::read(parser)?));
         };
         let second_tag_bit = parser.load_bit()?;
         parser.seek(-2)?;
         match second_tag_bit {
-            false => Ok(Self::ExtIn(TLBObject::read(parser)?)),
-            true => Ok(Self::ExtOut(TLBObject::read(parser)?)),
+            false => Ok(Self::ExtIn(TLB::read(parser)?)),
+            true => Ok(Self::ExtOut(TLB::read(parser)?)),
         }
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         match self {
-            Self::Int(info) => info.write_to(builder)?,
-            Self::ExtIn(info) => info.write_to(builder)?,
-            Self::ExtOut(info) => info.write_to(builder)?,
+            Self::Int(info) => info.write(builder)?,
+            Self::ExtIn(info) => info.write(builder)?,
+            Self::ExtOut(info) => info.write(builder)?,
         }
         Ok(())
     }
 }
 
-impl TLBObject for IntMsgInfo {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for IntMsgInfo {
+    const PREFIX: TLBPrefix = TLBPrefix::new(1, 0b0);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let value = Self {
             ihr_disabled: parser.load_bit()?,
             bounce: parser.load_bit()?,
             bounced: parser.load_bit()?,
-            src: TLBObject::read(parser)?,
-            dest: TLBObject::read(parser)?,
+            src: TLB::read(parser)?,
+            dest: TLB::read(parser)?,
             value: CurrencyCollection::read(parser)?,
             ihr_fee: Grams::read(parser)?,
             fwd_fee: Grams::read(parser)?,
@@ -126,76 +127,62 @@ impl TLBObject for IntMsgInfo {
         Ok(value)
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(dst)?;
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_bit(self.ihr_disabled)?;
         dst.store_bit(self.bounce)?;
         dst.store_bit(self.bounced)?;
-        self.src.write_to(dst)?;
-        self.dest.write_to(dst)?;
-        self.value.write_to(dst)?;
-        self.ihr_fee.write_to(dst)?;
-        self.fwd_fee.write_to(dst)?;
+        self.src.write(dst)?;
+        self.dest.write(dst)?;
+        self.value.write(dst)?;
+        self.ihr_fee.write(dst)?;
+        self.fwd_fee.write(dst)?;
         dst.store_u64(64, self.created_lt)?;
         dst.store_u32(32, self.created_at)?;
         Ok(())
     }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(1, 0b0);
-        &PREFIX
-    }
 }
 
-impl TLBObject for ExtInMsgInfo {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
+impl TLB for ExtInMsgInfo {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let value = Self {
-            src: TLBObject::read(parser)?,
-            dest: TLBObject::read(parser)?,
-            import_fee: TLBObject::read(parser)?,
+            src: TLB::read(parser)?,
+            dest: TLB::read(parser)?,
+            import_fee: TLB::read(parser)?,
         };
         Ok(value)
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
-        self.src.write_to(builder)?;
-        self.dest.write_to(builder)?;
-        self.import_fee.write_to(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.src.write(builder)?;
+        self.dest.write(builder)?;
+        self.import_fee.write(builder)?;
         Ok(())
-    }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b10);
-        &PREFIX
     }
 }
 
-impl TLBObject for ExtOutMsgInfo {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for ExtOutMsgInfo {
+    const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
+
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Self::verify_prefix(parser)?;
         let value = Self {
-            src: TLBObject::read(parser)?,
-            dest: TLBObject::read(parser)?,
+            src: TLB::read(parser)?,
+            dest: TLB::read(parser)?,
             created_lt: parser.load_u64(64)?,
             created_at: parser.load_u32(32)?,
         };
         Ok(value)
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         Self::write_prefix(builder)?;
-        self.src.write_to(builder)?;
-        self.dest.write_to(builder)?;
+        self.src.write(builder)?;
+        self.dest.write(builder)?;
         builder.store_u64(64, self.created_lt)?;
         builder.store_u32(32, self.created_at)?;
         Ok(())
-    }
-
-    fn prefix() -> &'static TLBPrefix {
-        const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
-        &PREFIX
     }
 }
 
@@ -208,7 +195,7 @@ mod tests {
     use crate::cell::BagOfCells;
     use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
     use crate::tlb_types::block::message::{CommonMsgInfo, ExtInMsgInfo, Message};
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
 
     #[test]

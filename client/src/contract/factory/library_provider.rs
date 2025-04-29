@@ -1,14 +1,6 @@
 use async_trait::async_trait;
 use tonlib_core::cell::ArcCell;
-use tonlib_core::TonHash;
-
-use crate::contract::TonLibraryError;
-
-#[derive(Debug, PartialEq)]
-pub struct ContractLibraryDict {
-    pub dict_boc: Vec<u8>,
-    pub keys: Vec<TonHash>,
-}
+use tonlib_core::library_helper::{ContractLibraryDict, TonLibraryError};
 
 #[async_trait]
 pub trait LibraryProvider: Send + Sync {

@@ -85,7 +85,7 @@ impl TonConnectionCallback for LoggingConnectionCallback {
                     request_id,
                     method,
                     duration,
-                    r.to_string()
+                    r
                 );
             }
             Err(e) => {

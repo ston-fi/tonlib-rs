@@ -1,5 +1,5 @@
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TonHash;
 use crate::wallet::versioned::utils::write_up_to_4_msgs;
 
@@ -32,8 +32,8 @@ impl WalletDataV3 {
         }
     }
 }
-impl TLBObject for WalletDataV3 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for WalletDataV3 {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(Self {
             seqno: parser.load_u32(32)?,
             wallet_id: parser.load_i32(32)?,
@@ -41,7 +41,7 @@ impl TLBObject for WalletDataV3 {
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_u32(32, self.seqno)?;
         dst.store_i32(32, self.wallet_id)?;
         dst.store_tonhash(&self.public_key)?;
@@ -49,8 +49,8 @@ impl TLBObject for WalletDataV3 {
     }
 }
 
-impl TLBObject for WalletExtMsgBodyV3 {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for WalletExtMsgBodyV3 {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let subwallet_id = parser.load_i32(32)?;
         let valid_until = parser.load_u32(32)?;
         let msg_seqno = parser.load_u32(32)?;
@@ -70,7 +70,7 @@ impl TLBObject for WalletExtMsgBodyV3 {
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         dst.store_i32(32, self.subwallet_id)?;
         dst.store_u32(32, self.valid_until)?;
         dst.store_u32(32, self.msg_seqno)?;
@@ -83,7 +83,7 @@ impl TLBObject for WalletExtMsgBodyV3 {
 mod test {
     use super::*;
     use crate::cell::Cell;
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::wallet::versioned::DEFAULT_WALLET_ID;
 
     #[test]

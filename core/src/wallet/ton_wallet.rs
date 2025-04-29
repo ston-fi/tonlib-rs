@@ -4,8 +4,9 @@ use crate::cell::{ArcCell, Cell, TonCellError};
 use crate::message::{TonMessageError, ZERO_COINS};
 use crate::tlb_types::block::coins::Grams;
 use crate::tlb_types::block::message::{CommonMsgInfo, ExtInMsgInfo, Message};
+use crate::tlb_types::block::msg_address::{MsgAddrNone, MsgAddressExt};
 use crate::tlb_types::block::state_init::StateInit;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TonAddress;
 use crate::wallet::mnemonic::KeyPair;
 use crate::wallet::version_helper::VersionHelper;
@@ -88,8 +89,8 @@ impl TonWallet {
         add_state_init: bool,
     ) -> Result<Cell, TonMessageError> {
         let msg_info = CommonMsgInfo::ExtIn(ExtInMsgInfo {
-            src: TonAddress::NULL.to_msg_address(),
-            dest: self.address.to_msg_address(),
+            src: MsgAddressExt::None(MsgAddrNone {}),
+            dest: self.address.to_msg_address_int(),
             import_fee: Grams::new(ZERO_COINS.clone()),
         });
 
@@ -109,7 +110,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::cell::{Cell, CellBuilder};
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
     use crate::types::TonAddress;
 
     const MNEMONIC_STR: &str = "fancy carpet hello mandate penalty trial consider property top vicious exit rebuild tragic profit urban major total month holiday sudden rib gather media vicious";

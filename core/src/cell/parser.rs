@@ -3,17 +3,20 @@ use std::hash::Hash;
 use std::io::{Cursor, SeekFrom};
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
-use num_bigint::{BigInt, BigUint, Sign};
+use bitstream_io::{BigEndian, BitRead, BitReader};
+use num_bigint::{BigInt, BigUint};
 use num_traits::identities::Zero;
 
-use super::dict::{DictParser, KeyReader, SnakeFormatDict, ValReader};
+use super::{
+    dict::{DictParser, KeyReader, SnakeFormatDict, ValReader},
+    TonCellNum,
+};
 use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};
 use crate::tlb_types::block::msg_address::MsgAddress;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TON_HASH_LEN;
 use crate::{TonAddress, TonHash};
 
@@ -110,7 +113,7 @@ impl<'a> CellParser<'a> {
 
     pub fn load_uint(&mut self, bit_len: usize) -> Result<BigUint, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
-        let num_words = (bit_len + 31) / 32;
+        let num_words = bit_len.div_ceil(32);
         let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
         let mut words: Vec<u32> = vec![0_u32; num_words];
         let high_word = self.load_u32(high_word_bits)?;
@@ -125,22 +128,13 @@ impl<'a> CellParser<'a> {
 
     pub fn load_int(&mut self, bit_len: usize) -> Result<BigInt, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
-        let num_words = (bit_len + 31) / 32;
-        let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
-        let mut words: Vec<u32> = vec![0_u32; num_words];
-        let high_word = self.load_u32(high_word_bits)?;
-        let sign = if (high_word & (1 << 31)) == 0 {
-            Sign::Plus
-        } else {
-            Sign::Minus
-        };
-        words[num_words - 1] = high_word;
-        for i in (0..num_words - 1).rev() {
-            let word = self.load_u32(32)?;
-            words[i] = word;
+        let bytes = self.load_bits(bit_len)?;
+        let res = BigInt::from_signed_bytes_be(&bytes);
+        let extra_bits = bit_len % 8;
+        if extra_bits != 0 {
+            return Ok(res >> (8 - extra_bits));
         }
-        let big_uint = BigInt::new(sign, words);
-        Ok(big_uint)
+        Ok(res)
     }
 
     pub fn load_byte(&mut self) -> Result<u8, TonCellError> {
@@ -178,11 +172,19 @@ impl<'a> CellParser<'a> {
         Ok(())
     }
 
-    pub fn load_bits(&mut self, num_bits: usize) -> Result<Vec<u8>, TonCellError> {
-        let total_bytes = (num_bits + 7) / 8;
-        let mut res = vec![0_u8; total_bytes];
-        self.load_bits_to_slice(num_bits, res.as_mut_slice())?;
-        Ok(res)
+    pub fn load_bits(&mut self, bit_len: usize) -> Result<Vec<u8>, TonCellError> {
+        self.ensure_enough_bits(bit_len)?;
+        let mut dst = vec![0; bit_len.div_ceil(8)];
+        let full_bytes = bit_len / 8;
+        let remaining_bits = bit_len % 8;
+
+        self.data_bit_reader.read_bytes(&mut dst[..full_bytes])?;
+
+        if remaining_bits != 0 {
+            let last_byte = self.data_bit_reader.read_var::<u8>(remaining_bits as u32)?;
+            dst[full_bytes] = last_byte << (8 - remaining_bits);
+        }
+        Ok(dst)
     }
 
     pub fn load_utf8(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
@@ -288,15 +290,27 @@ impl<'a> CellParser<'a> {
             .map_cell_parser_error()
     }
 
-    fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
+    pub fn load_number<N: TonCellNum>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
-
-        self.data_bit_reader
-            .read::<N>(bit_len as u32)
-            .map_cell_parser_error()
+        if bit_len == 0 {
+            Ok(N::tcn_from_primitive(N::Primitive::zero()))
+        } else if N::IS_PRIMITIVE {
+            let primitive = self
+                .data_bit_reader
+                .read_var::<N::Primitive>(bit_len as u32)?;
+            Ok(N::tcn_from_primitive(primitive))
+        } else {
+            let bytes = self.load_bits(bit_len)?;
+            let res = N::tcn_from_bytes(&bytes);
+            if bit_len % 8 != 0 {
+                Ok(res.tcn_shr(8 - bit_len as u32 % 8))
+            } else {
+                Ok(res)
+            }
+        }
     }
 
-    pub fn load_number_optional<N: Numeric>(
+    pub fn load_number_optional<N: TonCellNum>(
         &mut self,
         bit_len: usize,
     ) -> Result<Option<N>, TonCellError> {
@@ -356,7 +370,7 @@ impl<'a> CellParser<'a> {
         }
     }
 
-    pub fn load_tlb<T: TLBObject>(&mut self) -> Result<T, TonCellError> {
+    pub fn load_tlb<T: TLB>(&mut self) -> Result<T, TonCellError> {
         T::read(self)
     }
 
@@ -478,8 +492,60 @@ mod tests {
     fn test_load_int() {
         let cell = Cell::new([0b10101010, 0b01010101].to_vec(), 14, vec![], false).unwrap();
         let mut parser = cell.parser();
-        assert_eq!(parser.load_int(10).unwrap(), BigInt::from(0b1010101001));
+        assert_eq!(parser.load_int(10).unwrap(), BigInt::from(-343));
         assert!(parser.load_int(5).is_err());
+
+        let cell = Cell::new([0b0010_1000].to_vec(), 5, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(5).unwrap(), BigInt::from(5));
+
+        let cell = Cell::new([0b0000_1010].to_vec(), 7, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(7).unwrap(), BigInt::from(5));
+
+        let cell = Cell::new([0b1111_0110].to_vec(), 7, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(7).unwrap(), BigInt::from(-5));
+
+        let cell = Cell::new([0b1101_1000].to_vec(), 5, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(5).unwrap(), BigInt::from(-5));
+
+        let cell = Cell::new([0b11101111].to_vec(), 8, vec![], false).unwrap();
+        let mut parser = cell.parser();
+        assert_eq!(parser.load_int(8).unwrap(), BigInt::from(-17));
+    }
+
+    #[test]
+    fn test_store_load_int() -> anyhow::Result<()> {
+        let cell = CellBuilder::new()
+            .store_int(15, &BigInt::from(0))?
+            .store_int(15, &BigInt::from(15))?
+            .store_int(123, &BigInt::from(-16))?
+            .store_int(123, &BigInt::from(75))?
+            .store_int(15, &BigInt::from(-93))?
+            .store_int(32, &BigInt::from(83))?
+            .store_int(64, &BigInt::from(-183))?
+            .store_int(32, &BigInt::from(1401234567u32))?
+            .store_int(64, &BigInt::from(-1200617341))?
+            .build()?;
+
+        println!("{cell:?}");
+
+        let mut parser = cell.parser();
+
+        assert_eq!(parser.load_int(15)?, BigInt::ZERO);
+        assert_eq!(parser.load_int(15)?, BigInt::from(15));
+        assert_eq!(parser.load_int(123)?, BigInt::from(-16));
+        assert_eq!(parser.load_int(123)?, BigInt::from(75));
+        assert_eq!(parser.load_int(15)?, BigInt::from(-93));
+        assert_eq!(parser.load_int(32)?, BigInt::from(83));
+        assert_eq!(parser.load_int(64)?, BigInt::from(-183));
+        assert_eq!(parser.load_int(32)?, BigInt::from(1401234567u32));
+        assert_eq!(parser.load_int(64)?, BigInt::from(-1200617341));
+
+        assert!(parser.ensure_empty().is_ok());
+        Ok(())
     }
 
     #[test]

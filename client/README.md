@@ -141,7 +141,7 @@ async fn call_blockchain_methods()-> anyhow::Result<()>{
         );
         for tx_id in txs.transactions {
             let t = TonHash::try_from(tx_id.account.as_slice())?;
-            let addr = TonAddress::new(workchain, &t);
+            let addr = TonAddress::new(workchain, t);
             let id = InternalTransactionId {
                 hash: tx_id.hash.clone(),
                 lt: tx_id.lt,
@@ -254,8 +254,8 @@ async fn get_wallet_address() -> anyhow::Result<()> {
 Create key pair from secret phrase ( )
 
 ```rust
-use tonlib_core::mnemonic::Mnemonic;
-use tonlib_core::mnemonic::KeyPair;
+use tonlib_core::wallet::mnemonic::Mnemonic;
+use tonlib_core::wallet::mnemonic::KeyPair;
 async fn create_key_pair() -> anyhow::Result<()> {
     let mnemonic = Mnemonic::new(
         vec![
@@ -289,10 +289,10 @@ use tonlib_core::message::JettonTransferMessage;
 use tonlib_core::message::TransferMessage;
 use tonlib_core::message::TonMessage;
 use tonlib_core::message::HasOpcode;
-use tonlib_core::mnemonic::KeyPair;
-use tonlib_core::mnemonic::Mnemonic;
-use tonlib_core::wallet::TonWallet;
-use tonlib_core::wallet::WalletVersion;
+use tonlib_core::wallet::mnemonic::KeyPair;
+use tonlib_core::wallet::mnemonic::Mnemonic;
+use tonlib_core::wallet::ton_wallet::TonWallet;
+use tonlib_core::wallet::wallet_version::WalletVersion;
 use tonlib_core::message::CommonMsgInfo;
 use tonlib_core::message::ExternalIncomingMessage;
 
@@ -315,7 +315,7 @@ async fn create_jetton_transfer() -> anyhow::Result<()> {
     let jetton_master =
         contract_factory.get_contract(&jetton_master_address);
     let self_jetton_wallet_addr = jetton_master.get_wallet_address(&self_address).await?;
-    let wallet = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
+    let wallet = TonWallet::new(WalletVersion::V4R2, key_pair)?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let src: TonAddress = "<source wallet address>".parse()?;
     let jetton_amount = BigUint::from(1000000u64);
@@ -360,12 +360,12 @@ use std::sync::Arc;
 use tonlib_core::TonAddress;
 use tonlib_core::cell::BagOfCells;
 use tonlib_core::message::TransferMessage;
-use tonlib_core::wallet::TonWallet;
+use tonlib_core::wallet::ton_wallet::TonWallet;
 use tonlib_client::client::TonClient;
 use tonlib_client::client::TonClientInterface;
-use tonlib_core::mnemonic::KeyPair;
-use tonlib_core::mnemonic::Mnemonic;
-use tonlib_core::wallet::WalletVersion;
+use tonlib_core::wallet::mnemonic::KeyPair;
+use tonlib_core::wallet::mnemonic::Mnemonic;
+use tonlib_core::wallet::wallet_version::WalletVersion;
 use tonlib_core::message::TonMessage;
 use tonlib_core::message::CommonMsgInfo;
 use tonlib_core::message::ExternalIncomingMessage;
@@ -383,7 +383,7 @@ async fn create_simple_transfer() -> anyhow::Result<()> {
     
 
     let client = TonClient::default().await?;
-    let wallet = TonWallet::derive_default(WalletVersion::V4R2, &key_pair)?;
+    let wallet = TonWallet::new(WalletVersion::V4R2, key_pair)?;
     let src: TonAddress = "<source wallet address>".parse()?;
     let dest: TonAddress = "<destination wallet address>".parse()?;
     let value = BigUint::from(10000000u64); // 0.01 TON

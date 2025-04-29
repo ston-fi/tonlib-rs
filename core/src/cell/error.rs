@@ -37,6 +37,14 @@ pub enum TonCellError {
     #[error("Invalid input error ({0})")]
     InvalidInput(String),
 
+    #[error("TLBWrongPrefix: Expecting {exp} bytes, got {given}, exp_bits={bits_exp}, left_bits={bits_left}")]
+    TLBWrongPrefix {
+        exp: u64,
+        given: u64,
+        bits_exp: usize,
+        bits_left: usize,
+    },
+
     #[error(
         "Non-empty reader (Remaining bits: {remaining_bits}, Remaining refs: {remaining_refs})"
     )]
@@ -46,6 +54,9 @@ pub enum TonCellError {
     },
     #[error("TonHash parse error ({0})")]
     TonHashParseError(#[from] TonHashParseError),
+
+    #[error("{0}")]
+    IO(#[from] std::io::Error),
 }
 
 pub trait MapTonCellError<R, E>

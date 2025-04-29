@@ -1,8 +1,6 @@
 use std::fs;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
-use std::thread::JoinHandle;
 
 use async_trait::async_trait;
 pub use block_functions::*;
@@ -13,12 +11,11 @@ pub use connection::*;
 pub use error::*;
 pub use interface::*;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 pub use types::*;
 
+use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::tl::*;
 
 mod block_functions;
@@ -30,28 +27,18 @@ mod error;
 mod interface;
 mod types;
 
+pub mod ext_data_provider;
 #[cfg(feature = "liteapi")]
 mod recent_init_block;
 
-/// Check on perform upon connection
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum ConnectionCheck {
-    /// No check.
-    None,
-    /// Verify node aliveness
-    Health,
-    /// Verify that connected to archive node
-    Archive,
-}
-
+#[derive(Clone)]
 pub struct TonClient {
     inner: Arc<Inner>,
 }
 
 struct Inner {
     retry_strategy: RetryStrategy,
-    connections: Vec<PoolConnection>,
+    connections: Vec<TonConnection>,
 }
 
 impl TonClient {
@@ -59,9 +46,10 @@ impl TonClient {
     pub async fn new(
         pool_size: usize,
         params: &TonConnectionParams,
-        retry_strategy: &RetryStrategy,
+        retry_strategy: RetryStrategy,
         callback: Arc<dyn TonConnectionCallback>,
         connection_check: ConnectionCheck,
+        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonClient, TonClientError> {
         let patched_params = if params.update_init_block {
             patch_init_block(params).await?
@@ -80,16 +68,18 @@ impl TonClient {
                 })?;
                 conn_params.keystore_dir = Some(path_str)
             };
-            let entry = PoolConnection {
-                params: conn_params,
-                callback: callback.clone(),
-                conn: Mutex::new(None),
-                connection_check: connection_check.clone(),
-            };
-            connections.push(entry);
+            let conn = TonConnection::new(
+                connection_check.clone(),
+                &conn_params,
+                callback.clone(),
+                external_data_provider.clone(),
+            )
+            .await?;
+
+            connections.push(conn);
         }
         let inner = Inner {
-            retry_strategy: retry_strategy.clone(),
+            retry_strategy,
             connections,
         };
         Ok(TonClient {
@@ -130,13 +120,12 @@ impl TonClient {
     }
 
     #[allow(clippy::let_and_return)]
-    fn random_item(&self) -> &PoolConnection {
-        let i = {
-            let mut rng = rand::thread_rng();
-            rng.gen_range(0..self.inner.connections.len())
+    fn random_item(&self) -> &TonConnection {
+        let pos = {
+            let mut rng = rand::rng();
+            rng.random_range(0..self.inner.connections.len())
         };
-        let entry = &self.inner.connections[i];
-        entry
+        &self.inner.connections[pos]
     }
 
     pub fn set_log_verbosity_level(verbosity_level: u32) {
@@ -157,14 +146,6 @@ impl TonClientInterface for TonClient {
         function: &TonFunction,
     ) -> Result<(TonConnection, TonResult), TonClientError> {
         self.retrying_invoke(function).await
-    }
-}
-
-impl Clone for TonClient {
-    fn clone(&self) -> Self {
-        TonClient {
-            inner: self.inner.clone(),
-        }
     }
 }
 
@@ -234,42 +215,4 @@ async fn patch_init_block(
         TonClientError::InternalError(msg)
     })?;
     Ok(patched_params)
-}
-
-struct PoolConnection {
-    params: TonConnectionParams,
-    callback: Arc<dyn TonConnectionCallback>,
-    conn: Mutex<Option<(TonConnection, JoinHandle<()>)>>,
-    connection_check: ConnectionCheck,
-}
-
-impl PoolConnection {
-    async fn get_connection(&self) -> Result<TonConnection, TonClientError> {
-        let mut guard = self.conn.lock().await;
-        match guard.deref() {
-            Some((conn, join_handle)) => {
-                if join_handle.is_finished() {
-                    // TODO: This is temporary implementation.
-                    // At the moment, only report dead connections, in the future need to recover
-                    log::warn!("Returning dead connection: {:?}", conn.tag());
-                }
-                Ok(conn.clone())
-            }
-            None => {
-                let (conn, join_handle) = match self.connection_check {
-                    ConnectionCheck::None => {
-                        TonConnection::connect_joinable(&self.params, self.callback.clone()).await?
-                    }
-                    ConnectionCheck::Health => {
-                        TonConnection::connect_healthy(&self.params, self.callback.clone()).await?
-                    }
-                    ConnectionCheck::Archive => {
-                        TonConnection::connect_archive(&self.params, self.callback.clone()).await?
-                    }
-                };
-                *guard = Some((conn.clone(), join_handle));
-                Ok(conn)
-            }
-        }
-    }
 }

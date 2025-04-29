@@ -10,18 +10,21 @@ use futures::future::join_all;
 use tokio::time::timeout;
 use tokio::{self};
 use tokio_test::assert_ok;
+use tonlib_client::client::ext_data_provider::ExternalDataProvider;
 use tonlib_client::client::{
-    TonBlockFunctions, TonClient, TonClientBuilder, TonClientInterface, TxId,
+    TonBlockFunctions, TonClient, TonClientBuilder, TonClientError, TonClientInterface, TxId,
 };
 use tonlib_client::config::{MAINNET_CONFIG, TESTNET_CONFIG};
 use tonlib_client::contract::{TonContractFactory, TonContractInterface};
 use tonlib_client::tl::{
     BlockId, BlockIdExt, BlocksShards, BlocksTransactions, BlocksTransactionsExt,
-    InternalTransactionId, SmcLibraryQueryExt, TonLibraryId, NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
+    InternalTransactionId, SmcLibraryQueryExt, TonFunction, TonLibraryId, TonResult,
+    NULL_BLOCKS_ACCOUNT_TRANSACTION_ID,
 };
 use tonlib_core::cell::dict::predefined_readers::{key_reader_256bit, val_reader_cell};
 use tonlib_core::cell::{ArcCell, BagOfCells, CellBuilder};
-use tonlib_core::tlb_types::traits::TLBObject;
+use tonlib_core::tlb_types::tlb::TLB;
+use tonlib_core::types::ZERO_HASH;
 use tonlib_core::{TonAddress, TonHash, TonTxId};
 
 mod common;
@@ -669,5 +672,57 @@ async fn archive_node_client_test() -> anyhow::Result<()> {
     let client = client_builder.build().await?;
     let (_, master_info) = client.get_masterchain_info().await?;
     log::info!("master_info: {:?}", master_info);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_client_external_data_provider() -> anyhow::Result<()> {
+    let tonlib_work_dir = "./var/tonlib";
+    create_dir_all(Path::new(tonlib_work_dir))?;
+    TonClient::set_log_verbosity_level(2);
+
+    struct MyExternalDataProvider;
+
+    impl ExternalDataProvider for MyExternalDataProvider {
+        fn handle(&self, function: &TonFunction) -> Option<Result<TonResult, TonClientError>> {
+            let result = match function {
+                TonFunction::BlocksLookupBlock { .. } => {
+                    let block_id = BlockIdExt {
+                        workchain: -1,
+                        shard: 47,
+                        seqno: 42,
+                        root_hash: ZERO_HASH.to_vec(),
+                        file_hash: ZERO_HASH.to_vec(),
+                    };
+                    TonResult::BlockIdExt(block_id)
+                }
+                _ => return None, // Unsupported - silently ignored
+            };
+            Some(Ok(result))
+        }
+    }
+
+    let client = TonClientBuilder::new()
+        .with_config(&MAINNET_CONFIG)
+        .with_keystore_dir(String::from(tonlib_work_dir))
+        .with_connection_check(tonlib_client::client::ConnectionCheck::Archive)
+        .with_external_data_provider(Arc::new(MyExternalDataProvider {}))
+        .build()
+        .await?;
+
+    // silent fallback to original provider
+    let (_, master_info) = client.get_masterchain_info().await?;
+    assert_ne!(master_info.last.seqno, 0);
+
+    let block_id = BlockId {
+        workchain: -1,
+        shard: i64::MIN,
+        seqno: 0,
+    };
+
+    // always get static response
+    let rsp = client.lookup_block(1, &block_id, 0, 0).await?;
+    assert_eq!(rsp.shard, 47);
+    assert_eq!(rsp.seqno, 42);
     Ok(())
 }

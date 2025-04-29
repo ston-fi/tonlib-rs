@@ -92,5 +92,13 @@
 * Implement #be-2222: implement tlb object for jettontransfermessage
 * Implement #be-2232: fix partialeq for eitherref
 * Ni: fix cell_builder bit_len
-### v0.24.2
-* Disabled no-avx feature for macos
+### v0.25.1
+* Impl BE-2175: parsing wallet tx payload
+* Impl BE-2280: fixed bug in store_int
+* Impl BE-2161: fixed MsgAddress tl-b implementation
+* Impl BE-2234: fixed Either tl-b implementation
+* Impl BE-2080: moved library proider to tonlib-core
+* Impl NI: updated readme for macos
+* Impl BE-2342: support of external data providers 
+* Impl BE-2358: fixed int in TvmStackEntry
+

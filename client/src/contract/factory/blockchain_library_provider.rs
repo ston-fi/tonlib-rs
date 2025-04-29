@@ -6,11 +6,11 @@ use async_trait::async_trait;
 use futures::future::join_all;
 use moka::future::Cache;
 use tonlib_core::cell::{ArcCell, BagOfCells};
+use tonlib_core::library_helper::{ContractLibraryDict, LibraryHelper, TonLibraryError};
 use tonlib_core::TonHash;
 
-use super::{ContractLibraryDict, LibraryHelper, LibraryProvider};
+use super::LibraryProvider;
 use crate::client::{TonClient, TonClientInterface};
-use crate::contract::TonLibraryError;
 use crate::tl::TonLibraryId;
 
 #[derive(Clone, Copy)]
@@ -141,7 +141,11 @@ impl Inner {
         hashes: &[TonHash],
     ) -> Result<Vec<ArcCell>, TonLibraryError> {
         let library_list: Vec<_> = hashes.iter().map(TonLibraryId::from).collect();
-        let library_result = self.client.smc_get_libraries(&library_list).await?;
+        let library_result = self
+            .client
+            .smc_get_libraries(&library_list)
+            .await
+            .map_err(|e| TonLibraryError::TonClientError(e.to_string()))?;
 
         let libraries: Vec<ArcCell> = library_result
             .result

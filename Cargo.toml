@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.24.5"
+version = "0.25.0"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -20,16 +20,16 @@ repository = "https://github.com/ston-fi/tonlib-rs"
 
 [workspace.dependencies]
 # Internal
-tonlib-core = { version = "0.24", path = "core" }
-tonlib-sys = "=2025.2.3"
+tonlib-core = { version = "0.25", path = "core" }
+tonlib-sys = "=2025.4.0"
 
 
 # External
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"
-base64-serde = "0.7"
-bitstream-io = "2.2"
+base64-serde = "0.8"
+bitstream-io = "3.2"
 crc = "3"
 futures = "0.3"
 hex = "0.4"
@@ -41,12 +41,12 @@ moka = { version = "0.12", features = ["future"] }
 nacl = "0.5"
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
-rand = "0.8"
+rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde-aux = "4"
 serde_json = "1"
 sha2 = "0.10"
-strum = { version = "0.26", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 pbkdf2 = { version = "0.12", features = ["simple"] }
 reqwest = "0.12"
 thiserror = "2"
@@ -56,7 +56,7 @@ tokio-test = "0.4"
 ton_liteapi = "0.2.0"
 adnl = "2.0"
 tokio-tower = "0.6.0"
-tower = "0.5.1"
+tower = "0.5.2"
 libc = "0.2"
 
 # internal deps

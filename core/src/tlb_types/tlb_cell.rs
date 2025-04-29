@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use crate::cell::{ArcCell, BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::types::TON_HASH_LEN;
 use crate::TonHash;
 
-impl TLBObject for Cell {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for Cell {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         if parser.cell.bit_len() == parser.remaining_bits()
             && parser.remaining_refs() == parser.cell.references().len()
         {
@@ -17,7 +17,7 @@ impl TLBObject for Cell {
         }
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         builder.set_cell_is_exotic(self.is_exotic());
         builder.store_cell(self)?;
         Ok(())
@@ -36,13 +36,13 @@ impl TLBObject for Cell {
     }
 }
 
-impl TLBObject for ArcCell {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Cell::read(parser).map(Arc::new)
+impl TLB for ArcCell {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        Ok(Cell::read(parser)?.to_arc())
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        self.as_ref().write_to(builder)?;
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.as_ref().write(builder)?;
         Ok(())
     }
 
@@ -51,13 +51,13 @@ impl TLBObject for ArcCell {
     }
 }
 
-impl TLBObject for TonHash {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        let byes = parser.load_bytes(TON_HASH_LEN)?;
-        Ok(TonHash::try_from(byes)?)
+impl TLB for TonHash {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        let bytes = parser.load_bits(TON_HASH_LEN * 8)?;
+        Ok(TonHash::try_from(bytes)?)
     }
 
-    fn write_to(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
         builder.store_bits(TON_HASH_LEN * 8, self.as_slice())?;
         Ok(())
     }

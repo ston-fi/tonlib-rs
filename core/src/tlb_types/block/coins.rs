@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use crate::cell::{ArcCell, CellBuilder, CellParser, TonCellError};
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 
 // https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/block/block.tlb#L124
 #[derive(Clone, Debug, PartialEq)]
@@ -33,23 +33,23 @@ impl Grams {
     }
 }
 
-impl TLBObject for CurrencyCollection {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for CurrencyCollection {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         Ok(CurrencyCollection {
-            grams: TLBObject::read(parser)?,
-            other: TLBObject::read(parser)?,
+            grams: TLB::read(parser)?,
+            other: TLB::read(parser)?,
         })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
-        self.grams.write_to(dst)?;
-        self.other.write_to(dst)?;
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+        self.grams.write(dst)?;
+        self.other.write(dst)?;
         Ok(())
     }
 }
 
-impl TLBObject for Grams {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+impl TLB for Grams {
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
         let byte_len = parser.load_u8(4)?;
         let amount = if byte_len == 0 {
             BigUint::zero()
@@ -59,13 +59,13 @@ impl TLBObject for Grams {
         Ok(Grams { amount })
     }
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
         let bit_len = self.amount.bits();
         if bit_len == 0 {
             dst.store_u64(4, bit_len)?;
             return Ok(());
         }
-        let byte_len = (bit_len + 7) / 8;
+        let byte_len = bit_len.div_ceil(8);
         dst.store_u64(4, byte_len)?;
         dst.store_uint(byte_len as usize * 8, &self.amount)?;
         Ok(())
@@ -75,7 +75,7 @@ impl TLBObject for Grams {
 #[cfg(test)]
 mod tests {
     use crate::tlb_types::block::coins::CurrencyCollection;
-    use crate::tlb_types::traits::TLBObject;
+    use crate::tlb_types::tlb::TLB;
 
     #[test]
     fn test_currency_collection() -> anyhow::Result<()> {

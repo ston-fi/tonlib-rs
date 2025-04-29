@@ -1,4 +1,4 @@
-use std::any::type_name;
+use std::fmt::Debug;
 use std::ops::Deref;
 
 use base64::prelude::BASE64_STANDARD;
@@ -7,13 +7,24 @@ use base64::Engine;
 use crate::cell::{BagOfCells, Cell, CellBuilder, CellParser, TonCellError};
 use crate::TonHash;
 
-pub trait TLBObject: Sized {
-    fn read(parser: &mut CellParser) -> Result<Self, TonCellError>;
+pub trait TLB: Sized + Clone + Debug {
+    const PREFIX: TLBPrefix = TLBPrefix::NULL;
 
-    fn write_to(&self, dst: &mut CellBuilder) -> Result<(), TonCellError>;
+    /// read-write definition
+    /// https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language#overview
+    /// must be implemented by all TLB objects
+    /// doesn't include prefix handling
+    fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError>;
+    fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError>;
 
-    fn prefix() -> &'static TLBPrefix {
-        &TLBPrefix::NULL
+    fn read(parser: &mut CellParser) -> Result<Self, TonCellError> {
+        Self::verify_prefix(parser)?;
+        Self::read_definition(parser)
+    }
+
+    fn write(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
+        Self::write_prefix(dst)?;
+        self.write_definition(dst)
     }
 
     /// Utilities
@@ -47,7 +58,7 @@ pub trait TLBObject: Sized {
     ///
     fn to_cell(&self) -> Result<Cell, TonCellError> {
         let mut builder = CellBuilder::new();
-        self.write_to(&mut builder)?;
+        self.write(&mut builder)?;
         builder.build()
     }
 
@@ -66,26 +77,36 @@ pub trait TLBObject: Sized {
     /// Helpers - for internal use
     ///
     fn verify_prefix(parser: &mut CellParser) -> Result<(), TonCellError> {
-        let prefix = Self::prefix();
-        if prefix == &TLBPrefix::NULL {
+        if Self::PREFIX == TLBPrefix::NULL {
             return Ok(());
         }
-        let value = parser.load_u64(prefix.bit_len as usize)?;
-        if value != prefix.value {
-            let err_str = format!(
-                "[{}] Invalid prefix: {value:X} (expected: {:X})",
-                type_name::<Self>(),
-                prefix.value
-            );
-            return Err(TonCellError::InvalidCellData(err_str));
+
+        let prefix_error = |given, bits_left| {
+            Err(TonCellError::TLBWrongPrefix {
+                exp: Self::PREFIX.value,
+                given,
+                bits_exp: Self::PREFIX.bit_len,
+                bits_left,
+            })
+        };
+
+        if parser.remaining_bits() < Self::PREFIX.bit_len {
+            return prefix_error(0, parser.remaining_bits());
+        }
+
+        // we handle cell_underflow above - all other errors can be rethrown
+        let actual_val: u64 = parser.load_number(Self::PREFIX.bit_len)?;
+
+        if actual_val != Self::PREFIX.value {
+            parser.seek(-(Self::PREFIX.bit_len as i64))?; // revert reader position
+            return prefix_error(actual_val, parser.remaining_bits());
         }
         Ok(())
     }
 
     fn write_prefix(builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        let prefix = Self::prefix();
-        if prefix != &TLBPrefix::NULL {
-            builder.store_u64(prefix.bit_len as usize, prefix.value)?;
+        if Self::PREFIX != TLBPrefix::NULL {
+            builder.store_number(Self::PREFIX.bit_len, &Self::PREFIX.value)?;
         }
         Ok(())
     }
@@ -93,16 +114,13 @@ pub trait TLBObject: Sized {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TLBPrefix {
-    pub bit_len: u8,
+    pub bit_len: usize,
     pub value: u64,
 }
 
 impl TLBPrefix {
-    pub const NULL: TLBPrefix = TLBPrefix {
-        bit_len: 0,
-        value: 0,
-    };
-    pub const fn new(bit_len: u8, value: u64) -> Self {
-        Self { bit_len, value }
+    pub const NULL: TLBPrefix = TLBPrefix::new(0, 0);
+    pub const fn new(bit_len: usize, value: u64) -> Self {
+        TLBPrefix { bit_len, value }
     }
 }

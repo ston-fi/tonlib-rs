@@ -1,17 +1,18 @@
-use std::collections::HashMap;
-use std::ops::Add;
 use std::sync::Arc;
+use std::{cmp::min, collections::HashMap, ops::Deref};
 
-use bitstream_io::{BigEndian, BitWrite, BitWriter, Numeric};
-use num_bigint::{BigInt, BigUint, Sign};
-use num_traits::{One, Zero};
+use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use num_bigint::{BigInt, BigUint};
+use num_traits::Zero;
 
 use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
 use crate::tlb_types::block::msg_address::MsgAddress;
-use crate::tlb_types::traits::TLBObject;
+use crate::tlb_types::tlb::TLB;
 use crate::{TonAddress, TonHash};
+
+use super::TonCellNum;
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
 pub(crate) const MAX_CELL_REFERENCES: usize = 4;
@@ -52,26 +53,14 @@ impl CellBuilder {
         Ok(self)
     }
 
-    fn store_number<N: Numeric>(
-        &mut self,
-        bit_len: usize,
-        val: N,
-    ) -> Result<&mut Self, TonCellError> {
-        self.bit_writer
-            .write(bit_len as u32, val)
-            .map_cell_builder_error()?;
-        self.bits_to_write += bit_len;
-        Ok(self)
-    }
-
-    pub fn store_number_optional<N: Numeric>(
+    pub fn store_number_optional<N: TonCellNum>(
         &mut self,
         bit_len: usize,
         maybe_val: Option<N>,
     ) -> Result<&mut Self, TonCellError> {
         if let Some(val) = maybe_val {
             self.store_bit(true)?;
-            self.store_number(bit_len, val)?;
+            self.store_number(bit_len, &val)?;
         } else {
             self.store_bit(false)?;
         }
@@ -79,88 +68,43 @@ impl CellBuilder {
     }
 
     pub fn store_u8(&mut self, bit_len: usize, val: u8) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_i8(&mut self, bit_len: usize, val: i8) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val as u8)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_u16(&mut self, bit_len: usize, val: u16) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_u32(&mut self, bit_len: usize, val: u32) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_i32(&mut self, bit_len: usize, val: i32) -> Result<&mut Self, TonCellError> {
-        self.store_u32(bit_len, val as u32)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_u64(&mut self, bit_len: usize, val: u64) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_i64(&mut self, bit_len: usize, val: i64) -> Result<&mut Self, TonCellError> {
-        self.store_number(bit_len, val as u64)
+        self.store_number(bit_len, &val)
     }
 
     pub fn store_uint(&mut self, bit_len: usize, val: &BigUint) -> Result<&mut Self, TonCellError> {
-        let minimum_bits_needed = if val.is_zero() { 1 } else { val.bits() } as usize;
-        if minimum_bits_needed > bit_len {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Value {} doesn't fit in {} bits (takes {} bits)",
-                val, bit_len, minimum_bits_needed
-            )));
-        }
-
-        let value_bytes = val.to_bytes_be();
-        let first_byte_bit_size = bit_len - (value_bytes.len() - 1) * 8;
-
-        for _ in 0..(first_byte_bit_size - 1) / 32 {
-            // fill full-bytes padding
-            self.store_u32(32, 0u32)?;
-        }
-
-        // fill first byte with required size
-        if first_byte_bit_size % 32 == 0 {
-            self.store_u32(32, value_bytes[0] as u32)?;
-        } else {
-            self.store_u32(first_byte_bit_size % 32, value_bytes[0] as u32)
-                .map_cell_builder_error()?;
-        }
-
-        // fill remaining bytes
-        for byte in value_bytes.iter().skip(1) {
-            self.store_u8(8, *byte).map_cell_builder_error()?;
-        }
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_int(&mut self, bit_len: usize, val: &BigInt) -> Result<&mut Self, TonCellError> {
-        let (sign, mag) = val.clone().into_parts();
-        let bit_len = bit_len - 1; // reserve 1 bit for sign
-        if bit_len < mag.bits() as usize {
-            return Err(TonCellError::cell_builder_error(format!(
-                "Value {} doesn't fit in {} bits (takes {} bits)",
-                val,
-                bit_len,
-                mag.bits()
-            )));
-        }
-        if sign == Sign::Minus {
-            self.store_byte(1)?;
-            self.store_uint(bit_len, &extend_and_invert_bits(bit_len, &mag)?)?;
-        } else {
-            self.store_byte(0)?;
-            self.store_uint(bit_len, &mag)?;
-        };
-        Ok(self)
+        self.store_number(bit_len, val)
     }
 
     pub fn store_byte(&mut self, val: u8) -> Result<&mut Self, TonCellError> {
-        self.store_number(8, val)
+        self.store_number(8, &val)
     }
 
     pub fn store_slice(&mut self, slice: &[u8]) -> Result<&mut Self, TonCellError> {
@@ -189,7 +133,7 @@ impl CellBuilder {
         if val.is_zero() {
             self.store_u8(4, 0)
         } else {
-            let num_bytes = (val.bits() as usize + 7) / 8;
+            let num_bytes = (val.bits() as usize).div_ceil(8);
             self.store_u8(4, num_bytes as u8)?;
             self.store_uint(num_bytes * 8, val)
         }
@@ -207,12 +151,12 @@ impl CellBuilder {
 
     /// Stores address optimizing hole address two to bits
     pub fn store_address(&mut self, val: &TonAddress) -> Result<&mut Self, TonCellError> {
-        val.to_msg_address().write_to(self)?;
+        val.to_msg_address().write(self)?;
         Ok(self)
     }
 
     pub fn store_msg_address(&mut self, val: &MsgAddress) -> Result<&mut Self, TonCellError> {
-        val.write_to(self)?;
+        val.write(self)?;
         Ok(self)
     }
 
@@ -295,11 +239,6 @@ impl CellBuilder {
         Ok(self)
     }
 
-    pub fn store_tlb<T: TLBObject>(&mut self, obj: &T) -> Result<&mut Self, TonCellError> {
-        obj.write_to(self)?;
-        Ok(self)
-    }
-
     // https://docs.ton.org/develop/data-formats/tl-b-types#maybe
     pub fn store_ref_cell_optional(
         &mut self,
@@ -364,6 +303,111 @@ impl CellBuilder {
         MAX_CELL_BITS - self.bits_to_write
     }
 
+    pub fn store_number<N, B>(&mut self, bit_len: usize, data: B) -> Result<&mut Self, TonCellError>
+    where
+        N: TonCellNum,
+        B: Deref<Target = N>,
+    {
+        let value = data.deref();
+
+        // data is zero
+        if bit_len == 0 {
+            if value.tcn_is_zero() {
+                Ok(self)
+            } else {
+                Err(TonCellError::CellBuilderError(format!(
+                    "Cannot write non-zero number {value} as 0 bits"
+                )))
+            }
+            //data is unsigned primitive
+        } else if let Some(unsigned) = value.tcn_to_unsigned_primitive() {
+            self.bit_writer.write_var(bit_len as u32, unsigned)?;
+            self.bits_to_write += bit_len;
+            Ok(self)
+            //data is signed or BigInt or BigUint
+        } else {
+            let min_bits = value.tcn_min_bits_len();
+            if min_bits > bit_len {
+                Err(TonCellError::CellBuilderError(format!(
+                    "Cannot write number {value} in {bit_len} bits (requires at least {min_bits} bits)"
+                )))
+            } else {
+                let bytes = value.tcn_to_bytes();
+                let padding_bits = bit_len - min_bits;
+
+                let first_padding_byte = if N::SIGNED && bytes[0] & 0x80 != 0 {
+                    0xFF
+                } else {
+                    0
+                };
+
+                if padding_bits > 0 {
+                    let pad_bytes = vec![first_padding_byte; padding_bits.div_ceil(8)];
+                    self.write_bits(pad_bytes, padding_bits)?;
+                }
+
+                let bit_offset = bytes.len() * 8 - min_bits;
+                self.write_bits_with_offset(bytes, bit_len - padding_bits, bit_offset)?;
+                Ok(self)
+            }
+        }
+    }
+
+    pub fn write_bits_with_offset<T: AsRef<[u8]>>(
+        &mut self,
+        data: T,
+        bit_len: usize,
+        bit_offset: usize,
+    ) -> Result<&mut Self, TonCellError> {
+        self.bits_to_write += bit_len;
+        let mut value = data.as_ref();
+
+        if (bit_len + bit_offset).div_ceil(8) > value.len() {
+            Err(TonCellError::CellBuilderError(format!(
+                "Can't extract {} bits from {} bytes",
+                bit_len + bit_offset,
+                value.len()
+            )))
+        } else if bit_len == 0 {
+            Ok(self)
+        } else {
+            // skip bytes_offset, adjust borders
+            value = &value[bit_offset / 8..];
+            let aligned_bit_offset = bit_offset % 8;
+
+            let first_byte_bits_len = min(bit_len, 8 - aligned_bit_offset);
+            let mut first_byte_val = value[0] << aligned_bit_offset >> aligned_bit_offset;
+            if first_byte_bits_len == bit_len {
+                first_byte_val >>= 8 - aligned_bit_offset - bit_len
+            }
+            self.bit_writer
+                .write_var(first_byte_bits_len as u32, first_byte_val)?;
+
+            value = &value[1..];
+            let aligned_bit_len = bit_len - first_byte_bits_len;
+
+            let full_bytes = aligned_bit_len / 8;
+            self.bit_writer.write_bytes(&value[0..full_bytes])?;
+            let rest_bits_len = aligned_bit_len % 8;
+            if rest_bits_len != 0 {
+                self.bit_writer.write_var(
+                    rest_bits_len as u32,
+                    value[full_bytes] >> (8 - rest_bits_len),
+                )?;
+            }
+
+            Ok(self)
+        }
+    }
+
+    pub fn write_bits<T: AsRef<[u8]>>(
+        &mut self,
+        data: T,
+        bit_len: usize,
+    ) -> Result<&mut Self, TonCellError> {
+        self.write_bits_with_offset(data, bit_len, 0)
+    }
+
     pub fn build(&mut self) -> Result<Cell, TonCellError> {
         let mut trailing_zeros = 0;
         while !self.bit_writer.byte_aligned() {
@@ -401,30 +445,6 @@ impl CellBuilder {
     }
 }
 
-fn extend_and_invert_bits(bits_cnt: usize, src: &BigUint) -> Result<BigUint, TonCellError> {
-    if bits_cnt < src.bits() as usize {
-        return Err(TonCellError::cell_builder_error(format!(
-            "Can't invert bits: value {} doesn't fit in {} bits",
-            src, bits_cnt
-        )));
-    }
-
-    let src_bytes = src.to_bytes_be();
-    let inverted_bytes_cnt = (bits_cnt + 7) / 8;
-    let mut inverted = vec![0xffu8; inverted_bytes_cnt];
-    // can be optimized
-    for (pos, byte) in src_bytes.iter().rev().enumerate() {
-        let inverted_pos = inverted.len() - 1 - pos;
-        inverted[inverted_pos] ^= byte;
-    }
-    let mut inverted_val_bytes = BigUint::from_bytes_be(&inverted)
-        .add(BigUint::one())
-        .to_bytes_be();
-    let leading_zeros = inverted_bytes_cnt * 8 - bits_cnt;
-    inverted_val_bytes[0] &= 0xffu8 >> leading_zeros;
-    Ok(BigUint::from_bytes_be(&inverted_val_bytes))
-}
-
 impl Default for CellBuilder {
     fn default() -> Self {
         Self::new()
@@ -434,40 +454,16 @@ impl Default for CellBuilder {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::ops::ShrAssign;
     use std::str::FromStr;
 
     use num_bigint::{BigInt, BigUint, Sign};
-    use num_traits::Zero;
+    use num_traits::{FromPrimitive, Num, Zero};
 
-    use crate::cell::builder::extend_and_invert_bits;
     use crate::cell::dict::predefined_readers::{key_reader_u8, val_reader_uint};
     use crate::cell::{CellBuilder, TonCellError};
     use crate::types::TonAddress;
     use crate::TonHash;
-
-    #[test]
-    fn test_extend_and_invert_bits() -> Result<(), TonCellError> {
-        let a = BigUint::from(1u8);
-        let b = extend_and_invert_bits(8, &a)?;
-        println!("a: {:0x}", a);
-        println!("b: {:0x}", b);
-        assert_eq!(b, BigUint::from(0xffu8));
-
-        let b = extend_and_invert_bits(16, &a)?;
-        assert_eq!(b, BigUint::from_slice(&[0xffffu32]));
-
-        let b = extend_and_invert_bits(20, &a)?;
-        assert_eq!(b, BigUint::from_slice(&[0xfffffu32]));
-
-        let b = extend_and_invert_bits(8, &a)?;
-        assert_eq!(b, BigUint::from_slice(&[0xffu32]));
-
-        let b = extend_and_invert_bits(9, &a)?;
-        assert_eq!(b, BigUint::from_slice(&[0x1ffu32]));
-
-        assert!(extend_and_invert_bits(3, &BigUint::from(10u32)).is_err());
-        Ok(())
-    }
 
     #[test]
     fn write_bit() -> Result<(), TonCellError> {
@@ -578,19 +574,23 @@ mod tests {
         writer.store_int(33, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        written.shr_assign(8 - cell.bit_len % 8); // should shift bigint here as cell builder writes unalinged bits
+
         assert_eq!(written, value);
 
         // 256 bits (+ sign)
-        let value = BigInt::from_str(
-            "97887266651548624282413032824435501549503168134499591480902563623927645013201",
+        let value = BigInt::from_str_radix(
+            "123456789ABCDEFAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55",
+            16,
         )
         .unwrap();
         let mut writer = CellBuilder::new();
         writer.store_int(257, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
+        written.shr_assign(8 - cell.bit_len % 8);
         assert_eq!(written, value);
 
         let value = BigInt::from_str("-5").unwrap();
@@ -598,9 +598,20 @@ mod tests {
         writer.store_int(5, &value)?;
         let cell = writer.build()?;
         println!("cell: {:?}", cell);
-        let written = BigInt::from_bytes_be(Sign::Plus, &cell.data[1..]);
-        let expected = BigInt::from_bytes_be(Sign::Plus, &[0xB0u8]);
-        assert_eq!(written, expected);
+        assert_eq!(5, cell.bit_len);
+        assert_eq!(0b1101_1000, cell.data[0]);
+
+        let value = BigInt::from_str("-5").unwrap();
+        let mut writer = CellBuilder::new();
+        writer.store_int(7, &value)?;
+        let cell = writer.build()?;
+        println!("cell: {:?}", cell);
+        assert_eq!(7, cell.bit_len);
+        assert_eq!(0b1111_0110, cell.data[0]);
+
+        assert!(CellBuilder::new()
+            .store_int(32, &BigInt::from(2401234567u32))
+            .is_err());
         Ok(())
     }
 
@@ -696,7 +707,7 @@ mod tests {
             let cell = writer.build()?;
 
             println!("{:?}", cell);
-            let taeget_bytelen = (bitlen + 7) / 8;
+            let taeget_bytelen = bitlen.div_ceil(8);
             assert_eq!(cell.data.len(), taeget_bytelen);
 
             assert_eq!(cell.bit_len, bitlen);
@@ -771,6 +782,14 @@ mod tests {
         assert_eq!(parser.load_i32(32)?, -5);
         assert_eq!(parser.load_i64(64)?, -6);
         assert_eq!(parser.load_u32(9)?, 256);
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_load_117146891372() -> Result<(), TonCellError> {
+        let mut test = CellBuilder::new();
+        test.store_number(257, &BigUint::from_u64(117146891372).unwrap())
+            .unwrap();
         Ok(())
     }
 }

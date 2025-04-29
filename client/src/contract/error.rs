@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 use tonlib_core::cell::TonCellError;
-use tonlib_core::types::TonHashParseError;
+use tonlib_core::library_helper::TonLibraryError;
 use tonlib_core::TonAddress;
 
 use crate::client::TonClientError;
@@ -163,25 +163,4 @@ impl<R> MapCellError<R> for Result<R, TonCellError> {
             error: e.into(),
         })
     }
-}
-
-#[derive(Error, Debug)]
-pub enum TonLibraryError {
-    #[error("{0}")]
-    TonClientError(#[from] TonClientError),
-
-    #[error("{0}")]
-    TonCellError(#[from] TonCellError),
-
-    #[error("{0}")]
-    TonHashParseError(#[from] TonHashParseError),
-
-    #[error("Library not found for {0}")]
-    LibraryNotFound(String),
-
-    #[error("Expected exactly one library, but got multiple")]
-    MultipleLibrariesReturned,
-
-    #[error("Getting library by mc_seqno is not supported")]
-    SeqnoNotSupported,
 }
