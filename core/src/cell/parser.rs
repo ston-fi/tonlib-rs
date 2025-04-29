@@ -3,11 +3,14 @@ use std::hash::Hash;
 use std::io::{Cursor, SeekFrom};
 use std::sync::Arc;
 
-use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
+use bitstream_io::{BigEndian, BitRead, BitReader};
 use num_bigint::{BigInt, BigUint};
 use num_traits::identities::Zero;
 
-use super::dict::{DictParser, KeyReader, SnakeFormatDict, ValReader};
+use super::{
+    dict::{DictParser, KeyReader, SnakeFormatDict, ValReader},
+    TonCellNum,
+};
 use super::{ArcCell, Cell, CellBuilder};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
@@ -169,11 +172,19 @@ impl<'a> CellParser<'a> {
         Ok(())
     }
 
-    pub fn load_bits(&mut self, num_bits: usize) -> Result<Vec<u8>, TonCellError> {
-        let total_bytes = num_bits.div_ceil(8);
-        let mut res = vec![0_u8; total_bytes];
-        self.load_bits_to_slice(num_bits, res.as_mut_slice())?;
-        Ok(res)
+    pub fn load_bits(&mut self, bit_len: usize) -> Result<Vec<u8>, TonCellError> {
+        self.ensure_enough_bits(bit_len)?;
+        let mut dst = vec![0; bit_len.div_ceil(8)];
+        let full_bytes = bit_len / 8;
+        let remaining_bits = bit_len % 8;
+
+        self.data_bit_reader.read_bytes(&mut dst[..full_bytes])?;
+
+        if remaining_bits != 0 {
+            let last_byte = self.data_bit_reader.read_var::<u8>(remaining_bits as u32)?;
+            dst[full_bytes] = last_byte << (8 - remaining_bits);
+        }
+        Ok(dst)
     }
 
     pub fn load_utf8(&mut self, num_bytes: usize) -> Result<String, TonCellError> {
@@ -279,15 +290,27 @@ impl<'a> CellParser<'a> {
             .map_cell_parser_error()
     }
 
-    pub fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
+    pub fn load_number<N: TonCellNum>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
-
-        self.data_bit_reader
-            .read::<N>(bit_len as u32)
-            .map_cell_parser_error()
+        if bit_len == 0 {
+            Ok(N::tcn_from_primitive(N::Primitive::zero()))
+        } else if N::IS_PRIMITIVE {
+            let primitive = self
+                .data_bit_reader
+                .read_var::<N::Primitive>(bit_len as u32)?;
+            Ok(N::tcn_from_primitive(primitive))
+        } else {
+            let bytes = self.load_bits(bit_len)?;
+            let res = N::tcn_from_bytes(&bytes);
+            if bit_len % 8 != 0 {
+                Ok(res.tcn_shr(8 - bit_len as u32 % 8))
+            } else {
+                Ok(res)
+            }
+        }
     }
 
-    pub fn load_number_optional<N: Numeric>(
+    pub fn load_number_optional<N: TonCellNum>(
         &mut self,
         bit_len: usize,
     ) -> Result<Option<N>, TonCellError> {

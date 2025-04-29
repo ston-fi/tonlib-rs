@@ -25,7 +25,7 @@ impl<R: io::Read, E: Endianness> BitReadExt for BitReader<R, E> {
         let last_byte_len = num_bits % 8;
         if last_byte_len != 0 {
             let last_byte = self
-                .read::<u8>(last_byte_len as u32)
+                .read_var::<u8>(last_byte_len as u32)
                 .map_cell_parser_error()?;
             slice[full_bytes] = last_byte << (8 - last_byte_len);
         }
