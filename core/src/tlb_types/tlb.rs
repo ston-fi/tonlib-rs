@@ -81,25 +81,24 @@ pub trait TLB: Sized + Clone + Debug {
             return Ok(());
         }
 
-        let prefix_error = |given, bits_left| {
-            Err(TonCellError::TLBWrongPrefix {
-                exp: Self::PREFIX.value,
-                given,
-                bits_exp: Self::PREFIX.bit_len,
-                bits_left,
-            })
-        };
-
         if parser.remaining_bits() < Self::PREFIX.bit_len {
-            return prefix_error(0, parser.remaining_bits());
+            return Err(TonCellError::tlb_prefix_error(
+                Self::PREFIX,
+                0,
+                parser.remaining_bits(),
+            ));
         }
 
         // we handle cell_underflow above - all other errors can be rethrown
-        let actual_val: u64 = parser.load_number(Self::PREFIX.bit_len)?;
+        let actual_prefix: u64 = parser.load_number(Self::PREFIX.bit_len)?;
 
-        if actual_val != Self::PREFIX.value {
+        if actual_prefix != Self::PREFIX.value {
             parser.seek(-(Self::PREFIX.bit_len as i64))?; // revert reader position
-            return prefix_error(actual_val, parser.remaining_bits());
+            return Err(TonCellError::tlb_prefix_error(
+                Self::PREFIX,
+                actual_prefix,
+                parser.remaining_bits(),
+            ));
         }
         Ok(())
     }
