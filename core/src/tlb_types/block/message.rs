@@ -166,7 +166,6 @@ impl TLB for ExtOutMsgInfo {
     const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
 
     fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
         let value = Self {
             src: TLB::read(parser)?,
             dest: TLB::read(parser)?,
@@ -189,6 +188,7 @@ impl TLB for ExtOutMsgInfo {
 mod tests {
     use std::str::FromStr;
 
+    use lazy_static::lazy_static;
     use tokio_test::assert_ok;
 
     use crate::cell::{BagOfCells, Cell, EMPTY_ARC_CELL};
@@ -200,6 +200,25 @@ mod tests {
     use crate::tlb_types::primitives::either::EitherRef;
     use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
+
+    lazy_static! {
+        static ref CELL_WITH_PREFIX: Cell = Cell::new(hex::decode("E000000000000000000000000000000000000000000000000000000000000000000000000000000154AA0001E01E00").unwrap(), 369, vec![], false).unwrap();
+        static ref MESSAGE_WITH_PREFIX: Message = Message {
+            info: CommonMsgInfo::ExtOut(ExtOutMsgInfo {
+                src: MsgAddressInt::Std(MsgAddrIntStd {
+                    anycast: None,
+                    workchain: 0,
+                    address: vec![0; 32],
+                }),
+
+                dest: MsgAddressExt::None(MsgAddrNone {}),
+                created_lt: 0xaa55,
+                created_at: 0xf00f,
+            }),
+            init: None,
+            body: EitherRef::new(EMPTY_ARC_CELL.clone()),
+        };
+    }
 
     #[test]
     fn test_common_msg_info_int() -> anyhow::Result<()> {
@@ -254,24 +273,19 @@ mod tests {
     }
 
     #[test]
-    fn test_ext_msg_info_prefixes() -> anyhow::Result<()> {
-        let m = Message {
-            info: CommonMsgInfo::ExtOut(ExtOutMsgInfo {
-                src: MsgAddressInt::Std(MsgAddrIntStd {
-                    anycast: None,
-                    workchain: 0,
-                    address: vec![0; 32],
-                }),
+    fn test_ext_msg_info_prefixes_write() -> anyhow::Result<()> {
+        let cell = MESSAGE_WITH_PREFIX.clone().to_cell()?;
+        let expected = CELL_WITH_PREFIX.clone();
+        assert_eq!(cell, expected);
 
-                dest: MsgAddressExt::None(MsgAddrNone {}),
-                created_lt: 0xaa55,
-                created_at: 0xf00f,
-            }),
-            init: None,
-            body: EitherRef::new(EMPTY_ARC_CELL.clone()),
-        };
-        let expected = Cell::new(hex::decode("E000000000000000000000000000000000000000000000000000000000000000000000000000000154AA0001E01E00")?, 369, vec![], false)?;
-        assert_eq!(m.to_cell()?, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ext_msg_info_prefixes_read() -> anyhow::Result<()> {
+        let message = Message::read(&mut CELL_WITH_PREFIX.parser())?;
+        let expected = MESSAGE_WITH_PREFIX.clone();
+        assert_eq!(message, expected);
         Ok(())
     }
 }

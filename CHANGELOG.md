@@ -106,3 +106,6 @@
 * Impl NI: improved readability of verify_prefix
 * Impl #BE-2368: fixed memoy leaks in emulator call
 * Impl NI: relaxed check fr get_jetton_data output
+### v0.25.2
+* Impl NI: fixed bug in ExtOutMsgInfo and OutActionReserveCurrency
+

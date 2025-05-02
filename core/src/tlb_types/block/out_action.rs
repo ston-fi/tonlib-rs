@@ -163,7 +163,6 @@ impl TLB for OutActionReserveCurrency {
     const PREFIX: TLBPrefix = TLBPrefix::new(32, 0x36e6b809);
 
     fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
         Ok(Self {
             mode: parser.load_u8(8)?,
             currency_collection: TLB::read(parser)?,
@@ -171,7 +170,6 @@ impl TLB for OutActionReserveCurrency {
     }
 
     fn write_definition(&self, dst: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(dst)?;
         dst.store_u8(8, self.mode)?;
         self.currency_collection.write(dst)?;
         Ok(())
