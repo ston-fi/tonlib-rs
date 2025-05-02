@@ -51,7 +51,7 @@ impl TvmEmulatorUnsafe {
 
     pub fn set_libraries(&mut self, libs_boc: &[u8]) -> Result<bool, TvmEmulatorError> {
         let libs_encoded = CString::new(STANDARD.encode(libs_boc))?;
-        let success = unsafe { tvm_emulator_set_libraries(self.ptr, libs_encoded.into_raw()) };
+        let success = unsafe { tvm_emulator_set_libraries(self.ptr, libs_encoded.as_ptr()) };
         Ok(success)
     }
 
@@ -69,11 +69,11 @@ impl TvmEmulatorUnsafe {
         let success = unsafe {
             tvm_emulator_set_c7(
                 self.ptr,
-                address_encoded.into_raw(),
+                address_encoded.as_ptr(),
                 unixtime,
                 balance,
-                rand_seed_hex_encoded.into_raw(),
-                config_encoded.into_raw(),
+                rand_seed_hex_encoded.as_ptr(),
+                config_encoded.as_ptr(),
             )
         };
         Ok(success)
@@ -119,7 +119,7 @@ impl TvmEmulatorUnsafe {
 
         let json_str = unsafe {
             let c_str =
-                tvm_emulator_send_internal_message(self.ptr, message_encoded.into_raw(), amount);
+                tvm_emulator_send_internal_message(self.ptr, message_encoded.as_ptr(), amount);
             convert_emulator_response(c_str)?
         };
 
@@ -134,7 +134,7 @@ impl TvmEmulatorUnsafe {
         let message_encoded = CString::new(STANDARD.encode(message))?;
 
         let json_str = unsafe {
-            let c_str = tvm_emulator_send_external_message(self.ptr, message_encoded.into_raw());
+            let c_str = tvm_emulator_send_external_message(self.ptr, message_encoded.as_ptr());
             convert_emulator_response(c_str)?
         };
 

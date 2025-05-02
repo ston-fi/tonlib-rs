@@ -1,7 +1,8 @@
+use std::fmt::Display;
+
 use bitstream_io::Integer;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Zero;
-use std::fmt::Display;
 
 /// Allows generic read/write operation for any numeric type
 pub trait TonCellNum: Display + Sized + Clone {

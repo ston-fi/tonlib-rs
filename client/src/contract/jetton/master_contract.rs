@@ -34,7 +34,7 @@ pub trait JettonMasterContract: TonContractInterface {
         let res = self.run_get_method(method, Vec::new()).await?;
 
         let stack = res.stack;
-        if stack.len() == JETTON_DATA_STACK_ELEMENTS {
+        if stack.len() >= JETTON_DATA_STACK_ELEMENTS {
             let total_supply = stack[0].get_biguint().map_stack_error(method, &address)?;
             let mintable = stack[1].get_bool().map_stack_error(method, &address)?;
             let admin_address = stack[2].get_address().map_stack_error(method, &address)?;

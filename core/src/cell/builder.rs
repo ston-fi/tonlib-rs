@@ -1,18 +1,19 @@
+use std::cmp::min;
+use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
-use std::{cmp::min, collections::HashMap, ops::Deref};
 
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use num_bigint::{BigInt, BigUint};
 use num_traits::Zero;
 
+use super::TonCellNum;
 use crate::cell::dict::{DictBuilder, ValWriter};
 use crate::cell::error::{MapTonCellError, TonCellError};
 use crate::cell::{ArcCell, Cell, CellParser};
 use crate::tlb_types::block::msg_address::MsgAddress;
 use crate::tlb_types::tlb::TLB;
 use crate::{TonAddress, TonHash};
-
-use super::TonCellNum;
 
 pub(crate) const MAX_CELL_BITS: usize = 1023;
 pub(crate) const MAX_CELL_REFERENCES: usize = 4;
