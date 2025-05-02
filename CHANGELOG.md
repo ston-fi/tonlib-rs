@@ -93,3 +93,8 @@
 * Implement #be-2232: fix partialeq for eitherref
 * Ni: fix cell_builder bit_len
 ### v0.25.1
+* Impl NI: fixed bug in ExtOutMsgInfo 
+* Impl NI: improved readability of verify_prefix
+* Impl #BE-2368: fixed memoy leaks in emulator call
+* Impl NI: relaxed check fr get_jetton_data output
+
