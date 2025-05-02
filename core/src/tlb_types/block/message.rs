@@ -177,7 +177,6 @@ impl TLB for ExtOutMsgInfo {
     }
 
     fn write_definition(&self, builder: &mut CellBuilder) -> Result<(), TonCellError> {
-        Self::write_prefix(builder)?;
         self.src.write(builder)?;
         self.dest.write(builder)?;
         builder.store_u64(64, self.created_lt)?;
@@ -192,9 +191,13 @@ mod tests {
 
     use tokio_test::assert_ok;
 
-    use crate::cell::BagOfCells;
+    use crate::cell::{BagOfCells, Cell, EMPTY_ARC_CELL};
     use crate::tlb_types::block::coins::{CurrencyCollection, Grams};
-    use crate::tlb_types::block::message::{CommonMsgInfo, ExtInMsgInfo, Message};
+    use crate::tlb_types::block::message::{CommonMsgInfo, ExtInMsgInfo, ExtOutMsgInfo, Message};
+    use crate::tlb_types::block::msg_address::{
+        MsgAddrIntStd, MsgAddrNone, MsgAddressExt, MsgAddressInt,
+    };
+    use crate::tlb_types::primitives::either::EitherRef;
     use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
 
@@ -247,6 +250,28 @@ mod tests {
         let cell = ext_in_msg_info.to_cell()?;
         let parsed = ExtInMsgInfo::from_cell(&cell)?;
         assert_eq!(parsed, ext_in_msg_info);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ext_msg_info_prefixes() -> anyhow::Result<()> {
+        let m = Message {
+            info: CommonMsgInfo::ExtOut(ExtOutMsgInfo {
+                src: MsgAddressInt::Std(MsgAddrIntStd {
+                    anycast: None,
+                    workchain: 0,
+                    address: vec![0; 32],
+                }),
+
+                dest: MsgAddressExt::None(MsgAddrNone {}),
+                created_lt: 0xaa55,
+                created_at: 0xf00f,
+            }),
+            init: None,
+            body: EitherRef::new(EMPTY_ARC_CELL.clone()),
+        };
+        let expected = Cell::new(hex::decode("E000000000000000000000000000000000000000000000000000000000000000000000000000000154AA0001E01E00")?, 369, vec![], false)?;
+        assert_eq!(m.to_cell()?, expected);
         Ok(())
     }
 }
