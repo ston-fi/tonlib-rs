@@ -7,11 +7,8 @@ use bitstream_io::{BigEndian, BitRead, BitReader};
 use num_bigint::{BigInt, BigUint};
 use num_traits::identities::Zero;
 
-use super::{
-    dict::{DictParser, KeyReader, SnakeFormatDict, ValReader},
-    TonCellNum,
-};
-use super::{ArcCell, Cell, CellBuilder};
+use super::dict::{DictParser, KeyReader, SnakeFormatDict, ValReader};
+use super::{ArcCell, Cell, CellBuilder, TonCellNum};
 use crate::cell::dict::predefined_readers::{key_reader_256bit, val_reader_snake_formatted_string};
 use crate::cell::util::*;
 use crate::cell::{MapTonCellError, TonCellError};

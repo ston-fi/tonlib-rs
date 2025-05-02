@@ -1,6 +1,7 @@
 use thiserror::Error;
 
-use crate::{tlb_types::tlb::TLBPrefix, types::TonHashParseError};
+use crate::tlb_types::tlb::TLBPrefix;
+use crate::types::TonHashParseError;
 
 #[derive(Error, Debug)]
 pub enum TonCellError {
