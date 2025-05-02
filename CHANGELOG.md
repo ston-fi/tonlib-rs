@@ -98,3 +98,4 @@
 * Impl #BE-2368: fixed memoy leaks in emulator call
 * Impl NI: relaxed check fr get_jetton_data output
 
+### v0.25.2
