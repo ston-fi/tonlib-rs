@@ -166,7 +166,6 @@ impl TLB for ExtOutMsgInfo {
     const PREFIX: TLBPrefix = TLBPrefix::new(2, 0b11);
 
     fn read_definition(parser: &mut CellParser) -> Result<Self, TonCellError> {
-        Self::verify_prefix(parser)?;
         let value = Self {
             src: TLB::read(parser)?,
             dest: TLB::read(parser)?,
