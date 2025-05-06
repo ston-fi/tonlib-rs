@@ -242,7 +242,7 @@ impl TonClientInterface for TonConnection {
         let cnt = self.inner.counter.fetch_add(1, Ordering::Relaxed);
 
         if let Some(external_provider) = &self.inner.external_data_provider {
-            if let Some(result) = external_provider.handle(function) {
+            if let Some(result) = external_provider.handle(function).await {
                 match result {
                     Ok(response) => return Ok((self.clone(), response)),
                     Err(err) => {

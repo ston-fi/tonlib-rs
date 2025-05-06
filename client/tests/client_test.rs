@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use futures::future::join_all;
@@ -683,8 +684,12 @@ async fn test_client_external_data_provider() -> anyhow::Result<()> {
 
     struct MyExternalDataProvider;
 
+    #[async_trait]
     impl ExternalDataProvider for MyExternalDataProvider {
-        fn handle(&self, function: &TonFunction) -> Option<Result<TonResult, TonClientError>> {
+        async fn handle(
+            &self,
+            function: &TonFunction,
+        ) -> Option<Result<TonResult, TonClientError>> {
             let result = match function {
                 TonFunction::BlocksLookupBlock { .. } => {
                     let block_id = BlockIdExt {
