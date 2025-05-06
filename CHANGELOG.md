@@ -112,3 +112,4 @@
 ### v0.25.3
 * Downstream 0.25.2
 * Ni: update trait to be async
+### v0.25.4
