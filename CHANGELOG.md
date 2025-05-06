@@ -109,3 +109,6 @@
 ### v0.25.2
 * Impl NI: fixed bug in ExtOutMsgInfo and OutActionReserveCurrency
 
+### v0.25.3
+* Downstream 0.25.2
+* Ni: update trait to be async
