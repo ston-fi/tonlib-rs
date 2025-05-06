@@ -112,3 +112,5 @@
 ### v0.25.3
 * Downstream 0.25.2
 * Ni: update trait to be async
+### v0.25.4
+* Ni bump tonlib-sys to 2025.4.1
