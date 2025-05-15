@@ -11,7 +11,7 @@ use crate::types::{TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) struct TvmEmulatorResponse {
+pub struct TvmEmulatorResponse {
     success: bool,
     vm_log: Option<String>,
     vm_exit_code: Option<i32>,
