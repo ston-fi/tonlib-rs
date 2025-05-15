@@ -2,7 +2,7 @@ pub use error::*;
 pub use ipfs_loader::*;
 pub use loader::*;
 use serde_json::Value;
-use tonlib_core::cell::{ArcCell, BagOfCells, TonCellError};
+use tonlib_core::cell::{ArcCell, BagOfCells, MapTonCellError, TonCellError};
 use tonlib_core::TonHash;
 mod error;
 mod ipfs_loader;
@@ -79,15 +79,15 @@ impl MetaDataContent {
     pub fn parse(cell: &ArcCell) -> Result<MetaDataContent, TonCellError> {
         // TODO: Refactor NFT metadata to use this method and merge collection data & item data afterwards
         let mut parser = cell.parser();
-        let content_representation = parser.load_byte()?;
-        match content_representation {
+        let content_repr = parser.load_byte()?;
+        match content_repr {
             0 => {
                 let dict = parser.load_dict_snake_format()?;
                 Ok(MetaDataContent::Internal { dict })
             }
             1 => {
-                let remaining_bytes = parser.remaining_bytes();
-                let uri = parser.load_utf8(remaining_bytes)?;
+                let data = parser.load_snake_format_aligned(false)?;
+                let uri = String::from_utf8(data).map_cell_parser_error()?;
                 Ok(MetaDataContent::External { uri })
             }
             _ => Ok(MetaDataContent::Unsupported {
@@ -168,4 +168,33 @@ where
     T: DeserializeOwned,
 {
     async fn load(&self, content: &MetaDataContent) -> Result<T, MetaLoaderError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use tonlib_core::cell::CellBuilder;
+
+    use super::*;
+
+    #[test]
+    fn test_meta_snake_format_in_ref_cell() -> anyhow::Result<()> {
+        let child = CellBuilder::new()
+            .store_bits(440, &hex::decode("68747470733A2F2F676966746966792D6170702E70616C657474652E66696E616E63652F746F79626561722D6A6574746F6E2E6A736F6E")?)?
+            .build()?;
+
+        let meta_cell = CellBuilder::new()
+            .store_byte(1)?
+            .store_reference(&child.to_arc())?
+            .build()?;
+
+        let content = MetaDataContent::parse(&meta_cell.to_arc())?;
+        assert_eq!(
+            content,
+            MetaDataContent::External {
+                uri: "https://giftify-app.palette.finance/toybear-jetton.json".to_string()
+            }
+        );
+
+        Ok(())
+    }
 }
