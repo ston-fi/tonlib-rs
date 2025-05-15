@@ -280,6 +280,35 @@ impl<'a> CellParser<'a> {
         }
     }
 
+    pub fn load_remaining_data_aligned(&mut self) -> Result<Vec<u8>, TonCellError> {
+        let remaining = self.remaining_bytes();
+        self.load_bytes(remaining)
+    }
+
+    // https://docs.ton.org/v3/guidelines/dapps/asset-processing/nft-processing/metadata-parsing#snake-data-encoding
+    pub fn load_snake_format_aligned(&mut self, has_prefix: bool) -> Result<Vec<u8>, TonCellError> {
+        if has_prefix {
+            let prefix = self.load_byte()?;
+            if prefix != 0x00 {
+                let err_str = format!("Expected snake_format prefix: 0x00, got={prefix}");
+                return Err(TonCellError::CellParserError(err_str));
+            }
+        }
+        let mut buffer = self.load_remaining_data_aligned()?;
+        if self.next_ref >= self.cell.references.len() {
+            return Ok(buffer);
+        }
+        let mut cur_child = self.next_reference()?;
+        let mut cur_parser = cur_child.parser();
+        buffer.extend(cur_parser.load_remaining_data_aligned()?);
+        while let Ok(next_child) = cur_parser.next_reference() {
+            cur_child = next_child;
+            cur_parser = cur_child.parser();
+            buffer.extend(cur_parser.load_remaining_data_aligned()?);
+        }
+        Ok(buffer)
+    }
+
     pub fn skip_bits(&mut self, num_bits: usize) -> Result<(), TonCellError> {
         self.ensure_enough_bits(num_bits)?;
         self.data_bit_reader
@@ -729,32 +758,27 @@ mod tests {
     }
 
     #[test]
-    fn test_either_with_references() {
-        let reference_cell = Cell::new([0xA5, 0x5A].to_vec(), 12, vec![], false).unwrap();
-        let cell_either = Arc::new(
-            Cell::new(
-                [0xFF, 0xB0].to_vec(),
-                12,
-                vec![reference_cell.into()],
-                false,
-            )
-            .unwrap(),
-        );
+    fn test_either_with_references() -> anyhow::Result<()> {
+        let reference_cell = Cell::new([0xA5, 0x5A].to_vec(), 12, vec![], false)?;
+        let cell_either = Arc::new(Cell::new(
+            [0xFF, 0xB0].to_vec(),
+            12,
+            vec![reference_cell.into()],
+            false,
+        )?);
         let cell = CellBuilder::new()
-            .store_bit(true)
-            .unwrap()
-            .store_either_cell_or_cell_ref(&cell_either, EitherCellLayout::Native)
-            .unwrap()
-            .build()
-            .unwrap();
+            .store_bit(true)?
+            .store_either_cell_or_cell_ref(&cell_either, EitherCellLayout::Native)?
+            .build()?;
 
         let mut parser = cell.parser();
 
-        let result_first_bit = parser.load_bit().unwrap();
-        let result_cell_either = parser.load_either_cell_or_cell_ref().unwrap();
+        let result_first_bit = parser.load_bit()?;
+        let result_cell_either = parser.load_either_cell_or_cell_ref()?;
 
         assert!(result_first_bit);
         assert_eq!(result_cell_either, cell_either);
+        Ok(())
     }
 
     #[test]
@@ -783,6 +807,42 @@ mod tests {
         let parsed = assert_ok!(parser.load_address());
         let expected: TonAddress = "EQB3ncyAsgnBO9ZKX55kbIbRpNnpKrJ2a6f50qDSyRISQ19D".parse()?;
         assert_eq!(parsed, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_remaining_data_aligned() -> anyhow::Result<()> {
+        let cell = CellBuilder::new()
+            .store_bits(512, &[0b10101010; 64])?
+            .build()?;
+        let mut parser = cell.parser();
+        parser.load_u8(8)?;
+        let remaining_data = parser.load_remaining_data_aligned()?;
+        assert_eq!(remaining_data, &[0b10101010; 63]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_snake_format_aligned() -> anyhow::Result<()> {
+        let child2 = CellBuilder::new()
+            .store_bits(512, &[0b10101010; 64])?
+            .build()?;
+        let child1 = CellBuilder::new()
+            .store_bits(512, &[0b01010101; 64])?
+            .store_reference(&child2.to_arc())?
+            .build()?;
+        let cell = CellBuilder::new()
+            .store_bits(512, &[0b00000000; 64])?
+            .store_reference(&child1.to_arc())?
+            .build()?;
+        let mut expected = vec![0b00000000; 64];
+        expected.extend(vec![0b01010101; 64]);
+        expected.extend(vec![0b10101010; 64]);
+
+        let snake_data = cell.parser().load_snake_format_aligned(false)?;
+        assert_eq!(snake_data, expected);
+        let snake_data = cell.parser().load_snake_format_aligned(true)?;
+        assert_eq!(snake_data, expected[1..]);
         Ok(())
     }
 
