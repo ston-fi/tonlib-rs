@@ -4,7 +4,7 @@ use crate::emulator::error::TvmEmulatorError;
 use crate::types::TvmStackEntry;
 
 #[allow(clippy::let_and_return)]
-pub(super) fn build_stack_boc(stack: &[TvmStackEntry]) -> Result<Vec<u8>, TvmEmulatorError> {
+pub fn build_stack_boc(stack: &[TvmStackEntry]) -> Result<Vec<u8>, TvmEmulatorError> {
     let root_cell = if stack.is_empty() {
         let root_cell = CellBuilder::new().store_u64(24, 0)?.build()?;
         root_cell

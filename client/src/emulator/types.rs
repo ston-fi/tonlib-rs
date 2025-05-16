@@ -1,5 +1,7 @@
 use std::ops::Neg;
 
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use tonlib_core::cell::{BagOfCells, CellSlice};
@@ -9,7 +11,7 @@ use crate::types::{TvmMsgSuccess, TvmStackEntry, TvmSuccess};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) struct TvmEmulatorResponse {
+pub struct TvmEmulatorResponse {
     success: bool,
     vm_log: Option<String>,
     vm_exit_code: Option<i32>,
@@ -41,9 +43,11 @@ impl TvmEmulatorResponse {
                     .ok_or(TvmEmulatorError::MissingJsonField("gas_used"))?
                     .parse::<i32>()
                     .map_err(|e| TvmEmulatorError::InternalError(e.to_string()))?;
-                let boc = BagOfCells::parse_base64(stack_string.as_str())?;
+                let stack_boc = BASE64_STANDARD
+                    .decode(&stack_string)
+                    .map_err(|e| TvmEmulatorError::InternalError(e.to_string()))?;
 
-                let stack = Self::extract_stack(boc)?;
+                let stack = Self::parse_stack(&stack_boc)?;
 
                 Ok(TvmSuccess {
                     vm_log: Some(vm_log),
@@ -64,9 +68,9 @@ impl TvmEmulatorResponse {
         result
     }
 
-    fn extract_stack(boc: BagOfCells) -> Result<Vec<TvmStackEntry>, TvmEmulatorError> {
+    pub fn parse_stack(stack_boc: &[u8]) -> Result<Vec<TvmStackEntry>, TvmEmulatorError> {
         let mut stack = vec![];
-
+        let boc = BagOfCells::parse(stack_boc)?;
         let mut current_cell = boc.single_root()?;
         log::trace!("Parsing stack:\n{:?}", current_cell);
 

@@ -92,6 +92,7 @@ impl TonMessage for TransferMessage {
             let src = parser.load_address()?;
             let dest = parser.load_address()?;
             let value = parser.load_coins()?;
+            let _currency_coll = parser.load_bit()?;
             let ihr_fee = parser.load_coins()?;
             let fwd_fee = parser.load_coins()?;
             let created_lt = parser.load_u64(64)?;
@@ -137,7 +138,7 @@ impl TonMessage for TransferMessage {
                 })
             }
         };
-        let state_init = parser.load_maybe_cell_ref()?;
+        let state_init: Option<Arc<Cell>> = parser.load_maybe_cell_ref()?;
         let data = parser.load_maybe_cell_ref()?;
 
         parser.ensure_empty()?;
@@ -147,5 +148,35 @@ impl TonMessage for TransferMessage {
             state_init,
             data,
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use num_bigint::BigUint;
+
+    use super::TransferMessage;
+    use crate::message::{CommonMsgInfo, InternalMessage, TonMessage};
+    use crate::TonAddress;
+
+    #[test]
+    pub fn test_transfer_message_parser() -> anyhow::Result<()> {
+        let transfer_message =
+            TransferMessage::new(CommonMsgInfo::InternalMessage(InternalMessage {
+                ihr_disabled: true,
+                bounce: false,
+                bounced: false,
+                src: TonAddress::NULL,
+                dest: TonAddress::NULL,
+                value: BigUint::from(100000_u32),
+                ihr_fee: BigUint::from(0_u32),
+                fwd_fee: BigUint::from(1000_u32),
+                created_lt: 0,
+                created_at: 0,
+            }));
+        let transfer_cell = transfer_message.build()?;
+        let transfer_parsed = TransferMessage::parse(&transfer_cell)?;
+        assert_eq!(transfer_message, transfer_parsed);
+        Ok(())
     }
 }
