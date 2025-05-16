@@ -36,7 +36,6 @@ lazy_static! {
             (WalletVersion::HighloadV2R2, load_code!("../../resources/wallet/highload_v2r2.code")),
         ]);
 
-
     pub(super) static ref WALLET_VERSION_BY_CODE: HashMap<TonHash, WalletVersion> =  WALLET_CODE_BY_VERSION.iter()
     .map(|(k, v)| (v.cell_hash(), *k)).collect();
 
