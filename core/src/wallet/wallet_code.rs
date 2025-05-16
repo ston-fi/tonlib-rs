@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 
 use crate::cell::{ArcCell, BagOfCells};
 use crate::wallet::wallet_version::WalletVersion;
+use crate::TonHash;
 
 macro_rules! load_code {
     ($path:expr) => {
@@ -34,4 +35,10 @@ lazy_static! {
             (WalletVersion::HighloadV2R1, load_code!("../../resources/wallet/highload_v2r1.code")),
             (WalletVersion::HighloadV2R2, load_code!("../../resources/wallet/highload_v2r2.code")),
         ]);
+
+
+    pub(super) static ref WALLET_VERSION_BY_CODE: HashMap<TonHash, WalletVersion> =  WALLET_CODE_BY_VERSION.iter()
+    .map(|(k, v)| (v.cell_hash(), *k)).collect();
+
+
 }

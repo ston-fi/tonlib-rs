@@ -1,3 +1,4 @@
+use super::wallet_code::WALLET_VERSION_BY_CODE;
 use crate::cell::{ArcCell, Cell, CellBuilder, TonCellError};
 use crate::tlb_types::tlb::TLB;
 use crate::wallet::mnemonic::KeyPair;
@@ -51,6 +52,12 @@ impl VersionHelper {
             let err_str = format!("No code found for {version:?}");
             TonCellError::InternalError(err_str)
         })
+    }
+
+    pub fn get_version(code_hash: &TonHash) -> Result<&WalletVersion, TonCellError> {
+        WALLET_VERSION_BY_CODE
+            .get(code_hash)
+            .ok_or_else(|| TonCellError::InternalError("No wallet version found".to_string()))
     }
 
     pub fn build_ext_msg<T: AsRef<[ArcCell]>>(
