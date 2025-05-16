@@ -114,3 +114,6 @@
 * Ni: update trait to be async
 ### v0.25.4
 * Ni bump tonlib-sys to 2025.4.1
+### v0.25.6
+* Wallet version by code_hash
+* Fix parsing snake_format meta
