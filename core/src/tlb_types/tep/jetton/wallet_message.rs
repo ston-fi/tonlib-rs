@@ -61,6 +61,7 @@ mod tests {
     use crate::cell::Cell;
     use crate::message::TonMessageError;
     use crate::tlb_types::primitives::either::{EitherRef, EitherRefLayout};
+    use crate::tlb_types::tep::jetton::{JettonInternalTransferMessage, JettonWalletMessage};
     use crate::tlb_types::tlb::TLB;
     use crate::TonAddress;
 
