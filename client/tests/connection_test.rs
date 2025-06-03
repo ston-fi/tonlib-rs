@@ -22,7 +22,6 @@ async fn test_connection_init() -> anyhow::Result<()> {
             ConnectionCheck::None,
             &DEFAULT_CONNECTION_PARAMS,
             LOGGING_CONNECTION_CALLBACK.clone(),
-            None
         )
         .await
     );
@@ -87,7 +86,6 @@ async fn test_connection_callback() -> anyhow::Result<()> {
         ConnectionCheck::None,
         &DEFAULT_CONNECTION_PARAMS,
         multi_callback,
-        None,
     )
     .await?;
     let lvl = assert_ok!(conn.get_log_verbosity_level().await);
@@ -108,7 +106,6 @@ async fn test_connection_sync() -> anyhow::Result<()> {
         ConnectionCheck::None,
         &DEFAULT_CONNECTION_PARAMS,
         LOGGING_CONNECTION_CALLBACK.clone(),
-        None,
     )
     .await?;
     let mut receiver = conn.subscribe();

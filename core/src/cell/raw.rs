@@ -67,11 +67,17 @@ impl RawBagOfCells {
             GENERIC_BOC_MAGIC => {
                 // has_idx:(## 1) has_crc32c:(## 1) has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
                 let header = reader.read::<u8>().map_boc_deserialization_error()?;
-                let has_idx = (header >> 7) & 1 == 1;
-                let has_crc32c = (header >> 6) & 1 == 1;
-                let has_cache_bits = (header >> 5) & 1 == 1;
+                let has_idx = header & 0b1000_0000 != 0;
+                let has_crc32c = header & 0b0100_0000 != 0;
+                let has_cache_bits = header & 0b0010_0000 != 0;
+
                 // size:(## 3) { size <= 4 }
                 let size = header & 0b0000_0111;
+                if size > 4 {
+                    return Err(TonCellError::boc_deserialization_error(format!(
+                        "Invalid size {size}. Size should be <= 4."
+                    )));
+                }
 
                 (has_idx, has_crc32c, has_cache_bits, size)
             }

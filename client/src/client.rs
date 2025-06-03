@@ -15,7 +15,6 @@ use tokio_retry::strategy::FixedInterval;
 use tokio_retry::RetryIf;
 pub use types::*;
 
-use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::tl::*;
 
 mod block_functions;
@@ -27,7 +26,6 @@ mod error;
 mod interface;
 mod types;
 
-pub mod ext_data_provider;
 #[cfg(feature = "liteapi")]
 mod recent_init_block;
 
@@ -49,7 +47,6 @@ impl TonClient {
         retry_strategy: RetryStrategy,
         callback: Arc<dyn TonConnectionCallback>,
         connection_check: ConnectionCheck,
-        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonClient, TonClientError> {
         let patched_params = if params.update_init_block {
             patch_init_block(params).await?
@@ -68,13 +65,8 @@ impl TonClient {
                 })?;
                 conn_params.keystore_dir = Some(path_str)
             };
-            let conn = TonConnection::new(
-                connection_check.clone(),
-                &conn_params,
-                callback.clone(),
-                external_data_provider.clone(),
-            )
-            .await?;
+            let conn = TonConnection::new(connection_check.clone(), &conn_params, callback.clone())
+                .await?;
 
             connections.push(conn);
         }
