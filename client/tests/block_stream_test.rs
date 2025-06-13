@@ -49,7 +49,6 @@ async fn test_connection_hang() -> anyhow::Result<()> {
         ConnectionCheck::None,
         &params,
         LOGGING_CONNECTION_CALLBACK.clone(),
-        None,
     )
     .await?;
     let seqno = assert_ok!(client.get_masterchain_info().await).1.last.seqno;
@@ -103,7 +102,6 @@ async fn test_connection_hang_tx() -> anyhow::Result<()> {
         ConnectionCheck::None,
         &params,
         LOGGING_CONNECTION_CALLBACK.clone(),
-        None,
     )
     .await?;
     let addr = assert_ok!("EQCqNjAPkigLdS5gxHiHitWuzF3ZN-gX7MlX4Qfy2cGS3FWx".parse());

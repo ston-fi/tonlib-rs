@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, Mutex, Semaphore, SemaphorePermit};
 
-use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::client::{
     TonClientError, TonClientInterface, TonConnectionCallback, TonConnectionParams,
     TonNotificationReceiver,
@@ -52,7 +51,6 @@ struct Inner {
     notification_sender: TonNotificationSender,
     callback: Arc<dyn TonConnectionCallback>,
     semaphore: Option<Semaphore>,
-    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 }
 
 static CONNECTION_COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -62,16 +60,11 @@ impl TonConnection {
         connection_check: ConnectionCheck,
         params: &TonConnectionParams,
         callback: Arc<dyn TonConnectionCallback>,
-        external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
     ) -> Result<TonConnection, TonClientError> {
         match connection_check {
-            ConnectionCheck::None => new_connection(params, callback, external_data_provider).await,
-            ConnectionCheck::Health => {
-                new_connection_healthy(params, callback, external_data_provider).await
-            }
-            ConnectionCheck::Archive => {
-                new_connection_archive(params, callback, external_data_provider).await
-            }
+            ConnectionCheck::None => new_connection(params, callback).await,
+            ConnectionCheck::Health => new_connection_healthy(params, callback).await,
+            ConnectionCheck::Archive => new_connection_archive(params, callback).await,
         }
     }
 
@@ -144,7 +137,6 @@ impl TonConnection {
 async fn new_connection(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     let conn_id = CONNECTION_COUNTER.fetch_add(1, Ordering::Relaxed);
     let tag = format!("ton-conn-{conn_id}");
@@ -165,7 +157,6 @@ async fn new_connection(
         notification_sender: sender,
         callback,
         semaphore,
-        external_data_provider,
     };
     let inner_arc = Arc::new(inner);
     let inner_weak: Weak<Inner> = Arc::downgrade(&inner_arc);
@@ -182,11 +173,10 @@ async fn new_connection(
 async fn new_connection_healthy(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     // connect to other node until it will be able to fetch the very first block
     loop {
-        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
+        let conn = new_connection(params, callback.clone()).await?;
         let info_result = conn.get_masterchain_info().await;
         match info_result {
             Ok((_, info)) => {
@@ -207,11 +197,10 @@ async fn new_connection_healthy(
 async fn new_connection_archive(
     params: &TonConnectionParams,
     callback: Arc<dyn TonConnectionCallback>,
-    ext_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 ) -> Result<TonConnection, TonClientError> {
     // connect to other node until it will be able to fetch the very first block
     loop {
-        let conn = new_connection(params, callback.clone(), ext_data_provider.clone()).await?;
+        let conn = new_connection(params, callback.clone()).await?;
         let info = BlockId {
             workchain: -1,
             shard: i64::MIN,
@@ -240,17 +229,6 @@ impl TonClientInterface for TonConnection {
         self.limit_rate().await?; // take the semaphore to limit number of simultaneous invokes being processed
 
         let cnt = self.inner.counter.fetch_add(1, Ordering::Relaxed);
-
-        if let Some(external_provider) = &self.inner.external_data_provider {
-            if let Some(result) = external_provider.handle(function).await {
-                match result {
-                    Ok(response) => return Ok((self.clone(), response)),
-                    Err(err) => {
-                        log::warn!("External data provider failed to handle function: {function:?} with err: {err:?}");
-                    }
-                }
-            }
-        }
 
         let extra = cnt.to_string();
         let (tx, rx) = oneshot::channel::<Result<TonResult, TonClientError>>();

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use super::TonConnectionCallback;
-use crate::client::ext_data_provider::ExternalDataProvider;
 use crate::client::{
     error, ConnectionCheck, MultiConnectionCallback, RetryStrategy, TonClient, TonConnectionParams,
     LOGGING_CONNECTION_CALLBACK, NOOP_CONNECTION_CALLBACK,
@@ -13,7 +12,6 @@ pub struct TonClientBuilder {
     retry_strategy: RetryStrategy,
     callback: Arc<dyn TonConnectionCallback>,
     connection_check: ConnectionCheck,
-    external_data_provider: Option<Arc<dyn ExternalDataProvider>>,
 }
 
 impl TonClientBuilder {
@@ -24,7 +22,6 @@ impl TonClientBuilder {
             retry_strategy: RetryStrategy::default(),
             callback: LOGGING_CONNECTION_CALLBACK.clone(),
             connection_check: ConnectionCheck::None,
-            external_data_provider: None,
         }
     }
 
@@ -83,14 +80,6 @@ impl TonClientBuilder {
         self
     }
 
-    pub fn with_external_data_provider(
-        &mut self,
-        provider: Arc<dyn ExternalDataProvider>,
-    ) -> &mut Self {
-        self.external_data_provider = Some(provider);
-        self
-    }
-
     pub async fn build(&self) -> Result<TonClient, error::TonClientError> {
         TonClient::new(
             self.pool_size,
@@ -98,7 +87,6 @@ impl TonClientBuilder {
             self.retry_strategy.clone(),
             self.callback.clone(),
             self.connection_check.clone(),
-            self.external_data_provider.clone(),
         )
         .await
     }
