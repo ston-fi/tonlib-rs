@@ -36,11 +36,7 @@ impl<'a> CellParser<'a> {
 
     pub fn remaining_bits(&mut self) -> usize {
         let pos = self.data_bit_reader.position_in_bits().unwrap_or_default() as usize;
-        if self.cell.bit_len > pos {
-            self.cell.bit_len - pos
-        } else {
-            0
-        }
+        self.cell.bit_len.saturating_sub(pos)
     }
 
     pub fn remaining_refs(&self) -> usize {
@@ -350,7 +346,7 @@ impl<'a> CellParser<'a> {
     fn ensure_enough_bits(&mut self, bit_len: usize) -> Result<(), TonCellError> {
         if self.remaining_bits() < bit_len {
             return Err(TonCellError::CellParserError(format!(
-                "Not enough bits to read (requested: {}, remaining: {}",
+                "Not enough bits to read (requested: {}, remaining: {})",
                 bit_len,
                 self.remaining_bits()
             )));

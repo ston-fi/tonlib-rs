@@ -421,7 +421,7 @@ fn write_data(
     if !full_bytes {
         writer.write_bytes(&data[..data_len - 1])?;
         let last_byte = data[data_len - 1];
-        let l = last_byte | 1 << (8 - rest_bits - 1);
+        let l = last_byte | (1 << (8 - rest_bits - 1));
         writer.write_var(8, l)?;
     } else {
         writer.write_bytes(data)?;
