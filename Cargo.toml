@@ -20,7 +20,7 @@ repository = "https://github.com/ston-fi/tonlib-rs"
 
 [workspace.dependencies]
 # Internal
-tonlib-core = { version = "0.25", path = "core" }
+tonlib-core = { version = "0.26", path = "core" }
 tonlib-sys = "=2025.4.1"
 
 
