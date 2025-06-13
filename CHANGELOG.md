@@ -119,3 +119,7 @@
 * Fix parsing snake_format meta
 ### v0.25.7
 * Ni: add pub mod tep
+### v0.26.0
+* Fix transfer_message with state_init ser/de
+* Impl #be-2939: rm externaldataprovider
+* Release v0.25.7
