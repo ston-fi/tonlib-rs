@@ -1,5 +1,5 @@
 default:
-  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.84.0-c421eb08
+  image: ${CI_REGISTRY}/ston-fi/docker/rust-build:20.10.24_1.85.1-cd1dc454
   tags:
     - zen4
 

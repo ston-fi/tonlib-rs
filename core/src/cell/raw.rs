@@ -299,7 +299,7 @@ fn write_raw_cell(
             .write_bytes(&data[..data_len_bytes - 1])
             .map_boc_serialization_error()?;
         let last_byte = data[data_len_bytes - 1];
-        let l = last_byte | 1 << (8 - padding_bits - 1);
+        let l = last_byte | (1 << (8 - padding_bits - 1));
         writer.write_var(8, l).map_boc_serialization_error()?;
     } else {
         writer.write_bytes(data).map_boc_serialization_error()?;
@@ -332,7 +332,6 @@ fn read_var_size(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
