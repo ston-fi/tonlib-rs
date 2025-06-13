@@ -349,9 +349,11 @@ impl<'a> CellParser<'a> {
 
     fn ensure_enough_bits(&mut self, bit_len: usize) -> Result<(), TonCellError> {
         if self.remaining_bits() < bit_len {
-            return Err(TonCellError::CellParserError(
-                "Not enough bits to read".to_owned(),
-            ));
+            return Err(TonCellError::CellParserError(format!(
+                "Not enough bits to read (requested: {}, remaining: {}",
+                bit_len,
+                self.remaining_bits()
+            )));
         }
         Ok(())
     }
