@@ -123,3 +123,6 @@
 * Fix transfer_message with state_init ser/de
 * Impl #be-2939: rm externaldataprovider
 * Release v0.25.7
+### v0.26.1
+* Bump sys
+* Fix dep version
