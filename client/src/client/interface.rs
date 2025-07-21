@@ -347,7 +347,7 @@ pub trait TonClientInterface: Send + Sync {
     ///
     /// * `block_id`: ID of the block to retrieve transactions for (either masterchain or shard).
     /// * `mode`: Use `7` to get first chunk of transactions or `7 + 128` for subsequent chunks.
-    /// * `count`: Maximum mumber of transactions to retrieve.
+    /// * `count`: Maximum number of transactions to retrieve.
     /// * `after`: Specify `NULL_BLOCKS_ACCOUNT_TRANSACTION_ID` to get the first chunk
     ///             or id of the last retrieved tx for subsequent chunks.
     ///

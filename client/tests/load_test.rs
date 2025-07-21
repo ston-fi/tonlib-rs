@@ -76,7 +76,7 @@ async fn smc_methods_runner(client: TonClient) {
                 assert_eq!(wallet_data.master_address, jetton_addr);
             }
             Err(err) => {
-                log::info!("Error occured: {}", err);
+                log::info!("Error occurred: {}", err);
             }
         }
     }

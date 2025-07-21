@@ -29,7 +29,7 @@ pub struct InternalMessage {
     pub ihr_fee: BigUint,
     /// Fees for forwarding messages assigned by validators
     pub fwd_fee: BigUint,
-    /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
+    /// Logic time of sending message assigned by validator. Using for ordering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
     pub created_at: u32,
@@ -51,7 +51,7 @@ pub struct ExternalOutgoingMessage {
     pub src: TonAddress,
     /// Address of smart contract destination of message.
     pub dest: TonAddress,
-    /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
+    /// Logic time of sending message assigned by validator. Using for ordering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
     pub created_at: u32,
