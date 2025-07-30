@@ -74,7 +74,7 @@ fn read_config_file(path: &Path) -> String {
     match fs::read_to_string(path) {
         Ok(content) => content,
         Err(err) => {
-            log::error!("Failed to read configuration file {:?}: {}", path, err);
+            log::error!("Failed to read configuration file {path:?}: {err}");
             "".to_string()
         }
     }

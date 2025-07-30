@@ -182,13 +182,13 @@ async fn new_connection_healthy(
             Ok((_, info)) => {
                 let block_result = conn.get_block_header(&info.last).await;
                 if let Err(err) = block_result {
-                    log::info!("Dropping connection to unhealthy node: {:?}", err);
+                    log::info!("Dropping connection to unhealthy node: {err:?}");
                 } else {
                     break Ok(conn);
                 }
             }
             Err(err) => {
-                log::info!("Dropping connection to unhealthy node: {:?}", err);
+                log::info!("Dropping connection to unhealthy node: {err:?}");
             }
         }
     }

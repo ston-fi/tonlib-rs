@@ -23,7 +23,7 @@ pub fn build_stack_boc(stack: &[TvmStackEntry]) -> Result<Vec<u8>, TvmEmulatorEr
         }
         prev_cell
     };
-    log::trace!("Produced stack:\n{:?}", root_cell);
+    log::trace!("Produced stack:\n{root_cell:?}");
     Ok(BagOfCells::from_root(root_cell).serialize(false)?)
 }
 

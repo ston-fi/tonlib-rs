@@ -96,7 +96,7 @@ impl TryFrom<&[u8]> for TonHash {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.len() != TON_HASH_LEN {
-            let formatted_input = format!("{:?}", value);
+            let formatted_input = format!("{value:?}");
             Err(TonHashParseError::new(
                 formatted_input,
                 format!(
@@ -129,7 +129,7 @@ impl fmt::Debug for TonHash {
 impl fmt::Display for TonHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in &self.0 {
-            write!(f, "{:02x}", byte)?;
+            write!(f, "{byte:02x}")?;
         }
         Ok(())
     }

@@ -37,7 +37,7 @@ pub trait HasOpcode: TonMessage {
             let invalid = InvalidMessage {
                 opcode: Some(opcode),
                 query_id: Some(self.query_id()),
-                message: format!("Unexpected opcode.  {0:08x} expected", expected_opcode),
+                message: format!("Unexpected opcode.  {expected_opcode:08x} expected"),
             };
             Err(TonMessageError::InvalidMessage(invalid))
         } else {

@@ -83,8 +83,7 @@ impl RawBagOfCells {
             }
             magic => {
                 return Err(TonCellError::boc_deserialization_error(format!(
-                    "Unsupported cell magic number: {:#}",
-                    magic
+                    "Unsupported cell magic number: {magic:#}"
                 )));
             }
         };

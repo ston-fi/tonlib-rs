@@ -123,22 +123,22 @@ async fn test_emulator_empty_contract_code() {
     common::init_logging();
     // empty code  empty data
     let emulator_result = TvmEmulator::new(&EMPTY, &EMPTY);
-    log::info!("{:?}", emulator_result);
+    log::info!("{emulator_result:?}");
     assert!(emulator_result.is_err());
 
     // bad code empty data
     let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE, &TEST_CONTRACT_DATA);
-    log::info!("{:?}", emulator_result);
+    log::info!("{emulator_result:?}");
     assert!(emulator_result.is_err());
 
     // bad code cell empty data
     let emulator_result = TvmEmulator::new(&BAD_CONTRACT_CODE_CELL, &TEST_CONTRACT_DATA);
-    log::info!("{:?}", emulator_result);
+    log::info!("{emulator_result:?}");
     assert!(emulator_result.is_err());
 
     // Ok code cell empty data
     let emulator_result = TvmEmulator::new(&TEST_CONTRACT_CODE, &EMPTY);
-    log::info!("{:?}", emulator_result);
+    log::info!("{emulator_result:?}");
     assert!(emulator_result.is_err());
 }
 
@@ -156,7 +156,7 @@ async fn test_emulator_bigint_multiply() -> anyhow::Result<()> {
 
 fn bigint_multiplier(val1: &BigInt, val2: &BigInt) -> anyhow::Result<()> {
     let expected = val1 * val2;
-    log::info!("Testing: {} = {} * {}", expected, val1, val2);
+    log::info!("Testing: {expected} = {val1} * {val2}");
     let mut emulator = TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?;
     emulator.with_debug_enabled()?;
     let stack = vec![val1.clone().into(), val2.clone().into()];
@@ -181,7 +181,7 @@ async fn test_emulator_i64_multiply() -> anyhow::Result<()> {
 
 fn i64_multiplier(val1: i64, val2: i64) -> anyhow::Result<()> {
     let expected = BigInt::from(val1) * BigInt::from(val2);
-    log::info!("Testing: {} = {} * {}", expected, val1, val2);
+    log::info!("Testing: {expected} = {val1} * {val2}");
     let mut emulator = TvmEmulator::new(&TEST_CONTRACT_CODE, &TEST_CONTRACT_DATA)?;
     emulator.with_debug_enabled()?;
     let stack = vec![val1.into(), val2.into()];
@@ -214,7 +214,7 @@ async fn test_emulator_get_jetton_data() {
     let blockchain_data: JettonData = assert_ok!(contract.get_jetton_data().await);
     let emulated_data = emulate_get_jetton_data(code, data);
 
-    log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+    log::info!("{blockchain_data:?}\n {emulated_data:?} ");
 
     assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
     assert_eq!(blockchain_data.mintable, emulated_data.mintable);
@@ -242,7 +242,7 @@ async fn test_emulator_get_jetton_data_long_total_supply() {
     let blockchain_data = assert_ok!(contract.get_jetton_data().await);
     let emulated_data = emulate_get_jetton_data(code, data);
 
-    log::info!("{:?}\n {:?} ", blockchain_data, emulated_data);
+    log::info!("{blockchain_data:?}\n {emulated_data:?} ");
 
     assert_eq!(blockchain_data.total_supply, emulated_data.total_supply);
     assert_eq!(blockchain_data.mintable, emulated_data.mintable);
@@ -339,10 +339,10 @@ async fn test_address_in_stack() {
     let code = account_state.code.as_slice();
     let data = account_state.data.as_slice();
     let (addr1, addr2) = emulate_get_pool_data(code, data);
-    log::info!("Addr1: {}, Addr2: {}", addr1, addr2);
+    log::info!("Addr1: {addr1}, Addr2: {addr2}");
     let amount = BigUint::from(100_500_000u32);
     let emulated_result = emulate_get_expected_outputs(code, data, &amount, &addr1);
-    log::info!("Emulated result: {}", emulated_result);
+    log::info!("Emulated result: {emulated_result}");
     let addr_cell = assert_ok!(assert_ok!(CellBuilder::new().store_address(&addr1)).build());
     let stack = vec![
         TvmStackEntry::Int257(BigInt::from(amount)),
@@ -361,7 +361,7 @@ async fn test_address_in_stack() {
     assert!(run_result.vm_exit_code == 0 || run_result.vm_exit_code == 1);
     assert_eq!(run_result.stack.len(), 3);
     let state_result = assert_ok!(run_result.stack[0].get_biguint());
-    log::info!("Blockchain result: {}", state_result);
+    log::info!("Blockchain result: {state_result}");
     assert_eq!(emulated_result, state_result);
 }
 
@@ -416,7 +416,7 @@ async fn emulate_external_transfer_message() {
 
     let mut emulator = assert_ok!(TvmEmulator::new(code, data));
     let r = assert_ok!(emulator.send_external_message(msg));
-    log::info!("RES: {:?}", r);
+    log::info!("RES: {r:?}");
     assert_eq!(r.gas_used, 270);
     assert_eq!(r.vm_exit_code, 11);
 }
@@ -445,7 +445,7 @@ async fn emulate_internal_transfer_message() -> anyhow::Result<()> {
 
     let mut emulator = assert_ok!(TvmEmulator::new(code, data));
     let r = assert_ok!(emulator.send_internal_message(msg, 300));
-    log::info!("RES: {:?}", r);
+    log::info!("RES: {r:?}");
     assert_eq!(r.gas_used, 2779);
     assert_eq!(r.vm_exit_code, 65535);
     Ok(())
@@ -458,7 +458,7 @@ async fn test_convert_lib_addr() {
         "4F0171272C215B8BF8FEEAC46A857688A4B65F4FE61F8228631F627D0EDA9D00",
     );
 
-    log::info!("addr {:?}", hex_addr);
+    log::info!("addr {hex_addr:?}");
 }
 
 #[tokio::test]

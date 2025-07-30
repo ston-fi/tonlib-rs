@@ -75,9 +75,9 @@ async fn contract_get_pool_data_works() {
         "EQD9b5pxv6nptJmD1-c771oRV98h_mky-URkDn5BJpY2sTJ-".parse()
     ));
     let pool_data = assert_ok!(contract.get_pool_data().await);
-    log::info!("pool data: {:?}", pool_data);
+    log::info!("pool data: {pool_data:?}");
     let invalid_result = contract.invalid_method().await;
-    log::info!("invalid_result: {:?}", invalid_result);
+    log::info!("invalid_result: {invalid_result:?}");
 
     match invalid_result {
         Ok(_) => panic!(),
@@ -98,9 +98,9 @@ async fn state_get_pool_data_works() {
     ));
     let state = assert_ok!(contract.get_state().await);
     let pool_data = assert_ok!(state.get_pool_data().await);
-    log::info!("pool data: {:?}", pool_data);
+    log::info!("pool data: {pool_data:?}");
     let invalid_result = contract.invalid_method().await;
-    log::info!("Result of calling invalid method {:?}", invalid_result);
+    log::info!("Result of calling invalid method {invalid_result:?}");
     assert!(invalid_result.is_err());
 }
 
@@ -114,15 +114,15 @@ async fn state_clone_works() {
     ));
     let state1 = assert_ok!(contract.get_state().await);
     let pool_data = assert_ok!(state1.get_pool_data().await);
-    log::info!("pool data: {:?}", pool_data);
+    log::info!("pool data: {pool_data:?}");
     {
         let state2 = state1.clone();
         let pool_data = assert_ok!(state2.get_pool_data().await);
-        log::info!("pool data: {:?}", pool_data);
+        log::info!("pool data: {pool_data:?}");
     }
     tokio::time::sleep(Duration::from_millis(1000)).await;
     let pool_data = assert_ok!(state1.get_pool_data().await);
-    log::info!("pool data: {:?}", pool_data);
+    log::info!("pool data: {pool_data:?}");
 }
 
 #[tokio::test]
@@ -194,7 +194,7 @@ async fn test_state_dropping() {
     let handle = assert_ok!(thread_builder.spawn(move || test_drop(state)));
     log::info!("Dropping state");
     let r = handle.join();
-    log::info!("Join result: {:?}", r);
+    log::info!("Join result: {r:?}");
     assert_ok!(r);
 }
 
@@ -214,11 +214,11 @@ async fn test_derive_undeployed() {
     let wallet_v4r2 = assert_ok!(TonWallet::new(WalletVersion::V4R2, key_pair));
 
     let address = wallet_v4r2.address;
-    log::info!("addr: {}", address);
+    log::info!("addr: {address}");
     let contract = factory.get_contract(&address);
 
     let r = contract.run_get_method("seqno", vec![]).await;
-    log::info!("result: {:?}", r);
+    log::info!("result: {r:?}");
     assert!(r.is_err());
 }
 

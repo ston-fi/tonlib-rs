@@ -40,8 +40,7 @@ impl CellType {
             4 => CellType::MerkleUpdate,
             cell_type => {
                 return Err(TonCellError::InvalidExoticCellData(format!(
-                    "Invalid first byte in exotic cell data: {}",
-                    cell_type
+                    "Invalid first byte in exotic cell data: {cell_type}"
                 )))
             }
         };
@@ -212,16 +211,14 @@ impl CellType {
         let proof_hash: [u8; TON_HASH_LEN] =
             data[1..(1 + TON_HASH_LEN)].try_into().map_err(|err| {
                 TonCellError::InvalidExoticCellData(format!(
-                    "Can't get proof hash bytes from cell data, {}",
-                    err
+                    "Can't get proof hash bytes from cell data, {err}"
                 ))
             })?;
         let proof_depth_bytes = data[(1 + TON_HASH_LEN)..(1 + TON_HASH_LEN + 2)]
             .try_into()
             .map_err(|err| {
                 TonCellError::InvalidExoticCellData(format!(
-                    "Can't get proof depth bytes from cell data, {}",
-                    err
+                    "Can't get proof depth bytes from cell data, {err}"
                 ))
             })?;
         let proof_depth = u16::from_be_bytes(proof_depth_bytes);
@@ -268,26 +265,22 @@ impl CellType {
 
         let proof_hash1: TonHash = data[1..33].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
-                "Can't get proof hash bytes 1 from cell data, {}",
-                err
+                "Can't get proof hash bytes 1 from cell data, {err}"
             ))
         })?;
         let proof_hash2: TonHash = data[33..65].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
-                "Can't get proof hash bytes 2 from cell data, {}",
-                err
+                "Can't get proof hash bytes 2 from cell data, {err}"
             ))
         })?;
         let proof_depth_bytes1 = data[65..67].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
-                "Can't get proof depth bytes 1 from cell data, {}",
-                err
+                "Can't get proof depth bytes 1 from cell data, {err}"
             ))
         })?;
         let proof_depth_bytes2 = data[67..69].try_into().map_err(|err| {
             TonCellError::InvalidExoticCellData(format!(
-                "Can't get proof depth bytes 2 from cell data, {}",
-                err
+                "Can't get proof depth bytes 2 from cell data, {err}"
             ))
         })?;
         let proof_depth1 = u16::from_be_bytes(proof_depth_bytes1);

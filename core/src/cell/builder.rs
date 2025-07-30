@@ -420,15 +420,13 @@ impl CellBuilder {
             let bit_len = vec.len() * 8 - trailing_zeros;
             if bit_len > MAX_CELL_BITS {
                 return Err(TonCellError::cell_builder_error(format!(
-                    "Cell must contain at most {} bits, got {}",
-                    MAX_CELL_BITS, bit_len
+                    "Cell must contain at most {MAX_CELL_BITS} bits, got {bit_len}"
                 )));
             }
             let ref_count = self.references.len();
             if ref_count > MAX_CELL_REFERENCES {
                 return Err(TonCellError::cell_builder_error(format!(
-                    "Cell must contain at most 4 references, got {}",
-                    ref_count
+                    "Cell must contain at most 4 references, got {ref_count}"
                 )));
             }
 
@@ -574,7 +572,7 @@ mod tests {
         let mut writer = CellBuilder::new();
         writer.store_int(33, &value)?;
         let cell = writer.build()?;
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
         written.shr_assign(8 - cell.bit_len % 8); // should shift bigint here as cell builder writes unalinged bits
 
@@ -589,7 +587,7 @@ mod tests {
         let mut writer = CellBuilder::new();
         writer.store_int(257, &value)?;
         let cell = writer.build()?;
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         let mut written = BigInt::from_bytes_be(Sign::Plus, &cell.data);
         written.shr_assign(8 - cell.bit_len % 8);
         assert_eq!(written, value);
@@ -598,7 +596,7 @@ mod tests {
         let mut writer = CellBuilder::new();
         writer.store_int(5, &value)?;
         let cell = writer.build()?;
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         assert_eq!(5, cell.bit_len);
         assert_eq!(0b1101_1000, cell.data[0]);
 
@@ -606,7 +604,7 @@ mod tests {
         let mut writer = CellBuilder::new();
         writer.store_int(7, &value)?;
         let cell = writer.build()?;
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         assert_eq!(7, cell.bit_len);
         assert_eq!(0b1111_0110, cell.data[0]);
 
@@ -627,7 +625,7 @@ mod tests {
             writer.store_uint(*bits_num, &value)?;
         }
         let cell = writer.build()?;
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         let mut cell_parser = cell.parser();
         for bits_num in bits_for_tests.iter() {
             let written_value = cell_parser.load_uint(*bits_num)?;
@@ -647,7 +645,7 @@ mod tests {
         }
         let cell = writer.build()?;
         let mut cell_parser = cell.parser();
-        println!("cell: {:?}", cell);
+        println!("cell: {cell:?}");
         for bits_num in bits_for_tests.iter() {
             let written_value = cell_parser.load_uint(*bits_num)?;
             assert_eq!(written_value, value);
@@ -670,7 +668,7 @@ mod tests {
         writer.store_uint(35, &n)?;
         let cell = writer.build()?;
 
-        println!("{:?}", cell);
+        println!("{cell:?}");
         assert_eq!(cell.data.len(), 25);
         assert_eq!(cell.bit_len, 196);
 
@@ -707,7 +705,7 @@ mod tests {
 
             let cell = writer.build()?;
 
-            println!("{:?}", cell);
+            println!("{cell:?}");
             let taeget_bytelen = bitlen.div_ceil(8);
             assert_eq!(cell.data.len(), taeget_bytelen);
 

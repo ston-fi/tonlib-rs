@@ -29,8 +29,7 @@ impl TvmStackEntry {
                 0 => Ok(false),
                 -1 => Ok(true),
                 n => Err(StackParseError::InvalidEntryValue(format!(
-                    "expected boolean, found number:{}",
-                    n
+                    "expected boolean, found number:{n}"
                 ))),
             },
             TvmStackEntry::Int257(number) => {
@@ -41,8 +40,7 @@ impl TvmStackEntry {
                     0 => Ok(false),
                     -1 => Ok(true),
                     n => Err(StackParseError::InvalidEntryValue(format!(
-                        "expected boolean, found number:{}",
-                        n
+                        "expected boolean, found number:{n}"
                     ))),
                 }
             }

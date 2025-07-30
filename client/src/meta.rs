@@ -143,7 +143,7 @@ where
         let http_client = reqwest::Client::builder()
             .default_headers(headers)
             .build()?;
-        let ipfs_loader = IpfsLoader::new(&ipfs_loader_config)?;
+        let ipfs_loader = IpfsLoader::new(ipfs_loader_config)?;
 
         Ok(Self::new_custom(
             MetaLoaderConfig::default(),
@@ -171,7 +171,7 @@ where
     }
 
     pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
-        log::trace!("Downloading metadata from {}", uri);
+        log::trace!("Downloading metadata from {uri}");
         let meta_str: String = if uri.starts_with("ipfs://") {
             let path: String = uri.chars().skip(7).collect();
             self.ipfs_loader.load_utf8_lossy(path.as_str()).await?

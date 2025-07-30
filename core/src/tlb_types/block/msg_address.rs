@@ -297,7 +297,7 @@ mod tests {
     fn test_read_msg_address_int_i8_workchain() -> anyhow::Result<()> {
         let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.single_root()?;
         for s in cell.data() {
-            print!("{:b}", s);
+            print!("{s:b}");
         }
         println!();
         let mut parser = cell.parser();
@@ -316,7 +316,7 @@ mod tests {
         // don't support same layout, so check deserialized data again
         let serial_cell = parsed.to_cell()?;
         for s in serial_cell.data() {
-            print!("{:b}", s);
+            print!("{s:b}");
         }
         println!();
         let mut parser = serial_cell.parser();
@@ -329,7 +329,7 @@ mod tests {
     fn test_read_msg_address_int() -> anyhow::Result<()> {
         let cell = BagOfCells::parse_hex("b5ee9c720101010100240000439fe00000000000000000000000000000000000000000000000000000000000000010")?.single_root()?;
         for s in cell.data() {
-            print!("{:b}", s);
+            print!("{s:b}");
         }
         println!();
         let mut parser = cell.parser();
@@ -345,7 +345,7 @@ mod tests {
         // don't support same layout, so check deserialized data again
         let serial_cell = parsed.to_cell()?;
         for s in serial_cell.data() {
-            print!("{:b}", s);
+            print!("{s:b}");
         }
         println!();
         let mut parser = serial_cell.parser();

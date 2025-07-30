@@ -26,7 +26,7 @@ async fn test_connection_init() -> anyhow::Result<()> {
         .await
     );
     let lvl = assert_ok!(conn.get_log_verbosity_level().await);
-    log::info!("Log verbosity level: {}", lvl);
+    log::info!("Log verbosity level: {lvl}");
     Ok(())
 }
 
@@ -89,7 +89,7 @@ async fn test_connection_callback() -> anyhow::Result<()> {
     )
     .await?;
     let lvl = assert_ok!(conn.get_log_verbosity_level().await);
-    log::info!("Log verbosity level: {}", lvl);
+    log::info!("Log verbosity level: {lvl}");
     assert_eq!(2, test_callback.num_invoke.load(Ordering::SeqCst));
     assert_eq!(2, test_callback.num_invoke_result.load(Ordering::SeqCst));
     assert_eq!(

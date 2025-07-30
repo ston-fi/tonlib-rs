@@ -185,8 +185,7 @@ impl Cell {
                 }
                 n => {
                     return Err(TonCellError::boc_deserialization_error(format!(
-                        "Invalid snake format string: found cell with {} references",
-                        n
+                        "Invalid snake format string: found cell with {n} references"
                     )))
                 }
             }
@@ -218,8 +217,7 @@ impl Cell {
                 }
                 n => {
                     return Err(TonCellError::boc_deserialization_error(format!(
-                        "Invalid snake format string: found cell with {} references",
-                        n
+                        "Invalid snake format string: found cell with {n} references"
                     )))
                 }
             }
@@ -236,8 +234,7 @@ impl Cell {
         let ref_count = self.references.len();
         if ref_count != expected_refs {
             Err(TonCellError::CellParserError(format!(
-                "Cell should contain {} reference cells, actual: {}",
-                expected_refs, ref_count
+                "Cell should contain {expected_refs} reference cells, actual: {ref_count}"
             )))
         } else {
             Ok(())
@@ -489,7 +486,7 @@ fn write_cell_debug(
     let indent = "    ".repeat(indent_level);
     // Generate the data display string
     let mut data_display: String = cell.data.iter().fold(String::new(), |mut acc, &byte| {
-        acc.push_str(&format!("{:02X}", byte));
+        acc.push_str(&format!("{byte:02X}"));
         acc
     });
 
@@ -523,7 +520,7 @@ fn write_cell_debug(
         for reference in &cell.references {
             write_cell_debug(f, reference, indent_level + 1)?;
         }
-        writeln!(f, "{}]}}", indent)
+        writeln!(f, "{indent}]}}")
     }
 }
 

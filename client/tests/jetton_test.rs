@@ -119,11 +119,11 @@ async fn test_get_jetton_content_ipfs_uri() {
     let meta_loader = assert_ok!(JettonMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&res.content).await);
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BOLT"));
-    log::info!("{:?}", content_res);
+    log::info!("{content_res:?}");
     log::info!("{:?}", content_res.image_data);
     assert_eq!(content_res.decimals.unwrap(), 0x9);
 
-    log::info!("{:?}", res);
+    log::info!("{res:?}");
 }
 
 #[tokio::test]
@@ -136,7 +136,7 @@ async fn test_get_semi_chain_layout_jetton_content() -> anyhow::Result<()> {
     let res = contract.get_jetton_data().await?;
     let meta_loader = JettonMetaLoader::default()?;
     let content_res = meta_loader.load(&res.content).await?;
-    log::info!("content_res: {:?}", content_res);
+    log::info!("content_res: {content_res:?}");
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("jUSDC"));
     assert_eq!(
         content_res.name.as_ref().unwrap(),
@@ -173,7 +173,7 @@ async fn test_get_jetton_data_invalid_utf8_sequence() {
         "EQDX__KZ7A--poP3Newpo_zx4tQ-yl9yzRwlmg_vifxMEA8m".parse()
     ));
     let res = assert_ok!(contract.get_jetton_data().await);
-    log::info!("DATA: {:?}", res);
+    log::info!("DATA: {res:?}");
     let meta_loader = assert_ok!(JettonMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&res.content).await);
     assert_eq!(
@@ -186,7 +186,7 @@ async fn test_get_jetton_data_invalid_utf8_sequence() {
         "EQDoEAodkem9PJdk3W1mqjnkvRphNaWu0glIRzxQBNZuOIbP".parse()
     ));
     let res = assert_ok!(contract.get_jetton_data().await);
-    log::info!("DATA: {:?}", res);
+    log::info!("DATA: {res:?}");
     let meta_loader = assert_ok!(JettonMetaLoader::default());
     let content_res = assert_ok!(meta_loader.load(&res.content).await);
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("TFH"));

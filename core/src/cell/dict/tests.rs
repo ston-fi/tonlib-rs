@@ -58,7 +58,7 @@ fn test_key_len_bigger_than_reader() -> anyhow::Result<()> {
         let parsed = dict_cell
             .parser()
             .load_dict(key_len_bits, key_reader_u16, val_reader_uint)?;
-        assert_eq!(data, parsed, "key_len_bits: {}", key_len_bits);
+        assert_eq!(data, parsed, "key_len_bits: {key_len_bits}");
     }
     Ok(())
 }

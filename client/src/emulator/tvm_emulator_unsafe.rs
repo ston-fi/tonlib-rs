@@ -130,7 +130,7 @@ impl TvmEmulatorUnsafe {
     }
 
     pub fn send_external_message(&mut self, message: &[u8]) -> Result<String, TvmEmulatorError> {
-        log::trace!("send_internal_message_req: msg: {:?}", message);
+        log::trace!("send_internal_message_req: msg: {message:?}");
         let message_encoded = CString::new(STANDARD.encode(message))?;
 
         let json_str = unsafe {

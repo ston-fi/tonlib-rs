@@ -166,7 +166,7 @@ mod tests {
             wallet_id: 42,
         };
 
-        let debug_output = format!("{:?}", wallet);
+        let debug_output = format!("{wallet:?}");
         let expected_output = "TonWallet { version: V4R2, key_pair: KeyPair { public_key: [1, 2, 3], secret_key: \"***REDACTED***\" }, address: EQBiMfDMivebQb052Z6yR3jHrmwNhw1kQ5bcAUOBYsK_VPuK, wallet_id: 42 }";
         assert_eq!(debug_output, expected_output);
         Ok(())

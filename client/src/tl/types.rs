@@ -609,7 +609,7 @@ mod tests {
             tx_id.hash_string(),
             "b98dfa033a963f3bb9985f173ef2c6c9449be78a043ec1fc5965fe24a6d615a3"
         );
-        let res = format!("{}", tx_id);
+        let res = format!("{tx_id}");
         assert_eq!(res, id_str);
         Ok(())
     }

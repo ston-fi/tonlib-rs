@@ -103,7 +103,7 @@ impl fmt::Display for TonResult {
         match self {
             // tonlib_api.tl, line 20
             TonResult::Error { code, message } => {
-                write!(f, "TonResult::Error {}: {} ", code, message)
+                write!(f, "TonResult::Error {code}: {message} ")
             }
 
             TonResult::Ok {} => write!(f, "TonResult::Ok"),
@@ -151,8 +151,7 @@ impl fmt::Display for TonResult {
 
             TonResult::SmcLibraryResult(smc_library_result_ext)=>write!(
                 f,
-                "TonResult::SmcLibraryResult: {:?}",
-                smc_library_result_ext),
+                "TonResult::SmcLibraryResult: {smc_library_result_ext:?}"),
 
             TonResult::SmcLibraryResultExt(smc_library_result_ext) => write!(
                 f,
