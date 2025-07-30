@@ -15,7 +15,7 @@ async fn test_ipfs_http_gateway() {
             .load_utf8_lossy("bafkreiast4fqlkp4upyu2cvo7fn7aabjusx765yzvqitsr4rpwfvhjguhy")
             .await
     );
-    log::info!("{}", result);
+    log::info!("{result}");
     assert!(result.contains("BOLT"));
 }
 
@@ -36,6 +36,6 @@ async fn test_ipfs_node() {
         })
         .await
     ));
-    log::info!("{}", result);
+    log::info!("{result}");
     assert!(result.contains("BOLT"));
 }

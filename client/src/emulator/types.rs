@@ -72,7 +72,7 @@ impl TvmEmulatorResponse {
         let mut stack = vec![];
         let boc = BagOfCells::parse(stack_boc)?;
         let mut current_cell = boc.single_root()?;
-        log::trace!("Parsing stack:\n{:?}", current_cell);
+        log::trace!("Parsing stack:\n{current_cell:?}");
 
         let mut parser = current_cell.parser();
 
@@ -112,12 +112,7 @@ impl TvmEmulatorResponse {
                 _ => TvmStackEntry::Unsupported,
             };
             // TODO: Remove trace when feature emulator is stable
-            log::trace!(
-                "element#{:?} ,type: {:?}:: {:?}",
-                element,
-                element_type,
-                stack_entry
-            );
+            log::trace!("element#{element:?} ,type: {element_type:?}:: {stack_entry:?}");
             if element != elements_count - 1 {
                 current_cell = current_cell.reference(0)?.clone();
                 parser = current_cell.parser();

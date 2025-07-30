@@ -42,7 +42,7 @@ impl fmt::Display for InvalidMessage {
 impl std::fmt::Debug for InvalidMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InvalidMessage")
-            .field("opcode", &self.opcode.map(|op| format!("{:#x}", op)))
+            .field("opcode", &self.opcode.map(|op| format!("{op:#x}")))
             .field("query_id", &self.query_id)
             .field("message", &self.message)
             .finish()

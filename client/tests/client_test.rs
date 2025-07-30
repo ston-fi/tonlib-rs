@@ -41,7 +41,7 @@ async fn test_client_get_account_state_of_inactive() -> anyhow::Result<()> {
     let factory = TonContractFactory::builder(&client).build().await?;
     let addr = TonAddress::from_str("EQDk2VTvn04SUKJrW7rXahzdF8_Qi6utb0wj43InCu9vdjrR")?;
     let res = assert_ok!(factory.get_latest_account_state(&addr).await);
-    log::debug!("{:?}", res);
+    log::debug!("{res:?}");
     assert!(res.frozen_hash.is_empty(), "Expected Uninitialized state");
     Ok(())
 }
@@ -57,7 +57,7 @@ async fn client_get_raw_account_state_works() -> anyhow::Result<()> {
             )))
             .await
     );
-    log::info!("{:?}", r);
+    log::info!("{r:?}");
     Ok(())
 }
 
@@ -70,7 +70,7 @@ async fn client_get_raw_account_state_by_tx_works_on_fresh_pool() -> anyhow::Res
     let address = &TonAddress::from_base64_url("EQBw_0u4LyoweyLGjyAiGg0W_wozq4S5EAQwLIsx15a4U4ar")?;
     let contract = factory.get_contract(address);
     let r = assert_ok!(contract.get_account_state().await);
-    log::info!("{:?}", r);
+    log::info!("{r:?}");
     Ok(())
 }
 
@@ -89,13 +89,13 @@ async fn client_get_raw_transactions_works() -> anyhow::Result<()> {
         let r = client
             .get_raw_transactions(address, &state.last_transaction_id)
             .await;
-        println!("{:?}", r);
+        println!("{r:?}");
         if r.is_ok() {
             let cnt = 1;
             let r = client
                 .get_raw_transactions_v2(address, &state.last_transaction_id, cnt, false)
                 .await;
-            println!("{:?}", r);
+            println!("{r:?}");
             if r.is_ok() {
                 assert_eq!(r?.transactions.len(), cnt);
                 return Ok(());
@@ -124,7 +124,7 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
         .conn
         .smc_run_get_method(loaded_state.id, &method_id, &Vec::new())
         .await;
-    log::info!("{:?}", r);
+    log::info!("{r:?}");
     // Check that it works after cloning the connection
     let id2 = {
         let conn2 = conn.clone();
@@ -134,7 +134,7 @@ async fn client_smc_run_get_method_works() -> anyhow::Result<()> {
     let stack = &Vec::new();
     let future = conn.smc_run_get_method(id2, &method_id, stack);
     let r = assert_ok!(timeout(Duration::from_secs(2), future).await);
-    log::info!("{:?}", r);
+    log::info!("{r:?}");
     Ok(())
 }
 
@@ -209,7 +209,7 @@ async fn test_get_jetton_content_internal_uri_jusdt() -> anyhow::Result<()> {
     ));
     let loaded_state = assert_ok!(client.smc_load(address).await);
     let cell = assert_ok!(loaded_state.conn.smc_get_state(loaded_state.id).await);
-    log::info!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {:?}", cell);
+    log::info!("\n\r\x1b[1;35m-----------------------------------------STATE----------------------------------------\x1b[0m:\n\r {cell:?}");
     Ok(())
 }
 
@@ -226,7 +226,7 @@ async fn client_get_block_header_works() -> anyhow::Result<()> {
     };
     let block_id_ext = assert_ok!(client.lookup_block(1, &block_id, 0, 0).await);
     let r = assert_ok!(client.get_block_header(&block_id_ext).await);
-    log::info!("{:?}", r);
+    log::info!("{r:?}");
     Ok(())
 }
 
@@ -248,7 +248,7 @@ async fn test_client_blocks_get_transactions() -> anyhow::Result<()> {
     log::info!("Shards: {:?}", &block_shards);
     shards.insert(0, info.last.clone());
     for shard in &shards {
-        log::info!("Processing shard: {:?}", shard);
+        log::info!("Processing shard: {shard:?}");
         let workchain = shard.workchain;
         let txs: BlocksTransactions = assert_ok!(
             client
@@ -292,7 +292,7 @@ async fn test_client_blocks_get_transactions_ext() -> anyhow::Result<()> {
     log::info!("Shards: {:?}", &block_shards);
     shards.insert(0, info.last.clone());
     for shard in &shards {
-        log::info!("Processing shard: {:?}", shard);
+        log::info!("Processing shard: {shard:?}");
         let txs: BlocksTransactionsExt = assert_ok!(
             client
                 .get_block_transactions_ext(shard, 7, 1024, &NULL_BLOCKS_ACCOUNT_TRANSACTION_ID)
@@ -321,7 +321,7 @@ async fn test_client_lite_server_get_info() -> anyhow::Result<()> {
     let client = common::new_mainnet_client().await;
     let info = assert_ok!(client.lite_server_get_info().await);
     assert!(info.now > 0);
-    log::info!("{:?}", info);
+    log::info!("{info:?}");
     Ok(())
 }
 
@@ -346,7 +346,7 @@ pub async fn test_get_block_header() -> anyhow::Result<()> {
     let seqno = info.last;
     let headers = assert_ok!(client.get_block_header(&seqno).await);
     assert_eq!(headers.id, seqno);
-    log::info!("{:?}", headers);
+    log::info!("{headers:?}");
     Ok(())
 }
 
@@ -359,7 +359,7 @@ async fn test_get_shard_tx_ids() -> anyhow::Result<()> {
     assert!(!shards.shards.is_empty());
     let ids = assert_ok!(client.get_shard_tx_ids(&shards.shards[0]).await);
     assert!(!ids.is_empty());
-    log::debug!("{:?}", ids);
+    log::debug!("{ids:?}");
     Ok(())
 }
 
@@ -372,7 +372,7 @@ async fn test_get_shard_transactions_works() -> anyhow::Result<()> {
     assert!(!shards.shards.is_empty());
     let txs = assert_ok!(client.get_shard_transactions(&shards.shards[0]).await);
     assert!(!txs.is_empty());
-    log::debug!("{:?}", txs);
+    log::debug!("{txs:?}");
     Ok(())
 }
 
@@ -392,7 +392,7 @@ async fn test_get_shard_transactions_parse_address_correctly() -> anyhow::Result
     let txs = assert_ok!(client.get_shard_transactions(&block_shard).await);
     assert!(!txs.is_empty());
 
-    log::info!("{:?}", txs);
+    log::info!("{txs:?}");
     let not_a_block_shard = BlockIdExt {
         workchain: -1,
         shard: -9223372036854775808,
@@ -436,7 +436,7 @@ async fn test_missing_block_error() -> anyhow::Result<()> {
     };
     for _i in 0..100 {
         let res = client.lookup_block(1, &block_id, 0, 0).await;
-        log::info!("{:?}", res);
+        log::info!("{res:?}");
         tokio::time::sleep(Duration::from_millis(10)).await;
         if res.is_ok() {
             break;
@@ -456,7 +456,7 @@ async fn test_first_block_error() -> anyhow::Result<()> {
         seqno: 1,
     };
     let res = client.lookup_block(1, &block_id, 0, 0).await;
-    log::info!("{:?}", res);
+    log::info!("{res:?}");
     assert_ok!(res);
     Ok(())
 }
@@ -478,11 +478,11 @@ async fn test_keep_connection_alive() -> anyhow::Result<()> {
     };
     let conn = assert_ok!(client.get_connection().await);
     let r1 = conn.lookup_block(1, &first_block_id, 0, 0).await;
-    log::info!("R1: {:?}", r1);
+    log::info!("R1: {r1:?}");
     let r2 = conn.lookup_block(1, &next_block_id, 0, 0).await;
-    log::info!("R1: {:?}", r2);
+    log::info!("R1: {r2:?}");
     let r3 = conn.lookup_block(1, &first_block_id, 0, 0).await;
-    log::info!("R1: {:?}", r3);
+    log::info!("R1: {r3:?}");
     tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(())
 }
@@ -552,7 +552,7 @@ async fn client_smc_get_libraries() -> anyhow::Result<()> {
 
     // we just test that library code is a valid boc:
     let boc = BagOfCells::parse(smc_library_result.result[0].data.as_slice())?;
-    log::info!("smc_library_result {:?}", boc);
+    log::info!("smc_library_result {boc:?}");
     Ok(())
 }
 
@@ -577,7 +577,7 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
 
     let smc_libraries_ext_result = assert_ok!(client.smc_get_libraries_ext(&[library_query]).await);
 
-    log::info!("smc_libraries_ext_result {:?}", smc_libraries_ext_result);
+    log::info!("smc_libraries_ext_result {smc_libraries_ext_result:?}");
 
     assert_eq!(1, smc_libraries_ext_result.libs_ok.len());
     assert_eq!(0, smc_libraries_ext_result.libs_not_found.len());
@@ -597,7 +597,7 @@ async fn client_smc_get_libraries_ext() -> anyhow::Result<()> {
         .parser()
         .load_dict(256, key_reader_256bit, val_reader_cell));
 
-    log::info!("DICT: {:?}", dict);
+    log::info!("DICT: {dict:?}");
 
     assert_eq!(dict.len(), 1);
     assert!(dict.contains_key(&TonHash::try_from(STANDARD.decode(library_hash)?)?));
@@ -651,7 +651,7 @@ async fn abort_batch_invoke_get_raw_account_state(
     let result = join_all(futures).await;
 
     let res = result.iter().map(|r| r.is_ok()).collect::<Vec<_>>();
-    log::info!("{:?}", res);
+    log::info!("{res:?}");
     Ok(())
 }
 
@@ -668,6 +668,6 @@ async fn archive_node_client_test() -> anyhow::Result<()> {
         .with_connection_check(tonlib_client::client::ConnectionCheck::Archive);
     let client = client_builder.build().await?;
     let (_, master_info) = client.get_masterchain_info().await?;
-    log::info!("master_info: {:?}", master_info);
+    log::info!("master_info: {master_info:?}");
     Ok(())
 }

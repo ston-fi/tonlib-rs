@@ -180,10 +180,7 @@ async fn latest_tx_data_cache_test() -> anyhow::Result<()> {
         assert_eq!(i, t?.len());
     }
 
-    log::info!(
-        "100 parallel calls to latest tx data size 500 cache takes {:?}",
-        dt
-    );
+    log::info!("100 parallel calls to latest tx data size 500 cache takes {dt:?}");
     drop(cache);
 
     Ok(())

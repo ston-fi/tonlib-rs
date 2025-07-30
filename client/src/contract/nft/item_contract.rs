@@ -105,7 +105,7 @@ pub trait NftItemContract: TonContractInterface {
                 .get_cell()
                 .map_stack_error(method, self.address())?;
             let boc = BagOfCells::from_root(cell.as_ref().clone());
-            log::trace!("Got Boc: {:?}", boc);
+            log::trace!("Got Boc: {boc:?}");
             Ok(boc)
         } else {
             Err(TonContractError::InvalidMethodResultStackSize {

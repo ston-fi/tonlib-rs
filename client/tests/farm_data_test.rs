@@ -86,16 +86,16 @@ async fn test_get_farming_minter_data() {
     );
 
     for element in stack.stack.clone() {
-        log::info!("{:?}", element);
+        log::info!("{element:?}");
     }
 
     let farm_data_accrued =
         assert_ok!(stack.stack[10].get_dict_data(8, key_reader_u8, val_reader_farm_data_accrued));
-    log::info!("farm_data_accrued: {:?}", farm_data_accrued);
+    log::info!("farm_data_accrued: {farm_data_accrued:?}");
 
     let farm_data_parameters =
         assert_ok!(stack.stack[11].get_dict_data(8, key_reader_u8, val_reader_farm_data_param));
-    log::info!("farm_data_parameters: {:?}", farm_data_parameters);
+    log::info!("farm_data_parameters: {farm_data_parameters:?}");
 }
 
 #[tokio::test]
@@ -114,16 +114,16 @@ async fn test_get_farming_minter_data_empty_meta() {
     );
 
     for element in stack.stack.clone() {
-        log::info!("{:?}", element);
+        log::info!("{element:?}");
     }
 
     let farm_data_accrued =
         assert_ok!(stack.stack[10].get_dict(8, key_reader_u8, val_reader_farm_data_accrued));
-    log::info!("farm_data_accrued: {:?}", farm_data_accrued);
+    log::info!("farm_data_accrued: {farm_data_accrued:?}");
 
     let farm_data_parameters =
         assert_ok!(stack.stack[11].get_dict(8, key_reader_u8, val_reader_farm_data_param));
-    log::info!("farm_data_parameters: {:?}", farm_data_parameters);
+    log::info!("farm_data_parameters: {farm_data_parameters:?}");
 }
 
 #[tokio::test]
@@ -146,10 +146,10 @@ async fn test_get_farming_data() {
     );
 
     for element in stack.stack.clone() {
-        log::info!("{:?}", element);
+        log::info!("{element:?}");
     }
 
     let claimed_per_unit_dict = stack.stack[4].get_dict(8, key_reader_u8, val_reader_uint);
 
-    log::info!("{:?}", claimed_per_unit_dict);
+    log::info!("{claimed_per_unit_dict:?}");
 }

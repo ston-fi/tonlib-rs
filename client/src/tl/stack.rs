@@ -26,7 +26,7 @@ impl Debug for TvmSlice {
             "TvmSlice{{ bytes: [{}]}}",
             self.bytes
                 .iter()
-                .map(|&byte| format!("{:02X}", byte))
+                .map(|&byte| format!("{byte:02X}"))
                 .collect::<Vec<_>>()
                 .join(""),
         )?;
@@ -47,7 +47,7 @@ impl Debug for TvmCell {
         write!(f, "TvmCell {{ bytes: 0x")?;
 
         for byte in &self.bytes {
-            write!(f, "{:02x}", byte)?;
+            write!(f, "{byte:02x}")?;
         }
 
         write!(f, " }}")
@@ -323,7 +323,7 @@ mod tests {
             },
         });
         let serial = serde_json::to_string(&stack).unwrap();
-        println!("{}", serial);
+        println!("{serial}");
         assert_eq!(serial.as_str(), SERIAL)
     }
 

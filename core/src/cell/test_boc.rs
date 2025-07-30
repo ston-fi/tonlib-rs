@@ -199,7 +199,7 @@ fn benchmark_cell_repr() -> Result<(), TonCellError> {
         }
     }
     let elapsed = now.elapsed();
-    println!("Elapsed: {:.2?}", elapsed);
+    println!("Elapsed: {elapsed:.2?}");
     Ok(())
     // initially it works for 10.39seceonds
 }

@@ -96,7 +96,7 @@ impl ContractFactoryCache {
                 TonContractError::ClientError(TonClientError::TonlibError {
                     ref message, ..
                 }) if message == "transaction hash mismatch" => {
-                    log::warn!("Failed to get_raw_account_state_by_transaction. Falling back to latest account state{:?}", e);
+                    log::warn!("Failed to get_raw_account_state_by_transaction. Falling back to latest account state{e:?}");
                     let r = self.inner.client.get_raw_account_state(address).await?;
                     Ok(r.into())
                 }
@@ -145,8 +145,7 @@ impl ContractFactoryCache {
                     }
                     Err(e) => {
                         log::warn!(
-                            "[ContractFactoryCache] Could not retrieve current block: {:?}",
-                            e
+                            "[ContractFactoryCache] Could not retrieve current block: {e:?}"
                         );
                         tokio::time::sleep(Duration::from_millis(DELAY_ON_TON_FAILURE)).await;
                     }
@@ -175,10 +174,7 @@ impl ContractFactoryCache {
                     block
                 }
                 Err(e) => {
-                    log::warn!(
-                        "[ContractFactoryCache] Could not retrieve next block: {:?}",
-                        e
-                    );
+                    log::warn!("[ContractFactoryCache] Could not retrieve next block: {e:?}");
                     tokio::time::sleep(Duration::from_millis(DELAY_ON_TON_FAILURE)).await;
                     continue;
                 }

@@ -36,7 +36,7 @@ impl TonTxId {
                 Ok(hash) => Self::parse_ton_hash(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
-                        format!("{}, {}", lt, hash_str),
+                        format!("{lt}, {hash_str}"),
                         "Invalid transaction hash: base64 decode error",
                     ))
                 }
@@ -57,7 +57,7 @@ impl TonTxId {
                 Ok(hash) => Self::parse_ton_hash(lt, hash)?,
                 Err(_) => {
                     return Err(TransactionIdParseError::new(
-                        format!("{}, {}", lt, hash_str),
+                        format!("{lt}, {hash_str}"),
                         "Invalid transaction hash: base64 decode error",
                     ))
                 }
@@ -69,7 +69,7 @@ impl TonTxId {
 
     fn parse_ton_hash(lt: i64, hash: Vec<u8>) -> Result<TonHash, TransactionIdParseError> {
         TonHash::try_from(hash.as_slice()).map_err(|err| {
-            let tx_id_str = format!("{}:{:?}", lt, hash);
+            let tx_id_str = format!("{lt}:{hash:?}");
             let err_msg = format!("Fail to parse TonHash: {err}");
             TransactionIdParseError::new(tx_id_str, err_msg)
         })

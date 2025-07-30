@@ -80,22 +80,12 @@ impl TonConnectionCallback for LoggingConnectionCallback {
         match result {
             Ok(r) => {
                 log::trace!(
-                    "[{}] Invoke successful, request_id: {}, method: {}, elapsed: {:?}: {}",
-                    tag,
-                    request_id,
-                    method,
-                    duration,
-                    r
+                    "[{tag}] Invoke successful, request_id: {request_id}, method: {method}, elapsed: {duration:?}: {r}"
                 );
             }
             Err(e) => {
                 log::warn!(
-                    "[{}] Invocation error: request_id: {:?}, method: {}, elapsed: {:?}: {}",
-                    tag,
-                    request_id,
-                    method,
-                    duration,
-                    e
+                    "[{tag}] Invocation error: request_id: {request_id:?}, method: {method}, elapsed: {duration:?}: {e}"
                 );
             }
         }
@@ -103,16 +93,12 @@ impl TonConnectionCallback for LoggingConnectionCallback {
 
     fn on_cancelled_invoke(&self, tag: &str, request_id: u32, method: &str, duration: &Duration) {
         log::warn!(
-            "[{}] Error sending invoke result, receiver already closed. method: {} request_id: {}, elapsed: {:?}",
-            tag,
-            method,
-            request_id,
-            duration,
+            "[{tag}] Error sending invoke result, receiver already closed. method: {method} request_id: {request_id}, elapsed: {duration:?}",
        );
     }
 
     fn on_notification(&self, tag: &str, notification: &TonNotification) {
-        log::trace!("[{}] Sending notification: {:?}", tag, notification);
+        log::trace!("[{tag}] Sending notification: {notification:?}");
     }
 
     fn on_ton_result_parse_error(
@@ -121,20 +107,15 @@ impl TonConnectionCallback for LoggingConnectionCallback {
         request_extra: Option<&str>,
         result: &TonResult,
     ) {
-        log::error!(
-            "[{}] Error parsing result: request_extra: {:?}: {}",
-            tag,
-            request_extra,
-            result
-        );
+        log::error!("[{tag}] Error parsing result: request_extra: {request_extra:?}: {result}");
     }
 
     fn on_connection_loop_start(&self, tag: &str) {
-        log::info!("[{}] Starting event loop", tag);
+        log::info!("[{tag}] Starting event loop");
     }
 
     fn on_connection_loop_exit(&self, tag: &str) {
-        log::info!("[{}] Exiting event loop", tag);
+        log::info!("[{tag}] Exiting event loop");
     }
 }
 

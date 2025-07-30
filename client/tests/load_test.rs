@@ -23,7 +23,7 @@ async fn load_test_smc_methods() {
         handles.push(h);
     }
     let r = assert_ok!(try_join_all(handles).await);
-    log::info!("Result: {:?}", r);
+    log::info!("Result: {r:?}");
 }
 
 const NUM_WALLETS: usize = 16;
@@ -76,7 +76,7 @@ async fn smc_methods_runner(client: TonClient) {
                 assert_eq!(wallet_data.master_address, jetton_addr);
             }
             Err(err) => {
-                log::info!("Error occured: {}", err);
+                log::info!("Error occured: {err}");
             }
         }
     }

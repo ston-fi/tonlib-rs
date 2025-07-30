@@ -157,9 +157,9 @@ async fn test_emulate_ston_router_v2() -> anyhow::Result<()> {
             call_parameters.1
         );
 
-        log::info!("METHOD:  {:?}", method_id);
-        log::info!("___________________Blockchain_result \n {:?} \n-------------------------------------------", expected_result);
-        log::info!("_____________________Emulated_result \n {:?} \n-------------------------------------------", result);
+        log::info!("METHOD:  {method_id:?}");
+        log::info!("___________________Blockchain_result \n {expected_result:?} \n-------------------------------------------");
+        log::info!("_____________________Emulated_result \n {result:?} \n-------------------------------------------");
 
         assert_eq!(result.gas_used, expected_result.gas_used);
         assert_eq!(result.missing_library, expected_result.missing_library);
@@ -311,10 +311,7 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
         sums.1 += run_result.1
     }
 
-    log::info!(
-        "_________________OVERALL over {}_________________",
-        MAX_ITER
-    );
+    log::info!("_________________OVERALL over {MAX_ITER}_________________");
     log::info!("creation_time: {:?}, c7_time: {:?}, lib_time: {:?}, running_time: {:?}, overall+tokio: {:?}", sums.0.0, sums.0.1,sums.0.2,sums.0.3,sums.1);
 
     Ok(())

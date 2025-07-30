@@ -52,8 +52,7 @@ impl TonContractState {
             Ok(result) => Ok(result),
             Err(e) => {
                 log::warn!(
-                    "Contract emulator returned error: {} \n Falling back to tonlib_run_get_method",
-                    e
+                    "Contract emulator returned error: {e} \n Falling back to tonlib_run_get_method"
                 );
                 self.tonlib_run_get_method(method, stack).await
             }

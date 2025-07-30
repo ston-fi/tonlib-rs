@@ -58,7 +58,7 @@ impl TonClient {
             let mut conn_params = patched_params.clone();
             if let Some(dir) = &patched_params.keystore_dir {
                 let keystore_prefix = Path::new(dir.as_str());
-                let keystore_dir = keystore_prefix.join(format!("{}", i));
+                let keystore_dir = keystore_prefix.join(format!("{i}"));
                 fs::create_dir_all(&keystore_dir)?;
                 let path_str = keystore_dir.into_os_string().into_string().map_err(|_| {
                     TonClientError::InternalError("Error constructing keystore path".to_string())
@@ -172,7 +172,7 @@ async fn patch_init_block(
     use crate::config::TonConfig;
 
     let mut ton_config = TonConfig::from_json(&params.config).map_err(|e| {
-        let msg = format!("Fail to parse config: {}", e);
+        let msg = format!("Fail to parse config: {e}");
         TonClientError::InternalError(msg)
     })?;
 
@@ -189,7 +189,7 @@ async fn patch_init_block(
     let old_seqno = ton_config.get_init_block_seqno();
     if old_seqno < recent_init_block.seqno {
         ton_config.set_init_block(&recent_init_block).map_err(|e| {
-            let msg = format!("Fail to serialize block_id: {}", e);
+            let msg = format!("Fail to serialize block_id: {e}");
             TonClientError::InternalError(msg)
         })?;
         log::info!(
@@ -198,12 +198,12 @@ async fn patch_init_block(
             recent_init_block.seqno
         );
     } else {
-        log::info!("Init block is up to date, seqno: {}", old_seqno);
+        log::info!("Init block is up to date, seqno: {old_seqno}");
     }
 
     let mut patched_params = params.clone();
     patched_params.config = ton_config.to_json().map_err(|e| {
-        let msg = format!("Fail to serialize config: {}", e);
+        let msg = format!("Fail to serialize config: {e}");
         TonClientError::InternalError(msg)
     })?;
     Ok(patched_params)

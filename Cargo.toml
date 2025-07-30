@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.26.1"
+version = "0.26.2"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -21,7 +21,7 @@ repository = "https://github.com/ston-fi/tonlib-rs"
 [workspace.dependencies]
 # Internal
 tonlib-core = { version = "0.26", path = "core" }
-tonlib-sys = "=2025.6.0"
+tonlib-sys = "=2025.7.0"
 
 
 # External

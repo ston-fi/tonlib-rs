@@ -80,8 +80,8 @@ impl TonMethodId {
 impl Display for TonMethodId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TonMethodId::Number(n) => write!(f, "#{:08x}", n),
-            TonMethodId::Name(m) => write!(f, "'{}'", m),
+            TonMethodId::Number(n) => write!(f, "#{n:08x}"),
+            TonMethodId::Name(m) => write!(f, "'{m}'"),
         }
     }
 }
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_hex_format() -> anyhow::Result<()> {
         let method_id: TonMethodId = 0x1234beef.into();
-        let s = format!("{}", method_id);
+        let s = format!("{method_id}");
         assert_eq!(s, "#1234beef");
         Ok(())
     }

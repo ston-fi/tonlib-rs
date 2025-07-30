@@ -12,7 +12,7 @@ pub async fn block_listener_works() {
     common::init_logging();
     let client = common::new_mainnet_client().await;
     let (_, mc_info) = assert_ok!(client.get_masterchain_info().await);
-    log::info!("{:?}", mc_info);
+    log::info!("{mc_info:?}");
     let seqno = mc_info.last.seqno - 20;
     let mut listener = BlockStream::new(&client, seqno);
     for _ in 0..10 {
@@ -37,7 +37,7 @@ pub async fn block_listener_get_block_header() {
     let seqno = assert_ok!(client.get_masterchain_info().await).1.last;
     let headers = assert_ok!(client.get_block_header(&seqno).await);
     assert_eq!(headers.id, seqno);
-    log::debug!("{:?}", headers);
+    log::debug!("{headers:?}");
 }
 
 #[tokio::test]
