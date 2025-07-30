@@ -1,7 +1,9 @@
 use sha2::{Digest, Sha256};
-use tokio_test::assert_ok;
+use tokio_test::{assert_err, assert_ok};
 use tonlib_client::contract::{JettonMasterContract, TonContractFactory};
-use tonlib_client::meta::{JettonMetaLoader, LoadMeta, MetaDataContent};
+use tonlib_client::meta::{
+    IpfsLoader, JettonMetaLoader, LoadMeta, MetaDataContent, MetaLoaderConfig,
+};
 use tonlib_core::{TonAddress, TonHash};
 
 mod common;
@@ -70,6 +72,37 @@ async fn test_get_jetton_content_empty_external_meta() {
     let content_res = assert_ok!(meta_loader.load(&res.content).await);
     assert_eq!(content_res.symbol.as_ref().unwrap(), &String::from("BLKC"));
     assert_eq!(content_res.decimals, Some(8));
+}
+
+#[tokio::test]
+async fn test_jetton_loader_throw_error() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let contract = factory.get_contract(&assert_ok!(
+        "EQD0Evpk4timFOHmy4Sv3l_KEUXlM-dN1_KhroTCfB2wkO89".parse()
+    ));
+    let res = assert_ok!(contract.get_jetton_data().await);
+
+    // this jetton required user-agent header, but we don't set it
+    let http_client = reqwest::Client::builder().build()?;
+    let ipfs_loader = IpfsLoader::default()?;
+
+    for ignore_error in [true, false] {
+        let loader = JettonMetaLoader::new_custom(
+            MetaLoaderConfig {
+                ignore_ext_meta_errors_for_dict: ignore_error,
+            },
+            http_client.clone(),
+            ipfs_loader.clone(),
+        );
+        if ignore_error {
+            assert_ok!(loader.load(&res.content).await);
+        } else {
+            assert_err!(loader.load(&res.content).await);
+        }
+    }
+    Ok(())
 }
 
 // this test is ignored due restrictions of cloudflare-ipfs.com

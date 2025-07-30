@@ -54,7 +54,10 @@ impl LoadMeta<JettonMetaData> for MetaLoader<JettonMetaData> {
                                 .use_string_or(None, dict)
                                 .map(|v| v.parse::<u8>().unwrap()),
                         }),
-                        Err(_) => Ok(dict.try_into()?),
+                        Err(_) if self.config.ignore_ext_meta_errors_for_dict => {
+                            Ok(dict.try_into()?)
+                        }
+                        Err(err) => Err(err),
                     }
                 } else {
                     dict.try_into()

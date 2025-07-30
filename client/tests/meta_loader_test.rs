@@ -1,8 +1,8 @@
 use serde_json::json;
-use tokio_test::assert_ok;
+use tokio_test::{assert_err, assert_ok};
 use tonlib_client::meta::{
-    LoadMeta, MetaDataContent, NftCollectionMetaData, NftColletionMetaLoader, NftItemMetaData,
-    NftItemMetaLoader,
+    IpfsLoader, IpfsLoaderConfig, JettonMetaLoader, LoadMeta, MetaDataContent, MetaLoaderConfig,
+    NftCollectionMetaData, NftColletionMetaLoader, NftItemMetaData, NftItemMetaLoader,
 };
 
 mod common;
@@ -131,5 +131,30 @@ async fn test_load_collection_metadata_content() -> anyhow::Result<()> {
 
     let res = assert_ok!(meta_loader.load(&content).await);
     assert_eq!(expected_res, res);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_meta_loader_user_agent_required() -> anyhow::Result<()> {
+    common::init_logging();
+    let meta_loader = assert_ok!(JettonMetaLoader::default());
+    let content = MetaDataContent::External {
+        uri: "https://cdn.1stdigital.com/mainnet/metadata.json".to_string(),
+    };
+    assert_ok!(meta_loader.load(&content).await);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_meta_loader_throw_error_if_not_200() -> anyhow::Result<()> {
+    common::init_logging();
+    let http_client = reqwest::Client::builder().build()?;
+    let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?;
+    let meta_loader =
+        JettonMetaLoader::new_custom(MetaLoaderConfig::default(), http_client, ipfs_loader);
+    let content = MetaDataContent::External {
+        uri: "https://cdn.1stdigital.com/mainnet/metadata.json".to_string(),
+    };
+    assert_err!(meta_loader.load(&content).await);
     Ok(())
 }

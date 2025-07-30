@@ -12,6 +12,8 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
+use reqwest::header;
+use reqwest::header::HeaderValue;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 use tonlib_core::cell::dict::SnakeFormatDict;
@@ -103,13 +105,26 @@ pub struct MetaLoader<MetaData>
 where
     MetaData: DeserializeOwned,
 {
+    meta_data_marker: std::marker::PhantomData<MetaData>,
     http_client: reqwest::Client,
     ipfs_loader: IpfsLoader,
-    meta_data_marker: std::marker::PhantomData<MetaData>,
+    config: MetaLoaderConfig,
 }
 pub type JettonMetaLoader = MetaLoader<JettonMetaData>;
 pub type NftItemMetaLoader = MetaLoader<NftItemMetaData>;
 pub type NftColletionMetaLoader = MetaLoader<NftCollectionMetaData>;
+
+pub struct MetaLoaderConfig {
+    pub ignore_ext_meta_errors_for_dict: bool,
+}
+
+impl Default for MetaLoaderConfig {
+    fn default() -> Self {
+        Self {
+            ignore_ext_meta_errors_for_dict: false,
+        }
+    }
+}
 
 impl<MetaData> MetaLoader<MetaData>
 where
@@ -118,24 +133,41 @@ where
     pub fn new(
         ipfs_loader_config: &IpfsLoaderConfig,
     ) -> Result<MetaLoader<MetaData>, MetaLoaderError> {
-        let http_client = reqwest::Client::builder().build()?;
-        let ipfs_loader = IpfsLoader::new(ipfs_loader_config)?; // Replace with actual initialization
-        Ok(MetaLoader {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "user-agent",
+            HeaderValue::from_static("TonlibMetaLoader/0.x"),
+        );
+        headers.insert("accept", HeaderValue::from_static("*/*"));
+
+        let http_client = reqwest::Client::builder()
+            .default_headers(headers)
+            .build()?;
+        let ipfs_loader = IpfsLoader::new(&ipfs_loader_config)?;
+
+        Ok(Self::new_custom(
+            MetaLoaderConfig::default(),
             http_client,
             ipfs_loader,
-            meta_data_marker: std::marker::PhantomData,
-        })
+        ))
     }
 
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<MetaLoader<MetaData>, MetaLoaderError> {
-        let http_client = reqwest::Client::builder().build()?;
-        let ipfs_loader = IpfsLoader::new(&IpfsLoaderConfig::default())?; // Replace with actual initialization
-        Ok(MetaLoader {
+        Self::new(&IpfsLoaderConfig::default())
+    }
+
+    pub fn new_custom(
+        config: MetaLoaderConfig,
+        http_client: reqwest::Client,
+        ipfs_loader: IpfsLoader,
+    ) -> MetaLoader<MetaData> {
+        MetaLoader {
+            meta_data_marker: std::marker::PhantomData,
             http_client,
             ipfs_loader,
-            meta_data_marker: std::marker::PhantomData,
-        })
+            config,
+        }
     }
 
     pub async fn load_meta_from_uri(&self, uri: &str) -> Result<MetaData, MetaLoaderError> {
