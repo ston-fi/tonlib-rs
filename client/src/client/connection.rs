@@ -121,7 +121,7 @@ impl TonConnection {
         }
     }
 
-    async fn limit_rate(&self) -> Result<Option<SemaphorePermit>, TonClientError> {
+    async fn limit_rate(&self) -> Result<Option<SemaphorePermit<'_>>, TonClientError> {
         match &self.inner.semaphore {
             Some(semaphore) => {
                 let permit = semaphore.acquire().await.map_err(|_| {

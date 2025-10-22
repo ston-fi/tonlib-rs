@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.26.2"
+version = "0.26.3"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"

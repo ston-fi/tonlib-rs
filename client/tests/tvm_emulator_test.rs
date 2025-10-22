@@ -1,6 +1,7 @@
 mod common;
 
 use std::ops::Neg;
+use std::str::FromStr;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
@@ -10,7 +11,8 @@ use tokio::{self};
 use tokio_test::assert_ok;
 use tonlib_client::client::TonClientInterface;
 use tonlib_client::contract::{
-    JettonData, JettonMasterContract, TonContractFactory, TonContractInterface,
+    JettonData, JettonMasterContract, ScaledUiMasterContract, TonContractFactory,
+    TonContractInterface,
 };
 use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
@@ -326,6 +328,21 @@ fn emulate_get_wallet_address(
 
     assert_eq!(emulator_result.stack.len(), 1);
     Ok(emulator_result.stack[0].get_address()?)
+}
+
+#[allow(dead_code)]
+#[tokio::test]
+async fn test_scaled_ui_master_contract() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_mainnet_client().await;
+    let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
+    let scaled_contract_addr =
+        TonAddress::from_str("EQBlPUnynlpSjj65sPc-3Ckdeugoodeu3fOxJdYK3V4AMp87")?;
+    let contract = factory.get_contract(&scaled_contract_addr);
+    let multiplier = assert_ok!(contract.get_display_multiplier().await);
+    assert_eq!(multiplier.numerator, 0xc8.into());
+    assert_eq!(multiplier.denominator, 0x64.into());
+    Ok(())
 }
 
 #[tokio::test]

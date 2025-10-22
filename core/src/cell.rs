@@ -91,7 +91,7 @@ impl Cell {
         Ok(result)
     }
 
-    pub fn parser(&self) -> CellParser {
+    pub fn parser(&self) -> CellParser<'_> {
         CellParser::new(self)
     }
 
