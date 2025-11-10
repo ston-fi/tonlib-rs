@@ -128,3 +128,5 @@
 * Fix dep version
 ### v0.26.2
 * Bump sys
+### v0.26.4
+* Bump sys to 2025.11
