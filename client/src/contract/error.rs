@@ -14,7 +14,7 @@ use crate::types::{StackParseError, TonMethodId, TvmStackEntry};
 #[derive(Error, Debug)]
 #[allow(clippy::result_large_err)]
 pub enum TonContractError {
-    #[error("Cell error (Method: {method}, address: {address}, error {error}")]
+    #[error("Cell error (Method: {method}, address: {address}, error: {error})")]
     CellError {
         method: String,
         address: TonAddress,
@@ -42,7 +42,7 @@ pub enum TonContractError {
     #[error("Internal error ({0})")]
     InternalError(String),
 
-    #[error("Invalid method result stack size  (Method: {method}, address: {address}, actual: {actual}, expected {expected})")]
+    #[error("Invalid method result stack size (Method: {method}, address: {address}, actual: {actual}, expected: {expected})")]
     InvalidMethodResultStackSize {
         method: String,
         address: TonAddress,
