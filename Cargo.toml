@@ -37,7 +37,8 @@ hmac = { version = "0.12", features = ["std"] }
 lazy_static = "1"
 log = "0.4"
 log4rs = "1"
-moka = { version = "0.12", features = ["future"] }
+moka = { version = "0.12", features = ["future", "sync"] }
+parking_lot = "0.12"
 nacl = "0.5"
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"

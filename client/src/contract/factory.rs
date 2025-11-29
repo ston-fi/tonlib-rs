@@ -28,6 +28,7 @@ struct Inner {
     config_info: OnceCell<ConfigInfo>,
     library_provider: Arc<dyn LibraryProvider>,
     cache: Option<ContractFactoryCache>,
+    max_libs_per_contract: usize,
 }
 
 impl TonContractFactory {
@@ -46,6 +47,7 @@ impl TonContractFactory {
         presync_blocks: i32,
         library_provider: Arc<dyn LibraryProvider>,
         current_seqno: Arc<AtomicI32>,
+        max_libs_per_contract: usize,
     ) -> Result<TonContractFactory, TonContractError> {
         let cache = if with_cache {
             let cache = ContractFactoryCache::new(
@@ -68,6 +70,7 @@ impl TonContractFactory {
             config_info,
             cache,
             library_provider,
+            max_libs_per_contract,
         };
 
         Ok(TonContractFactory {
@@ -90,6 +93,10 @@ impl TonContractFactory {
 
     pub fn library_provider(&self) -> Arc<dyn LibraryProvider> {
         self.inner.library_provider.clone()
+    }
+
+    pub fn max_libs_per_contract(&self) -> usize {
+        self.inner.max_libs_per_contract
     }
 
     pub fn get_contract(&self, address: &TonAddress) -> TonContract {
