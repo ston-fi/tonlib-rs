@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use tonlib_core::cell::ArcCell;
-use tonlib_core::library_helper::{ContractLibraryDict, TonLibraryError};
+use tonlib_core::library_helper::TonLibraryError;
 use tonlib_core::TonHash;
 
 #[async_trait]

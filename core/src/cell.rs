@@ -500,7 +500,7 @@ fn write_cell_debug(
         // It does not correspond to real completion tag defined in
         // p1.0.2 of https://docs.ton.org/tvm.pdf for details
         // Null termination of bit-string defined in that document is omitted for clarity
-        if cell.bit_len % 8 != 0 {
+        if !cell.bit_len.is_multiple_of(8) {
             data_display.push('_');
         }
         &data_display
