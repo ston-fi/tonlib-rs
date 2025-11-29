@@ -17,11 +17,12 @@ use tonlib_client::contract::{
 use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
+use tonlib_client::tl::InternalTransactionId;
 use tonlib_client::types::TvmStackEntry;
 use tonlib_core::cell::{CellBuilder, CellSlice};
 use tonlib_core::message::{JettonTransferMessage, TonMessage};
 use tonlib_core::tlb_types::tlb::TLB;
-use tonlib_core::TonAddress;
+use tonlib_core::{TonAddress, TonHash, TonTxId};
 
 lazy_static! {
     pub static ref TEST_CONTRACT_CODE: Vec<u8> = hex::decode(
@@ -338,10 +339,20 @@ async fn test_scaled_ui_master_contract() -> anyhow::Result<()> {
     let factory = assert_ok!(TonContractFactory::builder(&client).build().await);
     let scaled_contract_addr =
         TonAddress::from_str("EQBlPUnynlpSjj65sPc-3Ckdeugoodeu3fOxJdYK3V4AMp87")?;
-    let contract = factory.get_contract(&scaled_contract_addr);
+
+    let tx_id = TonTxId {
+        lt: 63062498000003,
+        hash: TonHash::from_hex(
+            "ff30bc444747f76844726faeabd009cd41093b291bd817a85e7c96df0eb0c268",
+        )?,
+    };
+
+    let contract = factory
+        .get_contract_state_by_transaction(&scaled_contract_addr, &tx_id.into())
+        .await?;
     let multiplier = assert_ok!(contract.get_display_multiplier().await);
-    assert_eq!(multiplier.numerator, 0xc8.into());
-    assert_eq!(multiplier.denominator, 0x64.into());
+    assert_eq!(multiplier.numerator, 0x1.into());
+    assert_eq!(multiplier.denominator, 0x1b6f3b.into());
     Ok(())
 }
 

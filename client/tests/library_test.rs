@@ -1,5 +1,9 @@
+use std::collections::HashSet;
+
 use tonlib_client::contract::{BlockchainLibraryProvider, LibraryProvider};
 use tonlib_core::cell::CellBuilder;
+use tonlib_core::library_helper::LibraryHelper;
+use tonlib_core::types::ZERO_HASH;
 use tonlib_core::TonHash;
 
 mod common;
@@ -38,8 +42,9 @@ async fn test_get_no_lib() -> anyhow::Result<()> {
 
     let library_loader = BlockchainLibraryProvider::new(&client, None);
     let libs = library_loader
-        .get_libs(&[CellBuilder::new().build()?.to_arc()], None)
+        .get_or_load_libs(HashSet::from([ZERO_HASH]))
         .await?;
-    assert_eq!(libs.0.len(), 0);
+    let libs_dict = LibraryHelper::store_to_dict(libs)?;
+    assert_eq!(libs_dict.0.len(), 0);
     Ok(())
 }

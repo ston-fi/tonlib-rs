@@ -37,6 +37,7 @@ adnl.workspace = true
 tokio-tower.workspace = true
 tower = { workspace = true, features = ["util"] }
 
+parking_lot.workspace = true
 lazy_static.workspace = true
 log.workspace = true
 log4rs.workspace = true
