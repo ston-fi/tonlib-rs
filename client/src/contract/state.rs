@@ -1,13 +1,16 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::cell::{BagOfCells, Cell};
-use tonlib_core::TonAddress;
+use tonlib_core::cell::{ArcCell, BagOfCells, Cell};
+use tonlib_core::library_helper::{ContractLibraryDict, LibraryHelper};
+use tonlib_core::{TonAddress, TonHash};
 
 use super::MapCellError;
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::c7_register::TvmEmulatorC7;
+use crate::emulator::error::TvmEmulatorError;
 use crate::emulator::tvm_emulator::TvmEmulator;
 use crate::tl::RawFullAccountState;
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};
@@ -91,47 +94,112 @@ impl TonContractState {
             self.factory.get_config_cell_serial().await?.to_vec(),
         )?;
 
-        let code = BagOfCells::parse(&self.account_state.code)
+        let code_hash = BagOfCells::parse(&self.account_state.code)
             .and_then(|boc| boc.single_root())
-            .map_cell_error(method_str.clone(), &self.address)?;
+            .map_cell_error(method_str.clone(), &self.address)?
+            .cell_hash();
 
-        let data = BagOfCells::parse(&self.account_state.data)
-            .and_then(|boc| boc.single_root())
-            .map_cell_error(method_str, &self.address)?;
-
-        let libs = self
+        let mut libs = self
             .factory
             .library_provider()
-            .get_libs(&[code, data], None)
+            .get_or_load_libs(HashSet::from([code_hash.clone()]))
             .await?;
 
-        let run_result = unsafe {
+        let libs_dict = LibraryHelper::store_to_dict(libs.clone())?;
+        let mut run_result = self
+            .run_emulation_unsafe(
+                state.code.as_slice(),
+                state.data.as_slice(),
+                c7.clone(),
+                libs_dict,
+                stack_ref,
+                method_id.clone(),
+            )
+            .await?;
+
+        let mut iteration = 0;
+        while let Some(missing_lib_str) = &run_result.missing_library {
+            if iteration > self.factory.max_libs_per_contract() {
+                return Err(TonContractError::TooManyLibraries {
+                    limit: self.factory.max_libs_per_contract(),
+                    method: method_id.clone(),
+                    address: self.address().clone(),
+                });
+            }
+            iteration += 1;
+
+            let missing_lib_id = TonHash::from_hex(missing_lib_str)
+                .map_err(|e| TonContractError::InternalError(e.to_string()))?;
+            let lib = self
+                .factory
+                .library_provider()
+                .get_or_load_libs(HashSet::from([missing_lib_id.clone()]))
+                .await?;
+            if lib.is_empty() {
+                return Err(TonContractError::MissingLibrary {
+                    method: method_id.clone(),
+                    address: self.address().clone(),
+                    missing_library: missing_lib_str.to_string(),
+                });
+            };
+            self.factory
+                .library_provider()
+                .update_code_libs(code_hash.clone(), missing_lib_id.clone());
+
+            libs.extend(lib);
+            let libs_dict = LibraryHelper::store_to_dict(libs.clone())?;
+            run_result = self
+                .run_emulation_unsafe(
+                    state.code.as_slice(),
+                    state.data.as_slice(),
+                    c7.clone(),
+                    libs_dict,
+                    stack_ref,
+                    method_id.clone(),
+                )
+                .await?;
+        }
+
+        Self::raise_exit_error(self.address(), &method_id, run_result)
+    }
+
+    async fn run_emulation_unsafe(
+        &self,
+        code: &[u8],
+        data: &[u8],
+        c7: TvmEmulatorC7,
+        libs: ContractLibraryDict,
+        stack: &[TvmStackEntry],
+        method: TonMethodId,
+    ) -> Result<TvmSuccess, TonContractError> {
+        unsafe {
             // Using unsafe to extend lifetime of references to method_id & stack.
             //
             // This is necessary because the compiler doesn't have a proof that these references
             // outlive spawned future.
             // But we're know it for sure since we're awaiting it. In normal async/await block
             // this would be checked by the compiler, but not when using `spawn_blocking`
-            let static_method_id: TonMethodId = method_id.clone();
-            let static_stack: &'static [TvmStackEntry] = std::mem::transmute(stack_ref);
+
+            let code_static: &'static [u8] = std::mem::transmute(code);
+            let data_static: &'static [u8] = std::mem::transmute(data);
+            let method_static: TonMethodId = method.clone();
+            let static_stack: &'static [TvmStackEntry] = std::mem::transmute(stack);
             #[allow(clippy::let_and_return)]
-            tokio::task::spawn_blocking(move || {
-                let code = state.code.as_slice();
-                let data = state.data.as_slice();
-                let mut emulator = TvmEmulator::new(code, data)?;
+            let res = tokio::task::spawn_blocking(move || {
+                let mut emulator = TvmEmulator::new(code_static, data_static)?;
                 emulator.with_c7(&c7)?.with_libraries(libs.0.as_slice())?;
-                let run_result = emulator.run_get_method(&static_method_id, static_stack);
+                let run_result = emulator.run_get_method(&method_static, static_stack);
                 run_result
             })
             .await
-            .map_err(|e| TonContractError::InternalError(e.to_string()))?
+            .map_err(|e| TonContractError::InternalError(e.to_string()))?;
+
+            res.map_err(|error| TonContractError::MethodEmulationError {
+                method: method.to_string(),
+                address: self.address().clone(),
+                error,
+            })
         }
-        .map_err(|e| TonContractError::MethodEmulationError {
-            method: method_id.to_string(),
-            address: self.address().clone(),
-            error: e,
-        });
-        Self::raise_exit_error(self.address(), &method_id, run_result?)
     }
 
     pub async fn emulate_internal_message(
