@@ -118,9 +118,9 @@ impl TonContractState {
 
         let mut iteration = 0;
         while let Some(missing_lib_str) = &run_result.missing_library {
-            if iteration > self.factory.max_libs_per_contract() {
+            if iteration > self.factory.max_dyn_libs_per_contract() {
                 return Err(TonContractError::TooManyLibraries {
-                    limit: self.factory.max_libs_per_contract(),
+                    limit: self.factory.max_dyn_libs_per_contract(),
                     method: method_id.clone(),
                     address: self.address().clone(),
                 });
@@ -172,12 +172,8 @@ impl TonContractState {
         method: TonMethodId,
     ) -> Result<TvmSuccess, TonContractError> {
         unsafe {
-            // Using unsafe to extend lifetime of references to method_id & stack.
-            //
-            // This is necessary because the compiler doesn't have a proof that these references
-            // outlive spawned future.
-            // But we're know it for sure since we're awaiting it. In normal async/await block
-            // this would be checked by the compiler, but not when using `spawn_blocking`
+            // It's actually legacy and unsafe, but won't be fixed.
+            // Use https://github.com/ston-fi/ton-rs instead.
 
             let code_static: &'static [u8] = std::mem::transmute(code);
             let data_static: &'static [u8] = std::mem::transmute(data);
