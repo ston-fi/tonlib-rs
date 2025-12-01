@@ -8,7 +8,8 @@ use num_bigint::BigUint;
 use tokio_test::assert_ok;
 use tonlib_client::client::TonClientInterface;
 use tonlib_client::contract::{
-    TonContractError, TonContractFactory, TonContractInterface, TonContractState,
+    JettonMasterContract, JettonWalletContract, TonContractError, TonContractFactory,
+    TonContractInterface, TonContractState,
 };
 use tonlib_client::types::TvmSuccess;
 use tonlib_core::wallet::mnemonic::Mnemonic;
@@ -200,6 +201,38 @@ async fn test_state_dropping() {
 
 fn test_drop(state: TonContractState) {
     drop(state);
+}
+
+#[tokio::test]
+async fn test_contract_client_tl_provider_dynamic_libs_testnet() -> anyhow::Result<()> {
+    common::init_logging();
+    let client = common::new_testnet_client().await;
+    let factory = TonContractFactory::builder(&client).build().await?;
+    let dyn_lib_master_addr =
+        TonAddress::from_str("kQAjmiNekXMED_a-Ps7whmYgfdT32Z9_kIEzk5F_Bnh-jTFb")?;
+    let dyn_lib_wallet_addr =
+        TonAddress::from_str("kQAsm4uCgpdK5B7msqcd4Pe27C6IakdFsxGwygkgkX-kC56Q")?;
+
+    // test master
+    let jetton_data = factory
+        .get_contract(&dyn_lib_master_addr)
+        .get_jetton_data()
+        .await?;
+    assert_eq!(
+        jetton_data.admin_address,
+        TonAddress::from_str("0:476cbaf6ab9fe4f72c328e5053caeed6919ca0edae2d075c18fd445335b8d04c")?
+    );
+
+    // test wallet
+    let wallet_data = factory
+        .get_contract(&dyn_lib_wallet_addr)
+        .get_wallet_data()
+        .await?;
+    assert_eq!(
+        wallet_data.owner_address,
+        TonAddress::from_str("0:2cf3b5b8c891e517c9addbda1c0386a09ccacbb0e3faf630b51cfc8152325acb")?
+    );
+    Ok(())
 }
 
 #[tokio::test]
