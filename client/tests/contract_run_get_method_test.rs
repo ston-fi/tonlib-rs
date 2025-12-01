@@ -14,10 +14,10 @@ use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
 use tonlib_client::tl::RawFullAccountState;
 use tonlib_client::types::{TonMethodId, TvmStackEntry, TvmSuccess};
-use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
+use tonlib_core::cell::{CellBuilder, CellSlice};
 use tonlib_core::library_helper::LibraryHelper;
 use tonlib_core::types::ZERO_HASH;
-use tonlib_core::{TonAddress, TonHash, TonTxId};
+use tonlib_core::{TonAddress, TonTxId};
 
 use crate::common::new_contract_factory;
 

@@ -17,7 +17,6 @@ use tonlib_client::contract::{
 use tonlib_client::emulator::c7_register::TvmEmulatorC7;
 use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
-use tonlib_client::tl::InternalTransactionId;
 use tonlib_client::types::TvmStackEntry;
 use tonlib_core::cell::{CellBuilder, CellSlice};
 use tonlib_core::message::{JettonTransferMessage, TonMessage};

@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonlib_core::cell::{ArcCell, BagOfCells, Cell};
+use tonlib_core::cell::{BagOfCells, Cell};
 use tonlib_core::library_helper::{ContractLibraryDict, LibraryHelper};
 use tonlib_core::{TonAddress, TonHash};
 
@@ -10,7 +10,6 @@ use super::MapCellError;
 use crate::client::{TonClientError, TonClientInterface};
 use crate::contract::{TonContractError, TonContractFactory, TonContractInterface};
 use crate::emulator::c7_register::TvmEmulatorC7;
-use crate::emulator::error::TvmEmulatorError;
 use crate::emulator::tvm_emulator::TvmEmulator;
 use crate::tl::RawFullAccountState;
 use crate::types::{TonMethodId, TvmMsgSuccess, TvmStackEntry, TvmSuccess};

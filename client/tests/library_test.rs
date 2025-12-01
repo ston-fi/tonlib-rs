@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use tonlib_client::contract::{BlockchainLibraryProvider, LibraryProvider};
-use tonlib_core::cell::CellBuilder;
 use tonlib_core::library_helper::LibraryHelper;
 use tonlib_core::types::ZERO_HASH;
 use tonlib_core::TonHash;
