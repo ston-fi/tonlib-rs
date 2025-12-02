@@ -1,5 +1,6 @@
 mod common;
 
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 
@@ -13,7 +14,9 @@ use tonlib_client::emulator::tvm_emulator::TvmEmulator;
 use tonlib_client::meta::MetaDataContent;
 use tonlib_client::tl::RawFullAccountState;
 use tonlib_client::types::{TonMethodId, TvmStackEntry, TvmSuccess};
-use tonlib_core::cell::{BagOfCells, CellBuilder, CellSlice};
+use tonlib_core::cell::{CellBuilder, CellSlice};
+use tonlib_core::library_helper::LibraryHelper;
+use tonlib_core::types::ZERO_HASH;
 use tonlib_core::{TonAddress, TonTxId};
 
 use crate::common::new_contract_factory;
@@ -224,17 +227,15 @@ async fn benchmark_emulate_ston_router_v2() -> anyhow::Result<()> {
     let code = state.get_account_state().code.clone();
     let data = state.get_account_state().data.clone();
 
-    let code_cell = BagOfCells::parse(&code)?.single_root()?;
-    let data_cell = BagOfCells::parse(&data)?.single_root()?;
-
     let c7 = TvmEmulatorC7::new(
         router_address.clone(),
         factory.get_config_cell_serial().await?.to_vec(),
     )?;
-    let libs = factory
+    let libs_map = factory
         .library_provider()
-        .get_libs(&[code_cell, data_cell], None)
+        .get_or_load_libs(HashSet::from([ZERO_HASH]))
         .await?;
+    let libs = LibraryHelper::store_to_dict(libs_map)?;
 
     let mut sums: ((Duration, Duration, Duration, Duration), Duration) = (
         (

@@ -8,7 +8,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.26.4"
+version = "0.26.5"
 edition = "2021"
 description = "Rust SDK for The Open Network"
 license = "MIT"
@@ -37,7 +37,8 @@ hmac = { version = "0.12", features = ["std"] }
 lazy_static = "1"
 log = "0.4"
 log4rs = "1"
-moka = { version = "0.12", features = ["future"] }
+moka = { version = "0.12", features = ["future", "sync"] }
+parking_lot = "0.12"
 nacl = "0.5"
 num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"

@@ -107,7 +107,11 @@ impl<'a> CellParser<'a> {
     pub fn load_uint(&mut self, bit_len: usize) -> Result<BigUint, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
         let num_words = bit_len.div_ceil(32);
-        let high_word_bits = if bit_len % 32 == 0 { 32 } else { bit_len % 32 };
+        let high_word_bits = if bit_len.is_multiple_of(32) {
+            32
+        } else {
+            bit_len % 32
+        };
         let mut words: Vec<u32> = vec![0_u32; num_words];
         let high_word = self.load_u32(high_word_bits)?;
         words[num_words - 1] = high_word;
@@ -324,7 +328,7 @@ impl<'a> CellParser<'a> {
         } else {
             let bytes = self.load_bits(bit_len)?;
             let res = N::tcn_from_bytes(&bytes);
-            if bit_len % 8 != 0 {
+            if !bit_len.is_multiple_of(8) {
                 Ok(res.tcn_shr(8 - bit_len as u32 % 8))
             } else {
                 Ok(res)

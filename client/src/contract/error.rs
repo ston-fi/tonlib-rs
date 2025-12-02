@@ -66,6 +66,13 @@ pub enum TonContractError {
         missing_library: String,
     },
 
+    #[error("Too many libraries required (Method: {method}, address: {address})")]
+    TooManyLibraries {
+        limit: usize,
+        method: TonMethodId,
+        address: TonAddress,
+    },
+
     #[error("Library not found (Address: {address}, lib: {missing_library})")]
     LibraryNotFound {
         address: TonAddress,

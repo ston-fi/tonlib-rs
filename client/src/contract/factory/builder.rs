@@ -16,6 +16,7 @@ pub struct TonContractFactoryBuilder {
     presync_blocks: i32,
     library_provider: Arc<dyn LibraryProvider>,
     current_seqno: Arc<AtomicI32>,
+    max_dyn_libs_per_contract: usize,
 }
 
 impl TonContractFactoryBuilder {
@@ -41,6 +42,7 @@ impl TonContractFactoryBuilder {
             presync_blocks: Self::DEFAULT_PRESYNC_BLOCKS,
             library_provider,
             current_seqno: current_seqno_counter,
+            max_dyn_libs_per_contract: 100,
         }
     }
 
@@ -73,6 +75,11 @@ impl TonContractFactoryBuilder {
         self
     }
 
+    pub fn with_max_dyn_libs_per_contract(&mut self, max: usize) -> &mut Self {
+        self.max_dyn_libs_per_contract = max;
+        self
+    }
+
     pub async fn build(&self) -> Result<TonContractFactory, TonContractError> {
         TonContractFactory::new(
             &self.client,
@@ -84,6 +91,7 @@ impl TonContractFactoryBuilder {
             self.presync_blocks,
             self.library_provider.clone(),
             self.current_seqno.clone(),
+            self.max_dyn_libs_per_contract,
         )
         .await
     }

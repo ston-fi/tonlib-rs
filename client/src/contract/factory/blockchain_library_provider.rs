@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::future::join_all;
 use moka::future::Cache;
+use parking_lot::RwLock;
 use tonlib_core::cell::{ArcCell, BagOfCells};
-use tonlib_core::library_helper::{ContractLibraryDict, LibraryHelper, TonLibraryError};
+use tonlib_core::library_helper::TonLibraryError;
 use tonlib_core::TonHash;
 
 use super::LibraryProvider;
@@ -17,15 +18,17 @@ use crate::tl::TonLibraryId;
 pub struct LibraryCacheParams {
     capacity: u64,
     time_to_live: Duration,
+    code_extra_libs_capacity: u64,
+    code_extra_libs_time_to_idle: Duration,
 }
 
 impl Default for LibraryCacheParams {
     fn default() -> Self {
-        const DEFAULT_LIBRARY_CACHE_CAPACITY: u64 = 300;
-        const DEFAULT_LIBRARY_CACHE_TIME_TO_LIVE: Duration = Duration::from_secs(60 * 60);
         Self {
-            capacity: DEFAULT_LIBRARY_CACHE_CAPACITY,
-            time_to_live: DEFAULT_LIBRARY_CACHE_TIME_TO_LIVE,
+            capacity: 300,
+            time_to_live: Duration::from_secs(300),
+            code_extra_libs_capacity: 1000,
+            code_extra_libs_time_to_idle: Duration::from_secs(600),
         }
     }
 }
@@ -37,23 +40,42 @@ pub struct BlockchainLibraryProvider {
 
 struct Inner {
     client: TonClient,
-    cache: Cache<TonHash, ArcCell>,
+    libs_cache: Cache<TonHash, ArcCell>,
+    code_dyn_libs_cache: moka::sync::Cache<TonHash, Arc<RwLock<HashSet<TonHash>>>>, // code_hash -> set of lib_hashes
 }
 
 #[async_trait]
 impl LibraryProvider for BlockchainLibraryProvider {
-    async fn get_libs(
+    async fn get_or_load_libs(
         &self,
-        cells: &[ArcCell],
-        mc_seqno: Option<i32>,
-    ) -> Result<ContractLibraryDict, TonLibraryError> {
-        if mc_seqno.is_some() {
-            return Err(TonLibraryError::SeqnoNotSupported);
-        }
+        lib_ids: HashSet<TonHash>,
+    ) -> Result<HashMap<TonHash, ArcCell>, TonLibraryError> {
+        self.inner.get_libs(lib_ids).await
+    }
 
-        let lib_ids = LibraryHelper::extract_library_hashes(cells)?;
-        let libs = self.inner.get_libs(lib_ids).await?;
-        LibraryHelper::store_to_dict(libs)
+    async fn get_or_load_code_libs(
+        &self,
+        code: TonHash,
+    ) -> Result<HashMap<TonHash, ArcCell>, TonLibraryError> {
+        let Some(lib_ids) = self
+            .inner
+            .code_dyn_libs_cache
+            .get(&code)
+            .map(|x| x.read().clone())
+        else {
+            return Ok(HashMap::new());
+        };
+        self.inner.get_libs(lib_ids).await
+    }
+
+    fn update_code_libs(&self, code: TonHash, lib_id: TonHash) {
+        self.inner
+            .code_dyn_libs_cache
+            .entry(code)
+            .or_default()
+            .value()
+            .write()
+            .insert(lib_id);
     }
 }
 
@@ -89,21 +111,26 @@ impl Inner {
             .max_capacity(cache_params.capacity)
             .time_to_live(cache_params.time_to_live)
             .build();
+        let code_extra_libs_cache = moka::sync::Cache::builder()
+            .max_capacity(cache_params.code_extra_libs_capacity)
+            .time_to_idle(cache_params.code_extra_libs_time_to_idle)
+            .build();
 
         Self {
             client: client.clone(),
-            cache,
+            libs_cache: cache,
+            code_dyn_libs_cache: code_extra_libs_cache,
         }
     }
 
     async fn get_libs(
         &self,
-        lib_ids: Vec<TonHash>,
+        lib_ids: HashSet<TonHash>,
     ) -> Result<HashMap<TonHash, ArcCell>, TonLibraryError> {
         let mut result_libs = HashMap::new();
 
         let cached_libs_future = lib_ids.into_iter().map(|key| async move {
-            let maybe_cached = self.cache.get(&key).await;
+            let maybe_cached = self.libs_cache.get(&key).await;
             (key, maybe_cached)
         });
         let maybe_cached_libs = join_all(cached_libs_future).await;
@@ -130,7 +157,7 @@ impl Inner {
     async fn insert_to_lib_cache(&self, libs: Vec<ArcCell>) -> Result<(), TonLibraryError> {
         let mut cache_insert_futures = Vec::with_capacity(libs.len());
         for lib in libs {
-            cache_insert_futures.push(self.cache.insert(lib.cell_hash(), lib.clone()));
+            cache_insert_futures.push(self.libs_cache.insert(lib.cell_hash(), lib.clone()));
         }
         join_all(cache_insert_futures).await;
         Ok(())
