@@ -7,7 +7,7 @@ The tonlib-rs project provides a Rust SDK to interact with The Open Network (TON
 * ```tonlib-client```
     A Rust client for interacting directly with the TON blockchain, offering core functionality and network access. ([Details](./client/README.md))
 * ```tonlib-core```
-     A collection of methods and structures providing a higher-level API built on top of tonlib-client, simplifying common blockchain interactions. ([Details](./clcoreient/README.md))
+     A collection of methods and structures providing a higher-level API built on top of tonlib-client, simplifying common blockchain interactions. ([Details](./core/README.md))
 
 
 ## Features
