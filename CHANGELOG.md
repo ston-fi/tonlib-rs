@@ -132,3 +132,6 @@
 * Bump sys to 2025.11
 ### v0.26.6
 * Bump sys to 2025.12
+### v0.26.7
+* Bump sys to 2026.2.1
+
