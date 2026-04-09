@@ -19,7 +19,11 @@ jobs:
       - name: Install libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsodium-dev libsecp256k1-dev liblz4-dev
+          sudo apt-get install -y libsodium-dev libsecp256k1-dev liblz4-dev clang
+          CLANG_BIN="$(command -v clang)"
+          CLANGXX_BIN="$(command -v clang++)"
+          sudo ln -sf "$CLANG_BIN" /usr/local/bin/clang-21
+          sudo ln -sf "$CLANGXX_BIN" /usr/local/bin/clang++-21
       - run: cargo fmt --check
       - run: cargo clippy
       - run: cargo build --verbose 
