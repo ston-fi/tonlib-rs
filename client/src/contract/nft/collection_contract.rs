@@ -46,7 +46,15 @@ pub trait NftCollectionContract: TonContractInterface {
             let next_item_index = stack[0].get_i64().map_stack_error(method, &address)?;
             let cell = stack[1].get_cell().map_stack_error(method, &address)?;
             let collection_content =
-                read_collection_metadata_content(self.factory(), &address, cell).await?;
+                match read_collection_metadata_content(self.factory(), &address, &cell).await {
+                    Ok(content) => content,
+                    Err(err) => {
+                        log::warn!("Fail to parse metadata: {err}");
+                        MetaDataContent::Unsupported {
+                            boc: BagOfCells::from_root(cell.as_ref().clone()),
+                        }
+                    }
+                };
             let owner_address = stack[2].get_address().map_stack_error(method, &address)?;
 
             Ok(NftCollectionData {
@@ -90,7 +98,7 @@ impl<T> NftCollectionContract for T where T: TonContractInterface {}
 async fn read_collection_metadata_content(
     factory: &TonContractFactory,
     collection_address: &TonAddress,
-    cell: ArcCell,
+    cell: &ArcCell,
 ) -> Result<MetaDataContent, TonContractError> {
     let mut parser = cell.parser();
     let content_representation = parser

@@ -77,25 +77,39 @@ pub enum MetaDataContent {
 
 impl MetaDataContent {
     pub fn parse(cell: &ArcCell) -> Result<MetaDataContent, TonCellError> {
-        // TODO: Refactor NFT metadata to use this method and merge collection data & item data afterwards
-        let mut parser = cell.parser();
-        let content_repr = parser.load_byte()?;
-        match content_repr {
-            0 => {
-                let dict = parser.load_dict_snake_format()?;
-                Ok(MetaDataContent::Internal { dict })
+        let res = match parse_impl(cell) {
+            Ok(content) => content,
+            Err(err) => {
+                log::warn!("Fail to parse metadata: {err}");
+                MetaDataContent::Unsupported {
+                    boc: BagOfCells {
+                        roots: vec![cell.clone()],
+                    },
+                }
             }
-            1 => {
-                let data = parser.load_snake_format_aligned(false)?;
-                let uri = String::from_utf8(data).map_cell_parser_error()?;
-                Ok(MetaDataContent::External { uri })
-            }
-            _ => Ok(MetaDataContent::Unsupported {
-                boc: BagOfCells {
-                    roots: vec![cell.clone()],
-                },
-            }),
+        };
+        Ok(res)
+    }
+}
+
+fn parse_impl(cell: &ArcCell) -> Result<MetaDataContent, TonCellError> {
+    let mut parser = cell.parser();
+    let content_repr = parser.load_byte()?;
+    match content_repr {
+        0 => {
+            let dict = parser.load_dict_snake_format()?;
+            Ok(MetaDataContent::Internal { dict })
         }
+        1 => {
+            let data = parser.load_snake_format_aligned(false)?;
+            let uri = String::from_utf8(data).map_cell_parser_error()?;
+            Ok(MetaDataContent::External { uri })
+        }
+        _ => Ok(MetaDataContent::Unsupported {
+            boc: BagOfCells {
+                roots: vec![cell.clone()],
+            },
+        }),
     }
 }
 
@@ -195,6 +209,14 @@ mod tests {
             }
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_meta_unaligned() -> anyhow::Result<()> {
+        let root = BagOfCells::parse_hex("b5ee9c7201010a0100d400010300c00102012002060143bff872ebdb514d9c97c283b7f0ae5179029e2b6119c39462719e4f46ed8f7413e6400301050000c00402012005060143bff872ebdb514d9c97c283b7f0ae5179029e2b6119c39462719e4f46ed8f7413e640070143bff7407e978f01a40711411b1acb773a96bdd93fa83bb5ca8435013c8c4b3ac91f400901020008008c68747470733a2f2f6a736f6e626c6f622e636f6d2f6170692f6a736f6e426c6f622f30313964666366342d333764322d376139332d393333392d31303131303138356365333000040039")?;
+        let meta = MetaDataContent::parse(&root.single_root().unwrap())?;
+        assert!(matches!(meta, MetaDataContent::Unsupported { .. }));
         Ok(())
     }
 }
