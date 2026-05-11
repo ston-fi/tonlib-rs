@@ -39,7 +39,16 @@ pub trait JettonMasterContract: TonContractInterface {
             let mintable = stack[1].get_bool().map_stack_error(method, &address)?;
             let admin_address = stack[2].get_address().map_stack_error(method, &address)?;
             let cell = stack[3].get_cell().map_stack_error(method, &address)?;
-            let content = read_jetton_metadata_content(cell).map_cell_error(method, &address)?;
+            let content = match read_jetton_metadata_content(&cell) {
+                Ok(content) => content,
+                Err(err) => {
+                    log::warn!("Fail to parse metadata: {err}");
+                    MetaDataContent::Unsupported {
+                        boc: BagOfCells::from_root(cell.as_ref().clone()),
+                    }
+                }
+            };
+
             let wallet_code = stack[4].get_cell().map_stack_error(method, &address)?;
             Ok(JettonData {
                 total_supply,
@@ -88,7 +97,7 @@ pub trait JettonMasterContract: TonContractInterface {
 
 impl<T> JettonMasterContract for T where T: TonContractInterface {}
 
-fn read_jetton_metadata_content(cell: ArcCell) -> Result<MetaDataContent, TonCellError> {
+fn read_jetton_metadata_content(cell: &ArcCell) -> Result<MetaDataContent, TonCellError> {
     let mut parser = cell.parser();
     let content_representation = parser.load_byte()?;
     match content_representation {
